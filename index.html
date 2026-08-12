@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark light" />
+<title>Ledger</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@600;700&display=swap');
+
+  :root{
+    --radius: 18px;
+    --radius-sm: 12px;
+    --profit: #34D399;
+    --loss: #FF3B30;
+    --accent: #FF8A1E;
+    --mp: #3B7CFF; --mp-soft: #83ABFF; --mp-tint: rgba(59,124,255,0.13);
+    --op: #17C4A0; --op-soft: #5FE3C4; --op-tint: rgba(23,196,160,0.13); --op-text: #241463;
+    /* dynamic — switched by JS to match the selected provider */
+    --theme: var(--mp); --theme-soft: var(--mp-soft); --theme-tint: var(--mp-tint); --theme-text: #ffffff;
+  }
+  [data-theme="night"]{
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #0C0C0D;
+    --surface-2: #131314;
+    --surface-3: #1A1A1B;
+    --line: #1E1E1F;
+    --line-soft: #161617;
+    --text: #F2F2F2;
+    --muted: #8A8A8E;
+    --muted-2: #525255;
+    --shadow: 0 0 0 1px rgba(255,255,255,0.035), 0 20px 44px -18px rgba(0,0,0,0.85);
+    --shadow-sm: 0 0 0 1px rgba(255,255,255,0.03), 0 8px 20px -12px rgba(0,0,0,0.7);
+  }
+  [data-theme="day"]{
+    color-scheme: light;
+    --bg: #E8EAEE;
+    --surface: #FFFFFF;
+    --surface-2: #F1F3F6;
+    --surface-3: #E9EBEF;
+    --line: #DFE2E7;
+    --line-soft: #EBEDF0;
+    --text: #14171A;
+    --muted: #6B7280;
+    --muted-2: #9CA3AF;
+    --shadow: 0 2px 6px rgba(15,23,42,0.08), 0 24px 48px -20px rgba(15,23,42,0.22);
+    --shadow-sm: 0 1px 3px rgba(15,23,42,0.07), 0 10px 24px -14px rgba(15,23,42,0.16);
+    /* darker variants for text-on-white — the night-mode "soft" colors are too light to read here */
+    --profit: #0E9F6E;
+    --loss: #DC2626;
+    --accent: #C9660A;
+    --mp-soft: #1D4ED8;
+    --op-soft: #0D8F73;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 48px;
+  }
+  h1,h2,h3, .display{ font-family: 'Space Grotesk', sans-serif; }
+  .num{ font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+  .wrap{ max-width: 560px; margin: 0 auto; padding: 28px 18px 8px; }
+
+  header.top{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
+  header.top .brand{ display:flex; align-items:center; gap:10px; }
+  header.top h1{ font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -0.02em; color: var(--text); }
+  header.top .today{ font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight:600; }
+  .top-right{ display:flex; align-items:center; gap: 12px; }
+  .theme-toggle{ width:30px; height:30px; border-radius:9px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition: background 0.15s, border-color 0.15s; }
+  .theme-toggle:hover{ border-color: var(--theme); color: var(--theme-soft); }
+  .theme-toggle svg{ width:15px; height:15px; }
+
+  .card{ background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+  .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
+  .log-toggle{ width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; font-family:'Inter',sans-serif; padding: 0 0 4px; margin: 0; }
+  .log-toggle:hover{ color: var(--theme-soft); }
+  .log-caret{ font-size: 10px; transition: transform 0.15s; }
+  .log-caret.open{ transform: rotate(90deg); }
+  #logContent{ margin-top: 14px; }
+
+  .segmented{ display:flex; background: var(--surface-2); border-radius: 999px; padding: 4px; margin-bottom: 12px; }
+  .segmented button{ flex:1; border:none; background: transparent; color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13.5px; padding: 10px 6px; border-radius: 999px; cursor:pointer; transition: background 0.18s, color 0.18s; }
+  #typeSeg{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; background:none; padding:0; }
+  #typeSeg button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; padding: 14px 4px 12px; line-height:1.25; box-shadow:none; }
+  #typeSeg button svg{ width:19px; height:19px; }
+  #typeSeg .ic-down{ color: var(--profit); }
+  #typeSeg .ic-up{ color: var(--loss); }
+  #typeSeg button.active .ic-down{ color: #4AFFB0; }
+  #typeSeg button.active .ic-up{ color: #FF453A; }
+  #typeSeg .icon-combo{ display:flex; gap:1px; }
+  #typeSeg .icon-combo svg{ width:15px; height:19px; }
+  #typeSeg button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
+  #providerSeg{ display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; background:none; padding:0; }
+  #providerSeg button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; padding: 16px 6px 14px; box-shadow:none; }
+  #providerSeg .provider-avatar{ width:28px; height:28px; margin-right:0; }
+  #providerSeg .provider-avatar.letter{ background: var(--mp); }
+  #providerSeg button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
+  .segmented button.active{ background: var(--theme); color: var(--theme-text); box-shadow: 0 4px 14px -4px rgba(0,0,0,0.4); }
+
+  /* Provider-themed UI — driven by the --theme variables JS sets on selection */
+  .provider-avatar{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-right:9px; vertical-align:middle; border-radius:7px; transition: background 0.18s; }
+  .provider-avatar.letter{ background: var(--theme); color: #ffffff; font-size:11.5px; font-weight:700; font-family:'Space Grotesk',sans-serif; box-shadow: 0 2px 8px -2px rgba(0,0,0,0.5); }
+  .provider-avatar.ring{ background: #ffffff; padding:3.5px; box-shadow: 0 2px 8px -2px rgba(0,0,0,0.5); }
+  [data-theme="day"] .provider-avatar.ring{ box-shadow: none; border: 1px solid var(--line); }
+  .provider-avatar.ring svg{ width:100%; height:100%; display:block; }
+  #entryCard{ border-color: var(--theme); box-shadow: var(--shadow-sm), 0 0 0 1px var(--theme-tint); transition: border-color 0.18s, box-shadow 0.18s; }
+
+  .biller-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:7px; margin-bottom: 14px; }
+  .biller-row button{ background: var(--surface-2); border: 1.5px solid var(--line); color: var(--muted); padding: 7px 13px; border-radius: 20px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; cursor:pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
+  .field{ margin-bottom: 14px; }
+  .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 5px; font-weight:600; text-align:center; }
+  .field input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; }
+  .field input::placeholder{ color: var(--muted-2); }
+  .field input:focus{ border-color: var(--theme); }
+  .field input:disabled{ color: var(--theme-soft); opacity: 0.9; -webkit-text-fill-color: var(--theme-soft); }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  @media (max-width: 380px){
+    #settingsContent .row2, #settingsContent .row3{ grid-template-columns: 1fr; }
+  }
+
+  .autofee{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom: 10px; }
+  .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:600; text-align:center; }
+  .autofee .toggle{ font-size: 11px; color: var(--muted); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
+  .autofee .toggle input{ width:auto; margin:0; accent-color: var(--theme); }
+  .autobox{ background: var(--theme-tint); border: 1.5px solid var(--theme); border-radius: var(--radius-sm); padding: 14px; transition: background 0.18s, border-color 0.18s; }
+  .autobox.deduct{ background: rgba(255,59,48,0.1); border-color: var(--loss); }
+  .autobox.deduct .total{ color: var(--loss); }
+  .autobox-label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:600; text-align:center; margin-bottom: 6px; }
+
+  #amountFieldWrap.withdrawn-field label{ color: var(--theme-soft); font-weight:700; }
+  #amountFieldWrap.withdrawn-field input{ background: var(--theme-tint); border-color: var(--theme); text-align:center; font-weight:600; }
+  #transferAmountsGrid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px; }
+  #transferAmountsGrid .field{ position:relative; margin-bottom:0; }
+  #transferAmountsGrid .field input{ text-align:center; }
+  #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
+  #runningTotalRow{ align-items:stretch; }
+  #cashField, #runningTotalWrap{ display:flex; flex-direction:column; margin-bottom:16px; }
+  #cashField input, #runningTotalWrap .running-total{ flex:1; }
+  #cashField{ position:relative; }
+  #cashField input{ text-align:center; }
+  #cashField .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
+  .add-transfer{ width:100%; background:none; border:1.5px dashed var(--line); color:var(--theme-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:14px; }
+  .add-transfer:hover{ border-color: var(--theme); color: var(--theme); }
+  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:12px 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--line); transition: border-color 0.15s, background 0.15s; }
+  .running-total .val{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-variant-numeric:tabular-nums; }
+  .running-total.over{ border-color: var(--loss); background: rgba(255,59,48,0.08); }
+  .running-total.over .val{ color: var(--loss); }
+  .running-total.exact{ border-color: var(--profit); background: rgba(52,211,153,0.08); }
+  .running-total.exact .val{ color: var(--profit); }
+  .autobox .total{ font-size: 21px; color: var(--theme-soft); font-variant-numeric: tabular-nums; font-family:'Space Grotesk',sans-serif; font-weight:700; text-align:center; }
+  .autobox .breakdown{ display:none; }
+
+  .addbtn{ width:100%; padding: 15px; border-radius: var(--radius-sm); border: none; background: var(--theme); color: var(--theme-text); font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; letter-spacing: 0.01em; transition: background 0.18s, transform 0.1s; box-shadow: 0 6px 18px -6px var(--theme); margin-top: 4px; }
+  .addbtn:active{ transform: scale(0.985); }
+  .hint{ font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.55; }
+  .verified{ display:inline-block; font-size: 9.5px; color: var(--profit); border: 1px solid rgba(52,211,153,0.4); background: rgba(52,211,153,0.08); border-radius: 20px; padding: 2px 8px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; font-weight:600; }
+
+  .receipt{ background: var(--surface); border-radius: var(--radius); position: relative; padding: 22px 20px 16px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+  .receipt::before, .receipt::after{ content:""; position:absolute; left:0; right:0; height: 9px; background: radial-gradient(circle at 7px 4.5px, var(--bg) 5px, transparent 5.5px) repeat-x; background-size: 16px 9px; }
+  .receipt::before{ top:-4.5px; } .receipt::after{ bottom:-4.5px; transform: rotate(180deg); }
+
+  .tabs{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; background:none; padding:0; }
+  .tabs button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 10.5px; font-weight: 700; padding: 12px 3px 10px; border-radius: var(--radius-sm); cursor:pointer; transition: background 0.18s, color 0.18s, border-color 0.18s; line-height:1.25; }
+  .tabs button svg{ width:17px; height:17px; }
+  .tabs button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
+
+  .provider-filter{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom: 18px; font-size: 11px; }
+  .summary-toggle{ width:100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; font-family:'Space Grotesk',sans-serif; padding: 11px; margin-bottom: 4px; }
+  .summary-toggle:hover{ color: var(--theme-soft); border-color: var(--theme); }
+  .summary-caret{ font-size: 10px; transition: transform 0.15s; }
+  .summary-caret.open{ transform: rotate(90deg); }
+  .summary-content{ margin-top: 14px; }
+  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--muted); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Space Grotesk', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .provider-filter button.active{ border-color: var(--accent); color: var(--accent); background: rgba(255,138,30,0.1); }
+  #providerFilter button[data-val="Moniepoint"].active{ border-color: var(--mp); color: var(--mp-soft); background: var(--mp-tint); }
+  #providerFilter button[data-val="Opay"].active{ border-color: var(--op); color: var(--op-soft); background: var(--op-tint); }
+
+  .rline{ display:flex; justify-content:space-between; font-size: 13.5px; padding: 7px 0; color: var(--text); font-weight:500; }
+  .rline .amt{ font-variant-numeric: tabular-nums; font-weight:600; }
+  .rline.neg .amt{ color: var(--loss); }
+  .dashed{ border-top: 1.5px dashed var(--line); margin: 10px 0; }
+
+  .netline{ display:flex; justify-content:space-between; align-items:baseline; padding-top: 12px; }
+  .netline .lbl{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .netline .val{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size: 26px; color: var(--profit); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .netline .val.neg{ color: var(--loss); }
+  .txcount{ font-size: 10.5px; color: var(--muted-2); text-align:center; margin-top: 12px; letter-spacing: 0.05em; font-weight:500; }
+  .pdfbtn{ display:flex; align-items:center; justify-content:center; gap:7px; width:100%; margin-top: 16px; padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; cursor:pointer; transition: border-color 0.15s, background 0.15s; }
+  .pdfbtn:hover{ border-color: var(--theme); }
+  .pdfbtn svg{ width:15px; height:15px; flex-shrink:0; }
+  .pdfbtn:disabled{ opacity:0.6; cursor:default; }
+
+  .log-date-sep{ font-size: 13px; font-weight: 700; color: var(--muted); margin: 18px 0 6px; font-family: 'Space Grotesk', sans-serif; }
+  .log-date-sep-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 18px 0 6px; }
+  .log-date-sep-row .log-date-sep{ margin: 0; }
+  .log-date-sep:first-child{ margin-top: 2px; }
+  .log-day-group{ background: var(--surface-2); border-radius: var(--radius-sm); padding: 2px 14px; }
+  .log-day-group .log-item:last-child{ border-bottom:none; }
+  .log-item{ display:flex; align-items:center; padding: 13px 0; border-bottom: 1px solid var(--line-soft); gap: 12px; }
+  .log-icon{ width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .log-icon svg{ width:15px; height:15px; }
+  .log-icon.out{ background: rgba(251,122,122,0.12); color: var(--loss); }
+  .log-icon.in{ background: rgba(52,211,153,0.12); color: var(--profit); }
+  .log-icon.combo{ background: var(--surface-3); gap:1px; }
+  .log-icon.combo svg{ width:11px; height:15px; }
+  .log-icon.combo svg:first-child{ color: var(--profit); }
+  .log-icon.combo svg:last-child{ color: var(--loss); }
+  .log-left .badge{ display:inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif; }
+  .badge.moniepoint{ background: var(--mp-tint); color: var(--mp-soft); }
+  .badge.opay{ background: var(--op-tint); color: var(--op-soft); }
+  .log-left .type{ font-size: 13.5px; color: var(--text); font-weight:600; }
+  .log-left .date{ font-size: 11px; color: var(--muted); margin-top: 4px; font-weight:500; }
+  .log-left .amountline{ font-size: 11px; color: var(--muted); margin-top: 3px; font-weight:500; font-variant-numeric: tabular-nums; }
+  .log-left .feenote{ font-size: 10.5px; color: var(--muted-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .log-left{ flex:1; min-width:0; }
+  .log-right{ text-align:right; flex-shrink:0; }
+  .log-right .profit-label{ font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); font-weight: 600; margin-bottom: 2px; }
+  .log-right .profit-locked{ color: var(--loss); opacity: 0.85; }
+  .log-right .profit-locked svg{ width:18px; height:18px; }
+  .amt .lock-eye{ width:12px; height:12px; vertical-align:-2px; margin-right:4px; opacity:0.85; }
+  .amt .lock-dots{ letter-spacing:1px; }
+  .log-right .profit{ font-size: 15px; font-weight: 700; color: var(--profit); font-variant-numeric: tabular-nums; }
+  .log-right .profit.neg{ color: var(--loss); }
+  .log-right .del{ background:none; border:none; color: var(--muted-2); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; }
+
+  .empty{ text-align:center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+
+  .settings-gate{ margin-top: 6px; }
+  .settings-toggle{ width:100%; background:none; border:none; text-align:center; font-size: 11.5px; color: var(--muted); cursor:pointer; letter-spacing: 0.05em; text-transform: uppercase; padding: 6px 0; font-weight:700; font-family: 'Inter', sans-serif; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .settings-toggle:hover{ color: var(--theme-soft); }
+  #settingsCaret{ display:inline-block; font-size: 9px; transition: transform 0.15s; }
+  .settings-toggle.open #settingsCaret{ transform: rotate(90deg); }
+  .settings-password{ display:flex; gap:8px; align-items:center; margin-top: 10px; flex-wrap:wrap; }
+  .pdf-password{ display:flex; gap:8px; align-items:center; margin-top: 12px; flex-wrap:wrap; }
+  .pdf-password input{ flex:1; min-width:140px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
+  .pdf-password input:focus{ border-color: var(--theme); }
+  .pdf-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
+  .pdf-password .hint{ width:100%; margin-top:2px; }
+  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
+  .settings-password input:focus{ border-color: var(--theme); }
+  .settings-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
+  .settings-password .status{ width:100%; margin-top:2px; text-align:left; color: var(--loss); }
+  .lock-reminder{ display:flex; align-items:flex-start; gap:8px; background: rgba(255,138,30,0.08); border: 1px solid rgba(255,138,30,0.3); border-radius: var(--radius-sm); padding: 10px 12px; margin: 10px 0 12px; font-size: 11.5px; color: var(--accent); line-height:1.5; }
+  .lock-reminder svg{ width:15px; height:15px; flex-shrink:0; margin-top:1px; }
+  .lock-now-btn{ display:flex; align-items:center; justify-content:center; gap:7px; width:100%; background: var(--loss); color:#1A0E0E; border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius: var(--radius-sm); cursor:pointer; margin-bottom: 14px; }
+  .lock-now-btn svg{ width:15px; height:15px; }
+  .settings .field{ margin-top: 12px; }
+  .settings h3{ font-size: 11px; color: var(--theme-soft); text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 4px; font-weight:700; }
+  .settings h3.mp-heading{ color: var(--mp-soft); }
+  .settings h3.op-heading{ color: var(--op-soft); }
+  .fee-table-wrap{ margin-top: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
+  .trend-box{ border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 12px; }
+  .trend-icon{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+  .trend-icon svg{ width:16px; height:16px; }
+  .trend-icon.in{ background: rgba(52,211,153,0.12); color: var(--profit); }
+  .trend-icon.out{ background: rgba(251,122,122,0.12); color: var(--loss); }
+  .trend-label{ font-size: 12.5px; font-weight: 700; margin-bottom: 8px; font-family:'Space Grotesk',sans-serif; }
+  .trend-label.in{ color: var(--profit); }
+  .trend-label.out{ color: var(--loss); }
+  .trend-amt{ font-size: 17px; font-weight: 700; font-family:'Space Grotesk',sans-serif; }
+  .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
+  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 12.5px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
+  .tip-row textarea:focus{ border-color: var(--theme); }
+  .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
+  .tip-row .tip-remove:hover{ border-color: var(--loss); }
+  .fee-table-title{ width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none; cursor:pointer; padding:0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight:700; margin-bottom: 0; font-family: 'Inter', sans-serif; }
+  .fee-table-caret{ font-size: 9px; transition: transform 0.15s; }
+  .fee-table-caret.open{ transform: rotate(90deg); }
+  .fee-table{ margin-top: 10px; }
+  .fee-table-subhead{ font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mp-soft); font-weight:700; margin: 10px 0 4px; }
+  .fee-row{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); }
+  .fee-row:last-child{ border-bottom:none; }
+  .fee-row-amt{ color: var(--text); font-weight:600; flex-shrink:0; font-variant-numeric: tabular-nums; }
+  .fee-row-detail{ color: var(--muted); text-align:right; font-variant-numeric: tabular-nums; font-size: 11px; }
+  .fee-row-detail strong{ color: var(--mp-soft); font-weight:700; }
+  .switchrow{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+  .switchrow label{ font-size: 12px; color: var(--text); font-weight:500; }
+  .switchrow input[type="checkbox"]{ accent-color: var(--theme); }
+  .resetbtn{ background:none; border: 1.5px solid var(--loss); color: var(--loss); font-family: 'Inter', sans-serif; font-weight:600; font-size: 12px; padding: 9px 14px; border-radius: var(--radius-sm); cursor:pointer; margin-top: 16px; transition: all 0.15s; }
+  .resetbtn.armed{ background: var(--loss); color: #1A0E0E; }
+  .card.has-clear{ position:relative; }
+  .clearbtn{ background:none; border: 1.5px solid var(--line); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
+  .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
+  .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
+  .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
+  .disclaimer{ font-size: 11px; color: var(--muted); line-height: 1.65; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Ledger</h1>
+    </div>
+    <div class="top-right">
+      <div class="today" id="todayLabel"></div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
+    </div>
+  </header>
+
+  <div class="card" id="entryCard" data-provider="Moniepoint">
+    <h2><span class="provider-avatar letter" id="providerAvatar">M</span>Log a Transaction</h2>
+
+    <div class="segmented" id="providerSeg">
+      <button data-val="Moniepoint" class="active"><span class="provider-avatar letter">M</span><span>Moniepoint</span></button>
+      <button data-val="Opay"><span class="provider-avatar ring"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="21" cy="20" r="13" fill="none" stroke="#17C4A0" stroke-width="7"/><rect x="0" y="16.5" width="10" height="7" fill="#241463"/></svg></span><span>Opay</span></button>
+    </div>
+
+    <div class="segmented" id="typeSeg">
+      <button data-val="Withdrawal" class="active"><svg class="ic-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></svg><span>Withdrawal</span></button>
+      <button data-val="Transfer"><svg class="ic-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg><span>Transfer</span></button>
+      <button data-val="WithdrawTransfer"><span class="icon-combo"><svg class="ic-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></svg><svg class="ic-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></span><span>Withdraw+Transfer</span></button>
+      <button data-val="Bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg><span>Bills</span></button>
+    </div>
+    <div class="hint" id="comboHint" style="display:none; text-align:center; margin-top:-6px; margin-bottom:12px;">Customer withdraws funds and sends part/all of it to a preferred account or splits funds into different accounts — charged as separate fees (withdrawal + each transfer), each with its own VAT and stamp duty check. Auto-reserve applies once per leg.</div>
+
+    <div class="biller-row" id="billerSeg" style="display:none;">
+      <button data-val="Electricity" class="active">Electricity</button>
+      <button data-val="DSTV">DSTV</button>
+      <button data-val="GOTV">GOTV</button>
+      <button data-val="StarTimes">StarTimes</button>
+      <button data-val="Showmax">Showmax</button>
+    </div>
+
+    <div class="row2" id="amountFeeRow">
+      <div class="field" id="amountFieldWrap">
+        <label id="amountLabel">Amount withdrawn/sent (₦)</label>
+        <input type="text" id="amount" inputmode="numeric" autocomplete="off" placeholder="e.g. 20,000" />
+      </div>
+      <div class="field" id="customerFeeFieldWrap">
+        <label>Fee you charged customer (₦)</label>
+        <input type="text" id="customerFee" inputmode="numeric" autocomplete="off" placeholder="e.g. 200" style="text-align:center;" />
+      </div>
+    </div>
+
+    <div id="transferSection" style="display:none;">
+      <div class="row2" id="transferAmountsGrid"></div>
+      <button class="add-transfer" id="addTransferBtn" type="button">+ Add 2 more transfer amounts</button>
+      <button class="add-transfer" id="addCashBtn" type="button">+ Cash brought in</button>
+
+      <div class="row2" id="runningTotalRow">
+        <div class="field" id="cashField" style="display:none;">
+          <span class="remove-x" id="cashRemoveBtn">✕</span>
+          <label>Cash brought in (₦)</label>
+          <input type="text" id="cashAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 10,000" />
+        </div>
+        <div class="field" id="runningTotalWrap">
+          <label>Remaining to allocate (₦)</label>
+          <div class="running-total" id="runningTotalBox">
+            <span class="val" id="runningTotalVal">₦0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="customerFeeStandaloneSlot"></div>
+
+    <div class="field">
+      <div class="autofee">
+        <label class="toggle"><input type="checkbox" id="overrideFee" />override fee</label>
+      </div>
+      <label class="autobox-label">Total deducted from your balance (auto)</label>
+      <div class="autobox deduct">
+        <div class="total" id="machineTotal">₦0</div>
+        <div class="breakdown" id="machineBreakdown">fee ₦0 · VAT ₦0 · stamp duty ₦0</div>
+        <input type="text" id="providerFee" inputmode="numeric" autocomplete="off" placeholder="e.g. 0 for a free transfer" style="display:none; margin-top:10px;" />
+      </div>
+    </div>
+
+    <button class="addbtn" id="addBtn">Add Transaction</button>
+    <div class="hint">Net profit = fee you charged customer − everything Moniepoint/Opay deducted (fee + VAT + stamp duty + autosave). Use "override fee" for cases like free same-bank transfers — VAT, stamp duty, and autosave still calculate automatically on whatever fee you enter.</div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Volume Analysis</h2>
+    <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
+    <div id="volumeContent" style="display:none;">
+      <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
+        <button data-val="today" class="active">Today</button>
+        <button data-val="week">Week</button>
+        <button data-val="month">Month</button>
+      </div>
+      <div class="trend-grid">
+        <div class="trend-box">
+          <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+          <div class="trend-label in">Money in</div>
+          <div class="trend-amt" id="trendMoneyIn">₦0</div>
+        </div>
+        <div class="trend-box">
+          <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+          <div class="trend-label out">Money out</div>
+          <div class="trend-amt" id="trendMoneyOut">₦0</div>
+        </div>
+      </div>
+      <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
+    </div>
+  </div>
+
+  <div class="card has-clear">
+    <button class="log-toggle" id="logToggle">
+      <span class="log-caret" id="logCaret">▶</span>
+      <span>Transaction Log</span>
+    </button>
+    <div id="logContent" style="display:none;">
+      <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
+      <div id="logList"></div>
+      <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="summary-toggle" id="summaryToggle">
+      <span class="summary-caret" id="summaryCaret">▶</span>
+      <span>Performance Overview</span>
+    </button>
+
+    <div class="summary-content" id="summaryContent" style="display:none;">
+      <div class="tabs" id="periodTabs">
+        <button data-val="today" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span>Today</span></button>
+        <button data-val="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg><span>This Week</span></button>
+        <button data-val="month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg><span>This Month</span></button>
+        <button data-val="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 12h4M3 12l3-3M3 12l3 3"/></svg><span>All Time</span></button>
+      </div>
+      <div class="provider-filter" id="providerFilter">
+        <button data-val="All" class="active">All</button>
+        <button data-val="Moniepoint">Moniepoint</button>
+        <button data-val="Opay">Opay</button>
+      </div>
+
+      <div class="rline neg"><span>VAT</span><span class="amt" id="sumVat">−₦0</span></div>
+      <div class="rline neg"><span>Stamp duty</span><span class="amt" id="sumStamp">−₦0</span></div>
+      <div class="rline neg"><span>Moniepoint/Opay fee</span><span class="amt" id="sumBaseFee">−₦0</span></div>
+      <div class="rline neg" id="sumAutosaveRow" style="display:none;"><span>Auto-save (Moniepoint)</span><span class="amt" id="sumAutosave">−₦0</span></div>
+      <div class="rline"><span>Customer fees collected</span><span class="amt" id="sumCustomerFee">₦0</span></div>
+      <div class="dashed"></div>
+      <div class="netline">
+        <span class="lbl">Net Profit</span>
+        <span class="val" id="netProfit">₦0</span>
+      </div>
+      <div class="txcount" id="txCount">0 transactions</div>
+      <button class="pdfbtn" id="pdfBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+        Download / Share PDF
+      </button>
+      <div class="pdf-password" id="pdfPasswordBox" style="display:none;">
+        <input type="password" id="pdfPasswordInput" autocomplete="off" placeholder="Owner password (optional)" />
+        <button id="pdfGenerateBtn">Generate</button>
+        <div class="hint">Enter the owner's password to include fee breakdowns and net profit in the file. Leave it blank for a basic report — amounts and fees charged only.</div>
+      </div>
+      <div class="status" id="pdfStatus"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="log-toggle" id="safetyToggle">
+      <span class="log-caret" id="safetyCaret">▶</span>
+      <span>Educational &amp; Safety Tips</span>
+    </button>
+    <div id="safetyContent" style="display:none; margin-top:14px;">
+      <ul id="safetyTipsList" style="margin:0; padding-left:18px; color:var(--muted); font-size:12.5px; line-height:1.9;"></ul>
+      <div class="fee-table-wrap" style="margin-top:14px;">
+        <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:700;margin-bottom:2px;">Your service fee table (quick reference)</div>
+        <div class="fee-table" id="serviceFeeReference" style="display:block;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="settings-gate">
+      <button class="settings-toggle" id="settingsToggle"><span id="settingsCaret">▶</span> Settings &amp; rate table</button>
+
+      <div class="settings-password" id="settingsPasswordBox" style="display:none;">
+        <input type="password" id="settingsPasswordInput" autocomplete="off" placeholder="Enter password" />
+        <button id="settingsUnlockBtn">Unlock</button>
+        <div class="status" id="settingsPasswordStatus"></div>
+      </div>
+
+      <div class="settings-content settings" id="settingsContent" style="display:none;">
+
+      <div class="lock-reminder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Remember to tap <strong>Lock now</strong> when you're done — this auto-locks after 30 minutes either way.</span>
+      </div>
+      <button class="lock-now-btn" id="lockNowBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Lock now
+      </button>
+
+      <h3 class="mp-heading">Moniepoint rates</h3>
+      <div class="row2">
+        <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="mp_pct" step="0.01" /></div>
+        <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_flat" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_threshold" /></div>
+        <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_transfer" /></div>
+      </div>
+      <div class="field"><label>Auto-save per transaction (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="autosaveFlat" /></div>
+      <div class="switchrow"><label>Track auto-save automatically</label><input type="checkbox" id="autosaveEnabled" checked /></div>
+      <div class="hint">Currently set to exact 0.5%, confirmed against your real ₦100 (₦0.50) transaction. Note: your ₦8,100 (₦45) and ₦10,200 (₦55) transactions don't fit this exactly — those showed rounding up to the nearest ₦5, which doesn't match the ₦100 case. The exact rule for larger amounts isn't fully confirmed yet — use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
+      <div class="fee-table-wrap">
+        <button class="fee-table-title" id="mpFeeTableToggle" type="button">
+          <span>Total deducted, by amount</span>
+          <span class="fee-table-caret" id="mpFeeTableCaret">▶</span>
+        </button>
+        <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
+      </div>
+
+      <h3 class="op-heading">Opay rates <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(flat ₦100+ confirmed by you; % rate and rounding still unverified)</span></h3>
+      <div class="row2">
+        <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="op_pct" step="0.01" /></div>
+        <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_flat" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_threshold" /></div>
+        <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_transfer" /></div>
+      </div>
+
+      <h3>VAT on machine fee</h3>
+      <div class="switchrow"><label>Apply automatically</label><input type="checkbox" id="vatEnabled" checked /></div>
+      <div class="field"><label>VAT rate (%)</label><input type="number" id="vatRate" step="0.1" /></div>
+      <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free.</div>
+
+      <h3>Stamp Duty (EMTL)</h3>
+      <div class="switchrow"><label>Apply automatically</label><input type="checkbox" id="stampEnabled" checked /></div>
+      <div class="row2">
+        <div class="field"><label>Flat charge (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampFlat" /></div>
+        <div class="field"><label>Applies at/above amount (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampThreshold" /></div>
+      </div>
+      <div class="switchrow"><label>Also apply to Withdrawals</label><input type="checkbox" id="stampOnWithdrawal" /></div>
+      <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too.</div>
+
+      <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes, Showmax)</h3>
+      <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
+      <div class="hint">Your record book shows a dash under MC for Electricity/GOTV rows — no machine charge on bill payments — so this defaults to ₦0 and your full fee is profit. Edit if that ever changes.</div>
+
+      <h3>Service Fee Table <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
+      <div class="hint">Set the fee you charge customers at each amount tier. Edit any box — this also shows as a quick reference in Educational &amp; Safety Tips.</div>
+      <div class="row2" id="serviceFeeInputs"></div>
+      <div class="field"><label>Above ₦20,000 — fee per ₦10,000 (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="serviceFeeAboveInput" /></div>
+
+      <h3>Withdraw+Transfer Service Fees <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers, by amount range)</span></h3>
+      <div class="row2" id="comboFeeInputs"></div>
+
+      <h3>Educational &amp; Safety Tips</h3>
+      <div class="hint">Edit any tip below, remove one, or add a new one — updates instantly on the Educational &amp; Safety Tips card.</div>
+      <div id="safetyTipsEditor"></div>
+      <button class="pdfbtn" id="addTipBtn" type="button" style="margin-top:8px;">+ Add tip</button>
+
+      <div class="disclaimer">
+        This is built from an actual terminal statement. Annual income tax (progressive, on total yearly profit) is separate and not calculated here — use your Net Profit totals for that when you file.
+      </div>
+
+      <button class="resetbtn" id="resetBtn">Erase all data</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = (sel) => document.querySelector(sel);
+  const fmt = (n) => '₦' + (Math.round(n * 100) / 100).toLocaleString('en-NG', {maximumFractionDigits: 2});
+  const fmtPdf = (n) => 'NGN ' + (Math.round(n * 100) / 100).toLocaleString('en-NG', {maximumFractionDigits: 2});
+  const numVal = (sel) => { const v = ($(sel).value || '').replace(/,/g,''); return parseFloat(v) || 0; };
+
+  // Storage layer: uses Claude's artifact storage API when available (in-preview),
+  // and automatically falls back to localStorage when running standalone
+  // (e.g. hosted on GitHub Pages), where window.storage doesn't exist.
+  const LS_PREFIX = 'ledger_';
+  const store = {
+    async get(key){
+      if(window.storage && typeof window.storage.get === 'function'){
+        try{ return await window.storage.get(key, false); }
+        catch(e){ /* fall through to localStorage */ }
+      }
+      try{
+        const raw = localStorage.getItem(LS_PREFIX + key);
+        return raw !== null ? { key, value: raw } : null;
+      }catch(e){ return null; }
+    },
+    async set(key, value){
+      if(window.storage && typeof window.storage.set === 'function'){
+        try{ return await window.storage.set(key, value, false); }
+        catch(e){ /* fall through to localStorage */ }
+      }
+      try{
+        localStorage.setItem(LS_PREFIX + key, value);
+        return { key, value };
+      }catch(e){ return null; }
+    }
+  };
+
+  function attachCommaFormatting(input){
+    input.addEventListener('input', ()=>{
+      const distFromEnd = input.value.length - input.selectionStart;
+      let raw = input.value.replace(/,/g,'').replace(/[^0-9.]/g,'');
+      const dot = raw.indexOf('.');
+      if(dot !== -1){ raw = raw.slice(0, dot+1) + raw.slice(dot+1).replace(/\./g,''); }
+      const [intPartRaw, decPart] = raw.split('.');
+      const intPart = intPartRaw.replace(/^0+(?=\d)/, '');
+      const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
+      input.value = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
+      const pos = Math.max(0, input.value.length - distFromEnd);
+      input.setSelectionRange(pos, pos);
+    });
+  }
+
+  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today' };
+  let transactions = [];
+  let settings = {
+    vatEnabled: true, vatRate: 7.5,
+    stampEnabled: true, stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
+    billFee: 0,
+    autosaveEnabled: true, autosaveFlat: 40,
+    rates: {
+      Moniepoint: { pct: 0.5, flat: 100, threshold: 20000, transfer: 20 },
+      Opay:       { pct: 0.5, flat: 100, threshold: 20000, transfer: 20 }
+    },
+    customerFees: { 100:50, 500:50, 1000:100, 2000:100, 5000:150, 10000:200, 15000:250, 20000:300 },
+    customerFeeAboveRate: 100,
+    customerFeesCombo: { r1:'100', r2:'200', r3:'300', r4:'500', r5:'700 – 1,000', r6:'1,500 – 3,000' },
+    safetyTips: [
+      'Never share your PIN, OTP, or login password with anyone — not even someone claiming to be from Moniepoint/Opay support.',
+      'Always confirm an incoming transfer has actually landed in your account before handing out cash — a screenshot or SMS shown to you is not proof of payment.',
+      'Watch out for reversal scams: a customer claims a transfer failed and asks for their cash back before you have confirmed your balance.',
+      'Verify the receiving account name and number before sending — a wrongly sent transfer can take days to reverse, or may not reverse at all.',
+      'Record every transaction, especially large withdrawals and transfers. No transaction is too small to log.',
+      'If your network is unstable, wait for confirmation before dispensing cash rather than assuming it went through.',
+      'For transfers, airtime/data, and bill payments: if a transaction is still pending, wait for it to fail or reverse before retrying — never repeat a transaction that has not yet resolved.'
+    ]
+  };
+  const feeTiers = [100, 500, 1000, 2000, 5000, 10000, 15000, 20000];
+  const comboRanges = [
+    { id: 'r1', label: '1,000 – 3,000' },
+    { id: 'r2', label: '4,000 – 15,000' },
+    { id: 'r3', label: '16,000 – 90,000' },
+    { id: 'r4', label: '100,000 – 500,000' },
+    { id: 'r5', label: '500,000 – 1,000,000' },
+    { id: 'r6', label: '1,000,000 and above' }
+  ];
+
+  $('#todayLabel').textContent = new Date().toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+
+  const sunIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg>';
+  const moonIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg>';
+
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    $('#themeToggle').innerHTML = theme === 'night' ? moonIcon : sunIcon;
+    if(typeof applyProviderTheme === 'function' && state.provider) applyProviderTheme(state.provider);
+  }
+
+  async function loadTheme(){
+    let theme = 'night';
+    try{
+      const t = await store.get('theme');
+      if(t && (t.value === 'day' || t.value === 'night')) theme = t.value;
+    }catch(e){}
+    applyTheme(theme);
+  }
+  loadTheme();
+
+  $('#themeToggle').addEventListener('click', async ()=>{
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'night' ? 'day' : 'night';
+    applyTheme(next);
+    try{ await store.set('theme', next); }catch(e){}
+  });
+
+  function setStatus(msg){
+    const el = $('#status');
+    el.textContent = msg;
+    if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 2000);
+  }
+
+  function computeBaseFee(provider, type, amount){
+    if(type === 'Bill') return settings.billFee || 0;
+    const r = settings.rates[provider];
+    if(!r || !amount || amount <= 0) return 0;
+    if(type === 'Transfer') return r.transfer;
+    if(amount <= r.threshold) return +(amount * (r.pct/100)).toFixed(2);
+    return r.flat;
+  }
+
+  function computeComboBreakdown(provider, withdrawAmount, transferAmounts){
+    // Withdraw+Split-Transfer: one withdrawal leg + N transfer legs, each transfer with
+    // its own transfer fee, VAT, and stamp duty check (stamp applies per qualifying leg,
+    // matching how EMTL is actually charged per real transfer — not once per batch).
+    const amounts = (transferAmounts || []).filter(a => a > 0);
+    const withdrawalBase = computeBaseFee(provider, 'Withdrawal', withdrawAmount);
+    let transferBaseTotal = 0, vat = 0, stamp = 0;
+    amounts.forEach(tAmt=>{
+      const tBase = computeBaseFee(provider, 'Transfer', tAmt);
+      transferBaseTotal += tBase;
+      if(settings.vatEnabled) vat += tBase * (settings.vatRate/100);
+      if(settings.stampEnabled && tAmt >= settings.stampThreshold) stamp += settings.stampFlat;
+    });
+    const base = +(withdrawalBase + transferBaseTotal).toFixed(2);
+    vat = +vat.toFixed(2);
+    stamp = +stamp.toFixed(2);
+    const legsCount = (withdrawAmount > 0 ? 1 : 0) + amounts.length;
+    const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled) ? settings.autosaveFlat : 0;
+    const autosave = +(autosaveLeg * legsCount).toFixed(2);
+    const total = +(base + vat + stamp + autosave).toFixed(2);
+    return { base, vat, stamp, autosave, total, withdrawalBase, transferBaseTotal, transferAmounts: amounts, legsCount };
+  }
+
+  function computeBreakdown(provider, type, amount, manualBase, transferAmt){
+    // Withdraw+Transfer is charged as two separate legs (a withdrawal + a transfer),
+    // each with its own fee, VAT, and autosave — not one combined flat fee, and the
+    // two legs can be different amounts (e.g. withdraw ₦50,000, transfer ₦20,000).
+    if(type === 'WithdrawTransfer' && (manualBase === null || manualBase === undefined)){
+      const tAmt = (transferAmt !== null && transferAmt !== undefined && transferAmt !== '') ? transferAmt : amount;
+      const withdrawalBase = computeBaseFee(provider, 'Withdrawal', amount);
+      const transferBase = computeBaseFee(provider, 'Transfer', tAmt);
+      const base = +(withdrawalBase + transferBase).toFixed(2);
+      // VAT only applies to the transfer-type fee, not the withdrawal fee (confirmed: a plain
+      // withdrawal shows no VAT line at all, while a plain transfer's fee gets 7.5% VAT).
+      const vat = settings.vatEnabled ? +(transferBase * (settings.vatRate/100)).toFixed(2) : 0;
+      let stamp = 0;
+      if(settings.stampEnabled && tAmt >= settings.stampThreshold) stamp = settings.stampFlat;
+      const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled && (amount > 0 || tAmt > 0)) ? settings.autosaveFlat : 0;
+      const autosave = +(autosaveLeg * 2).toFixed(2);
+      const total = +(base + vat + stamp + autosave).toFixed(2);
+      return { base, vat, stamp, autosave, total, withdrawalBase, transferBase, transferAmt: tAmt };
+    }
+    const base = (manualBase !== null && manualBase !== undefined) ? manualBase : computeBaseFee(provider, type, amount);
+    const isTransferLike = (type === 'Transfer' || type === 'WithdrawTransfer');
+    const vat = (settings.vatEnabled && isTransferLike) ? +(base * (settings.vatRate/100)).toFixed(2) : 0;
+    let stamp = 0;
+    if(settings.stampEnabled && amount >= settings.stampThreshold){
+      if(isTransferLike || (type === 'Withdrawal' && settings.stampOnWithdrawal)) stamp = settings.stampFlat;
+    }
+    const autosave = (provider === 'Moniepoint' && settings.autosaveEnabled && amount > 0 && type !== 'Bill') ? settings.autosaveFlat : 0;
+    const total = +(base + vat + stamp + autosave).toFixed(2);
+    return { base, vat, stamp, autosave, total };
+  }
+
+  function feeRowHtml(label, bd){
+    const parts = [fmt(bd.base)];
+    if(bd.vat > 0) parts.push('VAT ' + fmt(bd.vat));
+    if(bd.stamp > 0) parts.push('stamp ' + fmt(bd.stamp));
+    if(bd.autosave > 0) parts.push('autosave ' + fmt(bd.autosave));
+    return `<div class="fee-row"><span class="fee-row-amt">${label}</span><span class="fee-row-detail">${parts.join(' + ')} = <strong>${fmt(bd.total)}</strong></span></div>`;
+  }
+
+  function renderMoniepointFeeTable(){
+    const el = $('#mpFeeTable');
+    if(!el) return;
+    const r = settings.rates.Moniepoint;
+    const tiers = [100, 500, 1000, 2000, 5000, 10000, 15000, 20000];
+    let html = tiers.map(amt => feeRowHtml(fmt(amt), computeBreakdown('Moniepoint', 'Withdrawal', amt))).join('');
+    html += feeRowHtml('Above ' + fmt(r.threshold), computeBreakdown('Moniepoint', 'Withdrawal', r.threshold + 1000));
+    html += `<div class="fee-table-subhead">Transfer</div>`;
+    const belowStampAmt = Math.max(Math.min(settings.stampThreshold - 1000, 9000), 100);
+    html += feeRowHtml('Under ' + fmt(settings.stampThreshold), computeBreakdown('Moniepoint', 'Transfer', belowStampAmt));
+    html += feeRowHtml(fmt(settings.stampThreshold) + '+', computeBreakdown('Moniepoint', 'Transfer', settings.stampThreshold));
+    html += `<div class="fee-table-subhead">Withdraw+Transfer</div>`;
+    html += feeRowHtml('Under ' + fmt(settings.stampThreshold), computeBreakdown('Moniepoint', 'WithdrawTransfer', belowStampAmt));
+    html += feeRowHtml(fmt(settings.stampThreshold) + '+', computeBreakdown('Moniepoint', 'WithdrawTransfer', settings.stampThreshold));
+    el.innerHTML = html;
+  }
+
+  function serviceFeeLabel(tier){ return fmt(tier); }
+
+  function renderServiceFeeInputs(){
+    const el = $('#serviceFeeInputs');
+    if(!el) return;
+    el.innerHTML = feeTiers.map(tier => `
+      <div class="field">
+        <label>${serviceFeeLabel(tier)} (₦)</label>
+        <input type="text" inputmode="numeric" autocomplete="off" class="svcfee-input" data-tier="${tier}" />
+      </div>
+    `).join('');
+    feeTiers.forEach(tier=>{
+      const input = el.querySelector(`.svcfee-input[data-tier="${tier}"]`);
+      attachCommaFormatting(input);
+      input.value = settings.customerFees[tier] ? Number(settings.customerFees[tier]).toLocaleString('en-US') : '';
+      input.addEventListener('change', async ()=>{
+        const raw = (input.value || '').replace(/,/g, '');
+        const n = parseFloat(raw);
+        settings.customerFees[tier] = isNaN(n) ? 0 : n;
+        await saveSettings();
+        renderServiceFeeReference();
+      });
+    });
+
+    const aboveEl = $('#serviceFeeAboveInput');
+    if(aboveEl){
+      attachCommaFormatting(aboveEl);
+      aboveEl.value = settings.customerFeeAboveRate ? Number(settings.customerFeeAboveRate).toLocaleString('en-US') : '';
+      aboveEl.addEventListener('change', async ()=>{
+        const raw = (aboveEl.value || '').replace(/,/g, '');
+        const n = parseFloat(raw);
+        settings.customerFeeAboveRate = isNaN(n) ? 0 : n;
+        await saveSettings();
+        renderServiceFeeReference();
+      });
+    }
+  }
+
+  function renderComboFeeInputs(){
+    const el = $('#comboFeeInputs');
+    if(!el) return;
+    el.innerHTML = comboRanges.map(r => `
+      <div class="field">
+        <label>${r.label} (₦)</label>
+        <input type="text" inputmode="text" autocomplete="off" class="combofee-input" data-range="${r.id}" placeholder="e.g. 300 or 700 – 1,000" />
+      </div>
+    `).join('');
+    comboRanges.forEach(r=>{
+      const input = el.querySelector(`.combofee-input[data-range="${r.id}"]`);
+      input.value = settings.customerFeesCombo[r.id] != null ? String(settings.customerFeesCombo[r.id]) : '';
+      input.addEventListener('change', async ()=>{
+        settings.customerFeesCombo[r.id] = (input.value || '').trim();
+        await saveSettings();
+        renderServiceFeeReference();
+      });
+    });
+  }
+
+  function formatFeeDisplay(value){
+    const str = String(value == null ? '' : value).trim();
+    if(!str) return fmt(0);
+    const parts = str.split(/[-–]/).map(p => p.trim()).filter(Boolean);
+    if(parts.length === 2){
+      const a = parseFloat(parts[0].replace(/,/g,''));
+      const b = parseFloat(parts[1].replace(/,/g,''));
+      if(!isNaN(a) && !isNaN(b)) return `${fmt(a)} – ${fmt(b)}`;
+    }
+    const n = parseFloat(str.replace(/,/g,''));
+    return isNaN(n) ? str : fmt(n);
+  }
+
+  function renderServiceFeeReference(){
+    const el = $('#serviceFeeReference');
+    if(!el) return;
+    let html = feeTiers.map(tier=>{
+      const fee = settings.customerFees[tier] || 0;
+      return `<div class="fee-row"><span class="fee-row-amt">${serviceFeeLabel(tier)}</span><span class="fee-row-detail"><strong>${fmt(fee)}</strong></span></div>`;
+    }).join('');
+    html += `<div class="fee-row"><span class="fee-row-amt">Above ${fmt(20000)}</span><span class="fee-row-detail"><strong>${fmt(settings.customerFeeAboveRate||0)} per ${fmt(10000)}</strong></span></div>`;
+    html += `<div class="fee-table-subhead">Withdraw+Transfer</div>`;
+    html += comboRanges.map(r=>{
+      return `<div class="fee-row"><span class="fee-row-amt">${r.label}</span><span class="fee-row-detail"><strong>${formatFeeDisplay(settings.customerFeesCombo[r.id])}</strong></span></div>`;
+    }).join('');
+    el.innerHTML = html;
+  }
+
+  function renderSafetyTipsDisplay(){
+    const el = $('#safetyTipsList');
+    if(!el) return;
+    el.innerHTML = (settings.safetyTips || []).filter(t => (t||'').trim()).map(tip => `<li>${escapeHtml(tip)}</li>`).join('');
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderSafetyTipsEditor(){
+    const el = $('#safetyTipsEditor');
+    if(!el) return;
+    el.innerHTML = (settings.safetyTips || []).map((tip, i) => `
+      <div class="tip-row" data-idx="${i}">
+        <textarea class="tip-textarea">${escapeHtml(tip)}</textarea>
+        <button type="button" class="tip-remove" data-idx="${i}">✕</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.tip-textarea').forEach((ta, i)=>{
+      ta.addEventListener('change', async ()=>{
+        settings.safetyTips[i] = ta.value;
+        await saveSettings();
+        renderSafetyTipsDisplay();
+      });
+    });
+    el.querySelectorAll('.tip-remove').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const idx = parseInt(btn.dataset.idx, 10);
+        settings.safetyTips.splice(idx, 1);
+        await saveSettings();
+        renderSafetyTipsEditor();
+        renderSafetyTipsDisplay();
+      });
+    });
+  }
+
+  let transferBoxCount = 0;
+
+  function getTransferAmounts(){
+    return Array.from($('#transferAmountsGrid').querySelectorAll('input')).map(inp => {
+      const raw = (inp.value || '').replace(/,/g,'');
+      const n = parseFloat(raw);
+      return isNaN(n) ? 0 : n;
+    });
+  }
+
+  function addTransferBox(removable){
+    transferBoxCount++;
+    const n = transferBoxCount;
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.innerHTML = `
+      ${removable ? '<span class="remove-x" data-remove>✕</span>' : ''}
+      <label>${n === 1 ? 'Amount Transferred (₦)' : 'Amount Transferred ' + n + ' (₦)'}</label>
+      <input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 50,000" />
+    `;
+    $('#transferAmountsGrid').appendChild(field);
+    const input = field.querySelector('input');
+    attachCommaFormatting(input);
+    input.addEventListener('input', refreshAuto);
+    if(removable){
+      field.querySelector('[data-remove]').addEventListener('click', ()=>{
+        field.remove();
+        refreshAuto();
+      });
+    }
+  }
+
+  function hideCashField(){
+    $('#cashField').style.display = 'none';
+    $('#cashAmount').value = '';
+    $('#addCashBtn').style.display = 'flex';
+    $('#runningTotalWrap').style.gridColumn = '1 / -1';
+  }
+
+  function resetTransferBoxes(){
+    $('#transferAmountsGrid').innerHTML = '';
+    transferBoxCount = 0;
+    addTransferBox(false);
+    addTransferBox(false);
+    hideCashField();
+  }
+
+  function updateLayoutForType(isCombo){
+    const feeWrap = $('#customerFeeFieldWrap');
+    const standaloneSlot = $('#customerFeeStandaloneSlot');
+    const amountWrap = $('#amountFieldWrap');
+    $('#transferSection').style.display = isCombo ? 'block' : 'none';
+    if(isCombo){
+      amountWrap.classList.add('withdrawn-field');
+      $('#amountFeeRow').style.gridTemplateColumns = '1fr';
+      if(feeWrap.parentElement !== standaloneSlot) standaloneSlot.appendChild(feeWrap);
+    } else {
+      amountWrap.classList.remove('withdrawn-field');
+      $('#amountFeeRow').style.gridTemplateColumns = '';
+      if(feeWrap.parentElement !== $('#amountFeeRow')) $('#amountFeeRow').appendChild(feeWrap);
+    }
+  }
+
+  function refreshAuto(){
+    const isBill = state.type === 'Bill';
+    const isCombo = state.type === 'WithdrawTransfer';
+    $('#billerSeg').style.display = isBill ? 'flex' : 'none';
+    $('#comboHint').style.display = isCombo ? 'block' : 'none';
+    $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : 'Amount withdrawn/sent (₦)');
+    updateLayoutForType(isCombo);
+
+    const override = $('#overrideFee').checked;
+    const amount = numVal('#amount');
+    const feeInput = $('#providerFee');
+    feeInput.style.display = override ? 'block' : 'none';
+    const manualBase = override ? numVal('#providerFee') : null;
+
+    let bd;
+    if(isCombo && manualBase === null){
+      const transferAmounts = getTransferAmounts();
+      bd = computeComboBreakdown(state.provider, amount, transferAmounts);
+
+      const cash = numVal('#cashAmount');
+      const pool = amount + cash;
+      const sum = transferAmounts.reduce((a,b)=>a+b, 0);
+      const remaining = pool - sum;
+      const box = $('#runningTotalBox');
+      const val = $('#runningTotalVal');
+      box.classList.remove('over','exact');
+      if(pool === 0 && sum === 0){
+        val.textContent = '₦0';
+      } else if(remaining < 0){
+        val.textContent = '-' + fmt(Math.abs(remaining)) + ' over';
+        box.classList.add('over');
+      } else if(remaining === 0){
+        val.textContent = '₦0 — fully allocated';
+        box.classList.add('exact');
+      } else {
+        val.textContent = fmt(remaining);
+      }
+    } else if(isCombo){
+      bd = computeBreakdown(state.provider, state.type, amount, manualBase);
+    } else {
+      bd = computeBreakdown(state.provider, state.type, amount, manualBase);
+    }
+
+    $('#machineTotal').textContent = fmt(bd.total);
+    let breakdownText;
+    if(bd.transferAmounts !== undefined){
+      const n = bd.transferAmounts.length;
+      breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)} + ${n} transfer fee${n===1?'':'s'} ${fmt(bd.transferBaseTotal)} · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
+    } else if(bd.withdrawalBase !== undefined){
+      breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)} + transfer fee ${fmt(bd.transferBase)} · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
+    } else {
+      breakdownText = `fee ${fmt(bd.base)} · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
+    }
+    if(bd.autosave > 0) breakdownText += ` · autosave ${fmt(bd.autosave)}`;
+    $('#machineBreakdown').textContent = breakdownText;
+    renderMoniepointFeeTable();
+  }
+
+  async function loadData(){
+    try{
+      const t = await store.get('transactions');
+      transactions = t && t.value ? JSON.parse(t.value) : [];
+    }catch(e){ transactions = []; }
+    try{
+      const s = await store.get('settings');
+      if(s && s.value){
+        const parsed = JSON.parse(s.value);
+        const defaultRates = settings.rates; // capture fresh defaults before they get overwritten below
+        const defaultCustomerFees = settings.customerFees;
+        const defaultCombo = settings.customerFeesCombo;
+        settings = Object.assign({}, settings, parsed);
+        settings.rates = {
+          Moniepoint: Object.assign({}, defaultRates.Moniepoint, (parsed.rates && parsed.rates.Moniepoint) || {}),
+          Opay: Object.assign({}, defaultRates.Opay, (parsed.rates && parsed.rates.Opay) || {})
+        };
+        settings.customerFees = Object.assign({}, defaultCustomerFees, parsed.customerFees || {});
+        settings.customerFeesCombo = Object.assign({}, defaultCombo, parsed.customerFeesCombo || {});
+      }
+    }catch(e){}
+
+    const setFmt = (sel, val) => { $(sel).value = val ? Number(val).toLocaleString('en-US') : ''; };
+    $('#mp_pct').value = settings.rates.Moniepoint.pct;
+    setFmt('#mp_flat', settings.rates.Moniepoint.flat);
+    setFmt('#mp_threshold', settings.rates.Moniepoint.threshold);
+    setFmt('#mp_transfer', settings.rates.Moniepoint.transfer);
+    $('#op_pct').value = settings.rates.Opay.pct;
+    setFmt('#op_flat', settings.rates.Opay.flat);
+    setFmt('#op_threshold', settings.rates.Opay.threshold);
+    setFmt('#op_transfer', settings.rates.Opay.transfer);
+    $('#vatEnabled').checked = !!settings.vatEnabled;
+    $('#vatRate').value = settings.vatRate;
+    $('#stampEnabled').checked = !!settings.stampEnabled;
+    setFmt('#stampFlat', settings.stampFlat);
+    setFmt('#stampThreshold', settings.stampThreshold);
+    setFmt('#billFee', settings.billFee);
+    $('#autosaveEnabled').checked = !!settings.autosaveEnabled;
+    setFmt('#autosaveFlat', settings.autosaveFlat);
+    $('#stampOnWithdrawal').checked = !!settings.stampOnWithdrawal;
+    renderServiceFeeInputs();
+    renderComboFeeInputs();
+    renderServiceFeeReference();
+    renderSafetyTipsEditor();
+    renderSafetyTipsDisplay();
+
+    refreshAuto();
+    render();
+  }
+
+  async function saveTransactions(){
+    try{ await store.set('transactions', JSON.stringify(transactions)); }
+    catch(e){ setStatus('Could not save — try again'); }
+  }
+  async function saveSettings(){
+    try{ await store.set('settings', JSON.stringify(settings)); }
+    catch(e){}
+  }
+
+  function applyProviderTheme(provider){
+    const root = document.documentElement.style;
+    const isDay = document.documentElement.getAttribute('data-theme') === 'day';
+    if(provider === 'Opay'){
+      root.setProperty('--theme', '#17C4A0');
+      root.setProperty('--theme-soft', isDay ? '#0D8F73' : '#5FE3C4');
+      root.setProperty('--theme-tint', isDay ? 'rgba(23,196,160,0.10)' : 'rgba(23,196,160,0.13)');
+      root.setProperty('--theme-text', '#241463');
+    } else {
+      root.setProperty('--theme', '#3B7CFF');
+      root.setProperty('--theme-soft', isDay ? '#1D4ED8' : '#83ABFF');
+      root.setProperty('--theme-tint', isDay ? 'rgba(59,124,255,0.10)' : 'rgba(59,124,255,0.13)');
+      root.setProperty('--theme-text', '#ffffff');
+    }
+    $('#entryCard').setAttribute('data-provider', provider);
+    const avatar = $('#providerAvatar');
+    if(provider === 'Opay'){
+      avatar.className = 'provider-avatar ring';
+      avatar.innerHTML = '<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="21" cy="20" r="13" fill="none" stroke="#17C4A0" stroke-width="7"/><rect x="0" y="16.5" width="10" height="7" fill="#241463"/></svg>';
+    } else {
+      avatar.className = 'provider-avatar letter';
+      avatar.textContent = 'M';
+    }
+  }
+
+  function wireSegment(id, key){
+    const seg = document.getElementById(id);
+    seg.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        seg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const prevType = state[key];
+        state[key] = btn.dataset.val;
+        if(key === 'provider') applyProviderTheme(state.provider);
+        if(key === 'type' && btn.dataset.val === 'WithdrawTransfer' && prevType !== 'WithdrawTransfer'){
+          resetTransferBoxes();
+        }
+        refreshAuto();
+      });
+    });
+  }
+  ['#amount','#customerFee','#providerFee','#mp_flat','#mp_threshold','#mp_transfer','#op_flat','#op_threshold','#op_transfer','#stampFlat','#stampThreshold','#billFee','#autosaveFlat'].forEach(sel=>{
+    attachCommaFormatting($(sel));
+  });
+  resetTransferBoxes();
+  attachCommaFormatting($('#cashAmount'));
+  $('#addTransferBtn').addEventListener('click', ()=>{
+    addTransferBox(true);
+    addTransferBox(true);
+    refreshAuto();
+  });
+  $('#addCashBtn').addEventListener('click', ()=>{
+    $('#cashField').style.display = 'block';
+    $('#addCashBtn').style.display = 'none';
+    $('#runningTotalWrap').style.gridColumn = 'auto';
+    refreshAuto();
+  });
+  $('#cashRemoveBtn').addEventListener('click', ()=>{
+    hideCashField();
+    refreshAuto();
+  });
+  $('#cashAmount').addEventListener('input', refreshAuto);
+
+  wireSegment('providerSeg','provider');
+  wireSegment('typeSeg','type');
+  wireSegment('billerSeg','biller');
+  applyProviderTheme(state.provider);
+
+  $('#amount').addEventListener('input', refreshAuto);
+  $('#overrideFee').addEventListener('change', refreshAuto);
+  $('#providerFee').addEventListener('input', refreshAuto);
+
+  $('#periodTabs').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $('#periodTabs').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.period = btn.dataset.val;
+      render();
+    });
+  });
+  $('#trendPeriodTabs').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $('#trendPeriodTabs').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.trendPeriod = btn.dataset.val;
+      renderVolumeAnalysis();
+    });
+  });
+  $('#providerFilter').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $('#providerFilter').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.providerFilter = btn.dataset.val;
+      render();
+    });
+  });
+
+  $('#addBtn').addEventListener('click', async ()=>{
+    const amount = numVal('#amount');
+    const customerFee = numVal('#customerFee');
+    const wasOverridden = $('#overrideFee').checked;
+    const isCombo = state.type === 'WithdrawTransfer';
+    const transferAmounts = isCombo ? getTransferAmounts().filter(a => a > 0) : null;
+    const cashAmount = isCombo ? numVal('#cashAmount') : 0;
+
+    const manualBase = wasOverridden ? numVal('#providerFee') : null;
+    let bd;
+    if(isCombo && manualBase === null){
+      bd = computeComboBreakdown(state.provider, amount, transferAmounts);
+    } else {
+      bd = computeBreakdown(state.provider, state.type, amount, manualBase);
+    }
+    const { base, vat, stamp, autosave, total } = bd;
+
+    if(customerFee <= 0){
+      setStatus('Enter the fee you charged the customer');
+      return;
+    }
+    if(isCombo && (!transferAmounts || transferAmounts.length === 0)){
+      setStatus('Enter at least one transfer amount');
+      return;
+    }
+
+    const netProfit = customerFee - total;
+
+    const tx = {
+      id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+      date: new Date().toISOString(),
+      provider: state.provider, type: state.type,
+      biller: state.type === 'Bill' ? state.biller : null,
+      amount, customerFee,
+      transferAmounts: isCombo ? transferAmounts : null,
+      cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
+      baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
+      netProfit, manualFee: wasOverridden
+    };
+    transactions.unshift(tx);
+    await saveTransactions();
+
+    $('#amount').value = '';
+    resetTransferBoxes();
+    $('#customerFee').value = '';
+    $('#overrideFee').checked = false;
+    refreshAuto();
+    setStatus('Added ✓');
+    render();
+    openLogDropdown();
+  });
+
+  function wireRateField(id, provider, key){
+    $(id).addEventListener('change', async ()=>{
+      settings.rates[provider][key] = numVal(id);
+      await saveSettings(); refreshAuto();
+    });
+  }
+  wireRateField('#mp_pct','Moniepoint','pct');
+  wireRateField('#mp_flat','Moniepoint','flat');
+  wireRateField('#mp_threshold','Moniepoint','threshold');
+  wireRateField('#mp_transfer','Moniepoint','transfer');
+  wireRateField('#op_pct','Opay','pct');
+  wireRateField('#op_flat','Opay','flat');
+  wireRateField('#op_threshold','Opay','threshold');
+  wireRateField('#op_transfer','Opay','transfer');
+
+  $('#vatEnabled').addEventListener('change', async ()=>{ settings.vatEnabled = $('#vatEnabled').checked; await saveSettings(); refreshAuto(); render(); });
+  $('#vatRate').addEventListener('change', async ()=>{ settings.vatRate = parseFloat($('#vatRate').value) || 0; await saveSettings(); refreshAuto(); render(); });
+  $('#stampEnabled').addEventListener('change', async ()=>{ settings.stampEnabled = $('#stampEnabled').checked; await saveSettings(); refreshAuto(); render(); });
+  $('#stampFlat').addEventListener('change', async ()=>{ settings.stampFlat = numVal('#stampFlat'); await saveSettings(); refreshAuto(); render(); });
+  $('#stampThreshold').addEventListener('change', async ()=>{ settings.stampThreshold = numVal('#stampThreshold'); await saveSettings(); refreshAuto(); render(); });
+  $('#billFee').addEventListener('change', async ()=>{ settings.billFee = numVal('#billFee'); await saveSettings(); refreshAuto(); render(); });
+  $('#autosaveEnabled').addEventListener('change', async ()=>{ settings.autosaveEnabled = $('#autosaveEnabled').checked; await saveSettings(); refreshAuto(); render(); });
+  $('#autosaveFlat').addEventListener('change', async ()=>{ settings.autosaveFlat = numVal('#autosaveFlat'); await saveSettings(); refreshAuto(); render(); });
+  $('#stampOnWithdrawal').addEventListener('change', async ()=>{ settings.stampOnWithdrawal = $('#stampOnWithdrawal').checked; await saveSettings(); refreshAuto(); render(); });
+
+  const SETTINGS_PASSWORD = '2030';
+  const SETTINGS_IDLE_MS = 30 * 60 * 1000;
+  let settingsUnlocked = false;
+  let settingsIdleTimer = null;
+
+  function showSettingsContent(){
+    $('#settingsPasswordBox').style.display = 'none';
+    $('#settingsContent').style.display = 'block';
+    $('#settingsToggle').classList.add('open');
+    armSettingsIdleTimer();
+  }
+  function hideSettingsPanels(){
+    $('#settingsPasswordBox').style.display = 'none';
+    $('#settingsContent').style.display = 'none';
+    $('#settingsToggle').classList.remove('open');
+    clearTimeout(settingsIdleTimer);
+  }
+  function isSettingsPanelOpen(){
+    return $('#settingsContent').style.display === 'block' || $('#settingsPasswordBox').style.display === 'flex';
+  }
+  function armSettingsIdleTimer(){
+    clearTimeout(settingsIdleTimer);
+    if(!isSettingsPanelOpen()) return;
+    settingsIdleTimer = setTimeout(()=>{
+      settingsUnlocked = false; // re-lock, not just collapse — a fresh password is required next time
+      hideSettingsPanels();
+      render();
+    }, SETTINGS_IDLE_MS);
+  }
+  ['mousemove','click','keydown','input','touchstart','touchmove','scroll','wheel'].forEach(evt=>{
+    $('.settings-gate').addEventListener(evt, ()=>{
+      if(isSettingsPanelOpen()) armSettingsIdleTimer();
+    }, { passive: true });
+  });
+
+  function openLogDropdown(){
+    $('#logContent').style.display = 'block';
+    $('#logCaret').classList.add('open');
+  }
+  $('#summaryToggle').addEventListener('click', ()=>{
+    const content = $('#summaryContent');
+    const caret = $('#summaryCaret');
+    const isOpen = content.style.display === 'block';
+    content.style.display = isOpen ? 'none' : 'block';
+    caret.classList.toggle('open', !isOpen);
+  });
+
+  $('#logToggle').addEventListener('click', ()=>{
+    const content = $('#logContent');
+    const caret = $('#logCaret');
+    const isOpen = content.style.display === 'block';
+    content.style.display = isOpen ? 'none' : 'block';
+    caret.classList.toggle('open', !isOpen);
+  });
+
+  $('#safetyToggle').addEventListener('click', ()=>{
+    const content = $('#safetyContent');
+    const caret = $('#safetyCaret');
+    const isOpen = content.style.display === 'block';
+    content.style.display = isOpen ? 'none' : 'block';
+    caret.classList.toggle('open', !isOpen);
+  });
+
+  $('#addTipBtn').addEventListener('click', async ()=>{
+    settings.safetyTips.push('');
+    await saveSettings();
+    renderSafetyTipsEditor();
+    renderSafetyTipsDisplay();
+    const rows = $('#safetyTipsEditor').querySelectorAll('.tip-textarea');
+    if(rows.length) rows[rows.length - 1].focus();
+  });
+
+  $('#mpFeeTableToggle').addEventListener('click', ()=>{
+    const table = $('#mpFeeTable');
+    const caret = $('#mpFeeTableCaret');
+    const isOpen = table.style.display === 'block';
+    table.style.display = isOpen ? 'none' : 'block';
+    caret.classList.toggle('open', !isOpen);
+  });
+
+  $('#settingsToggle').addEventListener('click', ()=>{
+    const contentOpen = $('#settingsContent').style.display === 'block';
+    const passwordOpen = $('#settingsPasswordBox').style.display === 'flex';
+    if(contentOpen || passwordOpen){
+      hideSettingsPanels();
+      return;
+    }
+    if(settingsUnlocked){
+      showSettingsContent();
+    } else {
+      $('#settingsPasswordBox').style.display = 'flex';
+      $('#settingsToggle').classList.add('open');
+      $('#settingsPasswordInput').value = '';
+      $('#settingsPasswordStatus').textContent = '';
+      $('#settingsPasswordInput').focus();
+      armSettingsIdleTimer();
+    }
+  });
+
+  function attemptUnlock(){
+    const val = $('#settingsPasswordInput').value;
+    if(val === SETTINGS_PASSWORD){
+      settingsUnlocked = true;
+      showSettingsContent();
+      render();
+    } else {
+      $('#settingsPasswordStatus').textContent = 'Incorrect password';
+      $('#settingsPasswordInput').value = '';
+      $('#settingsPasswordInput').focus();
+    }
+  }
+  $('#settingsUnlockBtn').addEventListener('click', attemptUnlock);
+
+  $('#lockNowBtn').addEventListener('click', ()=>{
+    settingsUnlocked = false;
+    hideSettingsPanels();
+    render();
+  });
+
+  $('#settingsPasswordInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') attemptUnlock();
+  });
+
+  function armTapTwice(btn, idleLabel, armedLabel, onConfirm){
+    const now = Date.now();
+    if(btn._lastTap && now - btn._lastTap < 350) return; // ignore mobile ghost double-fire
+    btn._lastTap = now;
+
+    if(btn.dataset.armed === '1'){
+      btn.dataset.armed = '0';
+      btn.textContent = idleLabel;
+      btn.classList.remove('armed');
+      clearTimeout(btn._armTimer);
+      onConfirm();
+      return;
+    }
+    btn.dataset.armed = '1';
+    btn.textContent = armedLabel;
+    btn.classList.add('armed');
+    clearTimeout(btn._armTimer);
+    btn._armTimer = setTimeout(()=>{
+      btn.dataset.armed = '0';
+      btn.textContent = idleLabel;
+      btn.classList.remove('armed');
+    }, 3000);
+  }
+
+  $('#resetBtn').addEventListener('click', ()=>{
+    armTapTwice($('#resetBtn'), 'Erase all data', 'Tap again to confirm', async ()=>{
+      transactions = [];
+      await saveTransactions();
+      render();
+    });
+  });
+
+  $('#clearLogBtn').addEventListener('click', ()=>{
+    const visible = getFiltered();
+    if(visible.length === 0){ setStatus('Nothing to clear'); return; }
+    armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, async ()=>{
+      const idsToRemove = new Set(visible.map(t=>t.id));
+      transactions = transactions.filter(t => !idsToRemove.has(t.id));
+      await saveTransactions();
+      render();
+    });
+  });
+
+  async function deleteTx(id){
+    transactions = transactions.filter(t => t.id !== id);
+    await saveTransactions();
+    render();
+  }
+
+  function ordinal(n){
+    const s = ['th','st','nd','rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function typeLabel(t){
+    if(t.type === 'Bill') return 'Bill · ' + t.biller;
+    if(t.type === 'WithdrawTransfer') return 'Withdraw+Transfer';
+    return t.type;
+  }
+
+  function comboAmountLine(t, useFmt){
+    const f = useFmt || fmt;
+    if(t.type !== 'WithdrawTransfer'){
+      return (t.type === 'Bill' ? 'paid' : 'amount') + ' ' + f(t.amount);
+    }
+    if(Array.isArray(t.transferAmounts) && t.transferAmounts.length > 0){
+      const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
+      const cash = t.cashAmount || 0;
+      const pool = t.amount + cash;
+      const leftover = pool - sentTotal;
+      const cashPart = cash > 0 ? ` + ${f(cash)} cash brought in` : '';
+      const leftoverPart = leftover > 0 ? ` + ${f(leftover)} cash to customer` : '';
+      if(t.transferAmounts.length === 1){
+        return `withdrew ${f(t.amount)}${cashPart} + sent ${f(t.transferAmounts[0])}${leftoverPart}`;
+      }
+      const list = t.transferAmounts.map(a => f(a)).join(' + ');
+      return `withdrew ${f(t.amount)}${cashPart} + sent ${list} (${t.transferAmounts.length} transfers)${leftoverPart}`;
+    }
+    // backward compatibility with pre-multi-transfer records
+    return `withdrew ${f(t.amount)} + sent ${f(t.transferAmount != null ? t.transferAmount : t.amount)}`;
+  }
+
+  function dateSeparatorLabel(dateObj){
+    const now = new Date();
+    const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((startOf(now) - startOf(dateObj)) / 86400000);
+    if(diffDays === 0) return 'Today';
+    if(diffDays === 1) return 'Yesterday';
+    const weekday = dateObj.toLocaleDateString('en-NG', { weekday: 'long' });
+    const month = dateObj.toLocaleDateString('en-NG', { month: 'long' });
+    return `${weekday}, ${month} ${ordinal(dateObj.getDate())}`;
+  }
+
+  const arrowUpSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+  const arrowDownSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
+  const eyeOffSvg = '<svg class="lock-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.29 20.29 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.29 20.29 0 0 1-3.22 4.53"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+  function isInPeriod(dateStr, period){
+    const d = new Date(dateStr); const now = new Date();
+    if(period === 'all') return true;
+    if(period === 'today') return d.toDateString() === now.toDateString();
+    if(period === 'week'){
+      const day = (now.getDay() + 6) % 7;
+      const monday = new Date(now); monday.setHours(0,0,0,0); monday.setDate(now.getDate() - day);
+      return d >= monday;
+    }
+    if(period === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    return true;
+  }
+
+  function getFiltered(){
+    return transactions.filter(t=>{
+      const periodOk = isInPeriod(t.date, state.period);
+      const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
+      return periodOk && provOk;
+    });
+  }
+
+  function renderVolumeAnalysis(){
+    const inEl = $('#trendMoneyIn');
+    const outEl = $('#trendMoneyOut');
+    const emptyEl = $('#volumeEmptyState');
+    const contentEl = $('#volumeContent');
+    if(!inEl || !outEl || !emptyEl || !contentEl) return;
+
+    if(transactions.length === 0){
+      emptyEl.style.display = 'block';
+      contentEl.style.display = 'none';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    contentEl.style.display = 'block';
+
+    const inRange = transactions.filter(t => isInPeriod(t.date, state.trendPeriod));
+    let moneyIn = 0, moneyOut = 0;
+    inRange.forEach(t=>{
+      const amt = t.amount || 0;
+      if(t.type === 'Withdrawal') moneyIn += amt;
+      else if(t.type === 'Transfer' || t.type === 'Bill') moneyOut += amt;
+      else if(t.type === 'WithdrawTransfer'){
+        moneyIn += amt + (t.cashAmount || 0);
+        if(Array.isArray(t.transferAmounts)) moneyOut += t.transferAmounts.reduce((a,b)=>a+b, 0);
+        else moneyOut += (t.transferAmount != null ? t.transferAmount : amt);
+      }
+    });
+    inEl.textContent = fmt(moneyIn);
+    outEl.textContent = fmt(moneyOut);
+  }
+
+  function render(){
+    const filtered = getFiltered();
+    let sumCustomer=0, sumBase=0, sumVat=0, sumStamp=0, sumAutosave=0, sumNet=0;
+    filtered.forEach(t=>{
+      sumCustomer += t.customerFee;
+      sumBase += t.baseFee;
+      sumVat += (t.vatAmt||0);
+      sumStamp += (t.stampAmt||0);
+      sumAutosave += (t.autosaveAmt||0);
+      sumNet += t.netProfit;
+    });
+
+    renderVolumeAnalysis();
+
+    const LOCK_HTML = `${eyeOffSvg}<span class="lock-dots">••••</span>`;
+    $('#sumCustomerFee').textContent = fmt(sumCustomer);
+    $('#sumBaseFee').innerHTML = settingsUnlocked ? '−' + fmt(sumBase) : LOCK_HTML;
+    $('#sumVat').innerHTML = settingsUnlocked ? '−' + fmt(sumVat) : LOCK_HTML;
+    $('#sumStamp').innerHTML = settingsUnlocked ? '−' + fmt(sumStamp) : LOCK_HTML;
+    const netEl = $('#netProfit');
+    netEl.textContent = fmt(sumNet);
+    netEl.classList.toggle('neg', sumNet < 0);
+    $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s');
+    $('#sumAutosaveRow').style.display = sumAutosave > 0 ? 'flex' : 'none';
+    $('#sumAutosave').innerHTML = settingsUnlocked ? '−' + fmt(sumAutosave) : LOCK_HTML;
+
+    const clearBtn = $('#clearLogBtn');
+    const logList = $('#logList');
+    logList.innerHTML = '';
+    if(filtered.length === 0){
+      $('#emptyState').style.display = 'block';
+      clearBtn.style.display = 'none';
+    } else {
+      $('#emptyState').style.display = 'none';
+      let lastDayKey = null;
+      let dayGroup = null;
+      let firstGroup = true;
+      filtered.forEach(t=>{
+        const d = new Date(t.date);
+        const dayKey = d.toDateString();
+        if(dayKey !== lastDayKey){
+          lastDayKey = dayKey;
+          const sep = document.createElement('div');
+          sep.className = 'log-date-sep';
+          sep.textContent = dateSeparatorLabel(d);
+
+          if(firstGroup){
+            firstGroup = false;
+            const sepRow = document.createElement('div');
+            sepRow.className = 'log-date-sep-row';
+            sepRow.appendChild(sep);
+            clearBtn.style.display = 'block';
+            sepRow.appendChild(clearBtn);
+            logList.appendChild(sepRow);
+          } else {
+            logList.appendChild(sep);
+          }
+
+          dayGroup = document.createElement('div');
+          dayGroup.className = 'log-day-group';
+          logList.appendChild(dayGroup);
+        }
+
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        const dateStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' · ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
+        const isCombo = t.type === 'WithdrawTransfer';
+        const isCredit = t.type === 'Withdrawal';
+        const iconClass = isCombo ? 'combo' : (isCredit ? 'in' : 'out');
+        const iconSvg = isCombo ? (arrowDownSvg + arrowUpSvg) : (isCredit ? arrowDownSvg : arrowUpSvg);
+        const profitBlock = settingsUnlocked
+          ? `<div class="profit-label">${t.netProfit<0?'loss':'profit'}</div><div class="profit ${t.netProfit<0?'neg':''}">${fmt(t.netProfit)}</div>`
+          : `<div class="profit-locked">${eyeOffSvg}</div>`;
+        item.innerHTML = `
+          <div class="log-icon ${iconClass}">${iconSvg}</div>
+          <div class="log-left">
+            <span class="badge ${t.provider.toLowerCase()}">${t.provider}</span>
+            <div class="type">${typeLabel(t)}</div>
+            <div class="date">${dateStr}</div>
+            <div class="amountline">${comboAmountLine(t)} · charged ${fmt(t.customerFee)}</div>
+          </div>
+          <div class="log-right">
+            ${profitBlock}
+            <button class="del" data-id="${t.id}">delete</button>
+
+          </div>
+        `;
+        dayGroup.appendChild(item);
+      });
+      logList.querySelectorAll('.del').forEach(btn=>{
+        btn.addEventListener('click', ()=> deleteTx(btn.dataset.id));
+      });
+    }
+  }
+
+  async function generatePdf(fullAccess){
+    const pdfBtn = $('#pdfBtn');
+    const pdfStatus = $('#pdfStatus');
+    if(typeof window.jspdf === 'undefined'){
+      pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
+      return;
+    }
+    const genBtn = $('#pdfGenerateBtn');
+    genBtn.disabled = true;
+    const originalGenLabel = genBtn.textContent;
+    genBtn.textContent = 'Building…';
+
+    const filtered = getFiltered().slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
+    let sumCustomer=0, sumBase=0, sumVat=0, sumStamp=0, sumAutosave=0, sumNet=0;
+    filtered.forEach(t=>{
+      sumCustomer += t.customerFee;
+      sumBase += t.baseFee;
+      sumVat += (t.vatAmt||0);
+      sumStamp += (t.stampAmt||0);
+      sumAutosave += (t.autosaveAmt||0);
+      sumNet += t.netProfit;
+    });
+
+    const periodLabels = { today: 'Today', week: 'This Week', month: 'This Month', all: 'All Time' };
+    const periodLabel = periodLabels[state.period] || 'Today';
+    const providerLabel = state.providerFilter === 'All' ? 'Moniepoint + Opay' : state.providerFilter;
+    const now = new Date();
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const marginX = 40;
+    let y = 50;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+    doc.text('Ledger — Daily Report', marginX, y);
+    y += 22;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
+    doc.text(`${periodLabel} · ${providerLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`, marginX, y);
+    y += 26;
+
+    doc.setDrawColor(220); doc.line(marginX, y, pageW - marginX, y);
+    y += 22;
+
+    const summaryRows = [];
+    if(fullAccess){
+      summaryRows.push(['VAT', '-' + fmtPdf(sumVat)]);
+      summaryRows.push(['Stamp duty', '-' + fmtPdf(sumStamp)]);
+      summaryRows.push(['Moniepoint/Opay fee', '-' + fmtPdf(sumBase)]);
+      if(sumAutosave > 0) summaryRows.push(['Auto-save (Moniepoint)', '-' + fmtPdf(sumAutosave)]);
+    }
+    summaryRows.push(['Customer fees collected', fmtPdf(sumCustomer)]);
+
+    doc.setFontSize(11); doc.setTextColor(30);
+    summaryRows.forEach(([label, val])=>{
+      doc.setFont('helvetica','normal');
+      doc.text(label, marginX, y);
+      doc.setFont('helvetica','bold');
+      doc.text(val, pageW - marginX, y, { align: 'right' });
+      y += 18;
+    });
+
+    y += 6;
+    doc.setDrawColor(220); doc.line(marginX, y, pageW - marginX, y);
+    y += 24;
+
+    if(fullAccess){
+      doc.setFont('helvetica','bold'); doc.setFontSize(14);
+      doc.text('NET PROFIT', marginX, y);
+      doc.setFontSize(16);
+      doc.text(fmtPdf(sumNet), pageW - marginX, y, { align: 'right' });
+      y += 14;
+    } else {
+      doc.setFont('helvetica','italic'); doc.setFontSize(10); doc.setTextColor(140);
+      doc.text('Net profit hidden — owner password required', marginX, y);
+      y += 14;
+    }
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120);
+    doc.text(`${filtered.length} transaction${filtered.length===1?'':'s'}`, marginX, y);
+    y += 30;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30);
+    doc.text('Transaction Log', marginX, y);
+    y += 20;
+
+    const pageH = doc.internal.pageSize.getHeight();
+    const rowHeight = fullAccess ? 40 : 30;
+    filtered.forEach((t, idx)=>{
+      if(y > pageH - rowHeight - 20){
+        doc.addPage();
+        y = 50;
+      }
+      const d = new Date(t.date);
+      const timeStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
+      const typeStr = t.provider + ' · ' + typeLabel(t);
+
+      // Line 1: type/provider on the left, net profit bold on the right (only with full access)
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(30);
+      doc.text(typeStr, marginX, y);
+      if(fullAccess){
+        doc.setTextColor(t.netProfit < 0 ? 200 : 20, t.netProfit < 0 ? 40 : 120, t.netProfit < 0 ? 40 : 60);
+        doc.text(fmtPdf(t.netProfit), pageW - marginX, y, { align: 'right' });
+      }
+      y += 13;
+
+      // Line 2: time, amount, and what was charged to the customer
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(110);
+      const amountPart = comboAmountLine(t, fmtPdf);
+      doc.text(`${timeStr} · ${amountPart} · charged ${fmtPdf(t.customerFee)}`, marginX, y);
+      y += 12;
+
+      // Line 3: the fee breakdown, owner-only
+      if(fullAccess){
+        doc.setFontSize(8.5); doc.setTextColor(140);
+        let feeLine = t.manualFee ? `fee ${fmtPdf(t.baseFee)} (manual)` : `fee ${fmtPdf(t.baseFee)}`;
+        feeLine += ` + VAT ${fmtPdf(t.vatAmt)} + stamp ${fmtPdf(t.stampAmt)}`;
+        if(t.autosaveAmt) feeLine += ` + autosave ${fmtPdf(t.autosaveAmt)}`;
+        doc.text(feeLine, marginX, y);
+        y += 10;
+      }
+
+      if(idx < filtered.length - 1){
+        doc.setDrawColor(235);
+        doc.line(marginX, y, pageW - marginX, y);
+      }
+      y += 10;
+    });
+
+    const fileName = `ledger-${periodLabel.toLowerCase().replace(/\s+/g,'-')}-${now.toISOString().slice(0,10)}${fullAccess ? '' : '-basic'}.pdf`;
+    const blob = doc.output('blob');
+
+    let shared = false;
+    try{
+      if(navigator.canShare && navigator.share){
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        if(navigator.canShare({ files: [file] })){
+          await navigator.share({ files: [file], title: 'Ledger Daily Report', text: `${periodLabel} report${fullAccess ? ' — Net profit ' + fmt(sumNet) : ''}` });
+          shared = true;
+        }
+      }
+    }catch(e){ /* user cancelled or share unsupported — fall through to download */ }
+
+    if(!shared){
+      doc.save(fileName);
+      pdfStatus.textContent = 'PDF downloaded — share it from your files.';
+      setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
+    }
+
+    genBtn.disabled = false;
+    genBtn.textContent = originalGenLabel;
+    $('#pdfPasswordBox').style.display = 'none';
+    $('#pdfPasswordInput').value = '';
+  }
+
+  $('#pdfBtn').addEventListener('click', ()=>{
+    const box = $('#pdfPasswordBox');
+    box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+    if(box.style.display === 'flex') $('#pdfPasswordInput').focus();
+  });
+  function triggerPdfGeneration(){
+    const pw = $('#pdfPasswordInput').value;
+    generatePdf(pw === SETTINGS_PASSWORD);
+  }
+  $('#pdfGenerateBtn').addEventListener('click', triggerPdfGeneration);
+  $('#pdfPasswordInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') triggerPdfGeneration();
+  });
+
+  let lastKnownDate = new Date().toDateString();
+  setInterval(()=>{
+    const nowDate = new Date().toDateString();
+    if(nowDate !== lastKnownDate){
+      lastKnownDate = nowDate;
+      $('#todayLabel').textContent = new Date().toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+      render();
+    }
+  }, 30000);
+
+  loadData();
+})();
+</script>
+</body>
+</html>
