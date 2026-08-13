@@ -140,6 +140,8 @@
   #transferAmountsGrid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px; }
   #transferAmountsGrid .field{ position:relative; margin-bottom:0; }
   #transferAmountsGrid .field input{ text-align:center; }
+  .samebank-toggle{ display:flex; align-items:center; justify-content:center; gap:5px; margin-top:7px; font-size:10px; color:var(--muted); cursor:pointer; user-select:none; font-weight:500; }
+  .samebank-toggle input{ width:auto; margin:0; accent-color: var(--theme); }
   #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   #runningTotalRow{ align-items:stretch; }
   #cashField, #runningTotalWrap{ display:flex; flex-direction:column; margin-bottom:16px; }
@@ -366,26 +368,29 @@
     <div id="customerFeeStandaloneSlot"></div>
 
     <div class="field">
-      <div class="autofee">
-        <label class="toggle"><input type="checkbox" id="overrideFee" />override fee</label>
+      <div class="autofee" id="overrideFeeRow">
+        <label class="toggle"><input type="checkbox" id="overrideFee" /><span id="overrideFeeLabel">override fee (same bank transfer)</span></label>
       </div>
       <label class="autobox-label">Total deducted from your balance (auto)</label>
       <div class="autobox deduct">
         <div class="total" id="machineTotal">₦0</div>
         <div class="breakdown" id="machineBreakdown">fee ₦0 · VAT ₦0 · stamp duty ₦0</div>
-        <input type="text" id="providerFee" inputmode="numeric" autocomplete="off" placeholder="e.g. 0 for a free transfer" style="display:none; margin-top:10px;" />
       </div>
     </div>
 
     <button class="addbtn" id="addBtn">Add Transaction</button>
-    <div class="hint">Net profit = fee you charged customer − everything Moniepoint/Opay deducted (fee + VAT + stamp duty + autosave). Use "override fee" for cases like free same-bank transfers — VAT, stamp duty, and autosave still calculate automatically on whatever fee you enter.</div>
+    <div class="hint">Net profit = fee you charged customer − everything Moniepoint/Opay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
   </div>
 
   <div class="card">
-    <h2>Volume Analysis</h2>
-    <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
-    <div id="volumeContent" style="display:none;">
+    <button class="log-toggle" id="volumeToggle">
+      <span class="log-caret" id="volumeCaret">▶</span>
+      <span>Volume Analysis</span>
+    </button>
+    <div id="volumeBody" style="display:none;">
+      <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
+      <div id="volumeContent" style="display:none; margin-top:14px;">
       <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
         <button data-val="today" class="active">Today</button>
         <button data-val="week">Week</button>
@@ -404,6 +409,7 @@
         </div>
       </div>
       <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
+      </div>
     </div>
   </div>
 
@@ -695,27 +701,30 @@
     return r.flat;
   }
 
-  function computeComboBreakdown(provider, withdrawAmount, transferAmounts){
-    // Withdraw+Split-Transfer: one withdrawal leg + N transfer legs, each transfer with
-    // its own transfer fee, VAT, and stamp duty check (stamp applies per qualifying leg,
-    // matching how EMTL is actually charged per real transfer — not once per batch).
-    const amounts = (transferAmounts || []).filter(a => a > 0);
+  function computeComboBreakdown(provider, withdrawAmount, transferLegs){
+    // Withdraw+Split-Transfer: one withdrawal leg + N transfer legs.
+    // The withdrawal fee is ALWAYS computed normally — same-bank/override never touches it,
+    // since a cash withdrawal always has a real machine fee regardless of where transfers go.
+    // Each transfer leg has its own sameBank flag: true = free same-bank transfer (fee+VAT
+    // drop to 0 for that leg only), false = normal transfer fee+VAT. Stamp duty and autosave
+    // still apply per leg either way (EMTL and autosave apply regardless of who waives the fee).
+    const legs = (transferLegs || []).filter(l => l.amount > 0);
     const withdrawalBase = computeBaseFee(provider, 'Withdrawal', withdrawAmount);
     let transferBaseTotal = 0, vat = 0, stamp = 0;
-    amounts.forEach(tAmt=>{
-      const tBase = computeBaseFee(provider, 'Transfer', tAmt);
+    legs.forEach(leg=>{
+      const tBase = leg.sameBank ? 0 : computeBaseFee(provider, 'Transfer', leg.amount);
       transferBaseTotal += tBase;
-      if(settings.vatEnabled) vat += tBase * (settings.vatRate/100);
-      if(settings.stampEnabled && tAmt >= settings.stampThreshold) stamp += settings.stampFlat;
+      if(!leg.sameBank && settings.vatEnabled) vat += tBase * (settings.vatRate/100);
+      if(settings.stampEnabled && leg.amount >= settings.stampThreshold) stamp += settings.stampFlat;
     });
     const base = +(withdrawalBase + transferBaseTotal).toFixed(2);
     vat = +vat.toFixed(2);
     stamp = +stamp.toFixed(2);
-    const legsCount = (withdrawAmount > 0 ? 1 : 0) + amounts.length;
+    const legsCount = (withdrawAmount > 0 ? 1 : 0) + legs.length;
     const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled) ? settings.autosaveFlat : 0;
     const autosave = +(autosaveLeg * legsCount).toFixed(2);
     const total = +(base + vat + stamp + autosave).toFixed(2);
-    return { base, vat, stamp, autosave, total, withdrawalBase, transferBaseTotal, transferAmounts: amounts, legsCount };
+    return { base, vat, stamp, autosave, total, withdrawalBase, transferBaseTotal, transferAmounts: legs.map(l=>l.amount), transferSameBank: legs.map(l=>!!l.sameBank), legsCount };
   }
 
   function computeBreakdown(provider, type, amount, manualBase, transferAmt){
@@ -901,11 +910,13 @@
 
   let transferBoxCount = 0;
 
-  function getTransferAmounts(){
-    return Array.from($('#transferAmountsGrid').querySelectorAll('input')).map(inp => {
+  function getTransferLegs(){
+    return Array.from(document.querySelectorAll('#transferAmountsGrid .field')).map(field => {
+      const inp = field.querySelector('.transfer-amount-input');
+      const check = field.querySelector('.samebank-check');
       const raw = (inp.value || '').replace(/,/g,'');
       const n = parseFloat(raw);
-      return isNaN(n) ? 0 : n;
+      return { amount: isNaN(n) ? 0 : n, sameBank: check ? check.checked : false };
     });
   }
 
@@ -917,12 +928,14 @@
     field.innerHTML = `
       ${removable ? '<span class="remove-x" data-remove>✕</span>' : ''}
       <label>${n === 1 ? 'Amount Transferred (₦)' : 'Amount Transferred ' + n + ' (₦)'}</label>
-      <input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 50,000" />
+      <input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 50,000" class="transfer-amount-input" />
+      <label class="samebank-toggle"><input type="checkbox" class="samebank-check" />Same bank (free)</label>
     `;
     $('#transferAmountsGrid').appendChild(field);
-    const input = field.querySelector('input');
+    const input = field.querySelector('input.transfer-amount-input');
     attachCommaFormatting(input);
     input.addEventListener('input', refreshAuto);
+    field.querySelector('.samebank-check').addEventListener('change', refreshAuto);
     if(removable){
       field.querySelector('[data-remove]').addEventListener('click', ()=>{
         field.remove();
@@ -965,25 +978,27 @@
   function refreshAuto(){
     const isBill = state.type === 'Bill';
     const isCombo = state.type === 'WithdrawTransfer';
+    const isWithdrawal = state.type === 'Withdrawal';
     $('#billerSeg').style.display = isBill ? 'flex' : 'none';
     $('#comboHint').style.display = isCombo ? 'block' : 'none';
     $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : 'Amount withdrawn/sent (₦)');
     updateLayoutForType(isCombo);
 
+    $('#overrideFeeRow').style.display = isWithdrawal ? 'none' : 'flex';
+    if(isWithdrawal) $('#overrideFee').checked = false;
+    $('#overrideFeeLabel').textContent = isCombo ? 'all transfers same bank (rare)' : 'override fee (same bank transfer)';
+
     const override = $('#overrideFee').checked;
     const amount = numVal('#amount');
-    const feeInput = $('#providerFee');
-    feeInput.style.display = override ? 'block' : 'none';
-    const manualBase = override ? numVal('#providerFee') : null;
 
     let bd;
-    if(isCombo && manualBase === null){
-      const transferAmounts = getTransferAmounts();
-      bd = computeComboBreakdown(state.provider, amount, transferAmounts);
+    if(isCombo){
+      const legs = getTransferLegs();
+      bd = computeComboBreakdown(state.provider, amount, legs);
 
       const cash = numVal('#cashAmount');
       const pool = amount + cash;
-      const sum = transferAmounts.reduce((a,b)=>a+b, 0);
+      const sum = legs.reduce((a,l)=>a+l.amount, 0);
       const remaining = pool - sum;
       const box = $('#runningTotalBox');
       const val = $('#runningTotalVal');
@@ -999,9 +1014,8 @@
       } else {
         val.textContent = fmt(remaining);
       }
-    } else if(isCombo){
-      bd = computeBreakdown(state.provider, state.type, amount, manualBase);
     } else {
+      const manualBase = (override && !isWithdrawal) ? 0 : null;
       bd = computeBreakdown(state.provider, state.type, amount, manualBase);
     }
 
@@ -1113,14 +1127,17 @@
         const prevType = state[key];
         state[key] = btn.dataset.val;
         if(key === 'provider') applyProviderTheme(state.provider);
-        if(key === 'type' && btn.dataset.val === 'WithdrawTransfer' && prevType !== 'WithdrawTransfer'){
-          resetTransferBoxes();
+        if(key === 'type'){
+          $('#overrideFee').checked = false;
+          if(btn.dataset.val === 'WithdrawTransfer' && prevType !== 'WithdrawTransfer'){
+            resetTransferBoxes();
+          }
         }
         refreshAuto();
       });
     });
   }
-  ['#amount','#customerFee','#providerFee','#mp_flat','#mp_threshold','#mp_transfer','#op_flat','#op_threshold','#op_transfer','#stampFlat','#stampThreshold','#billFee','#autosaveFlat'].forEach(sel=>{
+  ['#amount','#customerFee','#mp_flat','#mp_threshold','#mp_transfer','#op_flat','#op_threshold','#op_transfer','#stampFlat','#stampThreshold','#billFee','#autosaveFlat'].forEach(sel=>{
     attachCommaFormatting($(sel));
   });
   resetTransferBoxes();
@@ -1148,8 +1165,13 @@
   applyProviderTheme(state.provider);
 
   $('#amount').addEventListener('input', refreshAuto);
-  $('#overrideFee').addEventListener('change', refreshAuto);
-  $('#providerFee').addEventListener('input', refreshAuto);
+  $('#overrideFee').addEventListener('change', ()=>{
+    if(state.type === 'WithdrawTransfer'){
+      const checked = $('#overrideFee').checked;
+      $('#transferAmountsGrid').querySelectorAll('.samebank-check').forEach(c => { c.checked = checked; });
+    }
+    refreshAuto();
+  });
 
   $('#periodTabs').querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1181,14 +1203,14 @@
     const customerFee = numVal('#customerFee');
     const wasOverridden = $('#overrideFee').checked;
     const isCombo = state.type === 'WithdrawTransfer';
-    const transferAmounts = isCombo ? getTransferAmounts().filter(a => a > 0) : null;
+    const legs = isCombo ? getTransferLegs().filter(l => l.amount > 0) : null;
     const cashAmount = isCombo ? numVal('#cashAmount') : 0;
 
-    const manualBase = wasOverridden ? numVal('#providerFee') : null;
     let bd;
-    if(isCombo && manualBase === null){
-      bd = computeComboBreakdown(state.provider, amount, transferAmounts);
+    if(isCombo){
+      bd = computeComboBreakdown(state.provider, amount, legs);
     } else {
+      const manualBase = (wasOverridden && state.type !== 'Withdrawal') ? 0 : null;
       bd = computeBreakdown(state.provider, state.type, amount, manualBase);
     }
     const { base, vat, stamp, autosave, total } = bd;
@@ -1197,12 +1219,13 @@
       setStatus('Enter the fee you charged the customer');
       return;
     }
-    if(isCombo && (!transferAmounts || transferAmounts.length === 0)){
+    if(isCombo && (!legs || legs.length === 0)){
       setStatus('Enter at least one transfer amount');
       return;
     }
 
     const netProfit = customerFee - total;
+    const allLegsSameBank = isCombo && legs.length > 0 && legs.every(l => l.sameBank);
 
     const tx = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
@@ -1210,10 +1233,11 @@
       provider: state.provider, type: state.type,
       biller: state.type === 'Bill' ? state.biller : null,
       amount, customerFee,
-      transferAmounts: isCombo ? transferAmounts : null,
+      transferAmounts: isCombo ? legs.map(l=>l.amount) : null,
+      transferSameBank: isCombo ? legs.map(l=>!!l.sameBank) : null,
       cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
       baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
-      netProfit, manualFee: wasOverridden
+      netProfit, manualFee: isCombo ? allLegsSameBank : (wasOverridden && state.type !== 'Withdrawal')
     };
     transactions.unshift(tx);
     await saveTransactions();
@@ -1313,6 +1337,14 @@
     const caret = $('#safetyCaret');
     const isOpen = content.style.display === 'block';
     content.style.display = isOpen ? 'none' : 'block';
+    caret.classList.toggle('open', !isOpen);
+  });
+
+  $('#volumeToggle').addEventListener('click', ()=>{
+    const body = $('#volumeBody');
+    const caret = $('#volumeCaret');
+    const isOpen = body.style.display === 'block';
+    body.style.display = isOpen ? 'none' : 'block';
     caret.classList.toggle('open', !isOpen);
   });
 
@@ -1433,7 +1465,11 @@
 
   function typeLabel(t){
     if(t.type === 'Bill') return 'Bill · ' + t.biller;
-    if(t.type === 'WithdrawTransfer') return 'Withdraw+Transfer';
+    if(t.type === 'WithdrawTransfer'){
+      if(t.manualFee) return `${t.provider} - ${t.provider} Transfer`;
+      return 'Withdraw+Transfer';
+    }
+    if(t.type === 'Transfer' && t.manualFee) return `${t.provider} - ${t.provider} Transfer`;
     return t.type;
   }
 
