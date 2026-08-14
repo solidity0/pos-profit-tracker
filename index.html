@@ -23,16 +23,16 @@
   [data-theme="night"]{
     color-scheme: dark;
     --bg: #000000;
-    --surface: #0C0C0D;
+    --surface: #131315;
     --surface-2: #131314;
     --surface-3: #1A1A1B;
     --line: #1E1E1F;
-    --line-soft: #161617;
+    --line-soft: #29292C;
     --text: #F2F2F2;
     --muted: #8A8A8E;
     --muted-2: #525255;
     --shadow: 0 0 0 1px rgba(255,255,255,0.035), 0 20px 44px -18px rgba(0,0,0,0.85);
-    --shadow-sm: 0 0 0 1px rgba(255,255,255,0.03), 0 8px 20px -12px rgba(0,0,0,0.7);
+    --shadow-sm: 0 0 0 1px rgba(255,255,255,0.045), 0 12px 26px -14px rgba(0,0,0,0.8);
   }
   [data-theme="day"]{
     color-scheme: light;
@@ -41,12 +41,12 @@
     --surface-2: #F1F3F6;
     --surface-3: #E9EBEF;
     --line: #DFE2E7;
-    --line-soft: #EBEDF0;
+    --line-soft: #D6DAE1;
     --text: #14171A;
     --muted: #6B7280;
     --muted-2: #9CA3AF;
     --shadow: 0 2px 6px rgba(15,23,42,0.08), 0 24px 48px -20px rgba(15,23,42,0.22);
-    --shadow-sm: 0 1px 3px rgba(15,23,42,0.07), 0 10px 24px -14px rgba(15,23,42,0.16);
+    --shadow-sm: 0 1px 4px rgba(15,23,42,0.09), 0 14px 28px -16px rgba(15,23,42,0.2);
     /* darker variants for text-on-white — the night-mode "soft" colors are too light to read here */
     --profit: #0E9F6E;
     --loss: #DC2626;
@@ -145,13 +145,13 @@
   #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   #runningTotalRow{ align-items:stretch; }
   #cashField, #runningTotalWrap{ display:flex; flex-direction:column; margin-bottom:16px; }
-  #cashField input, #runningTotalWrap .running-total{ flex:1; }
+  #cashField input, .running-total{ height:48px; box-sizing:border-box; }
   #cashField{ position:relative; }
   #cashField input{ text-align:center; }
   #cashField .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   .add-transfer{ width:100%; background:none; border:1.5px dashed var(--line); color:var(--theme-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:14px; }
   .add-transfer:hover{ border-color: var(--theme); color: var(--theme); }
-  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:12px 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--line); transition: border-color 0.15s, background 0.15s; }
+  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:0 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--line); transition: border-color 0.15s, background 0.15s; }
   .running-total .val{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-variant-numeric:tabular-nums; }
   .running-total.over{ border-color: var(--loss); background: rgba(255,59,48,0.08); }
   .running-total.over .val{ color: var(--loss); }
@@ -219,6 +219,7 @@
   .badge.moniepoint{ background: var(--mp-tint); color: var(--mp-soft); }
   .badge.opay{ background: var(--op-tint); color: var(--op-soft); }
   .log-left .type{ font-size: 13.5px; color: var(--text); font-weight:600; }
+  .log-left .samebank-sublabel{ font-size: 11px; color: var(--theme-soft); font-weight:600; margin-top:1px; }
   .log-left .date{ font-size: 11px; color: var(--muted); margin-top: 4px; font-weight:500; }
   .log-left .amountline{ font-size: 11px; color: var(--muted); margin-top: 3px; font-weight:500; font-variant-numeric: tabular-nums; }
   .log-left .feenote{ font-size: 10.5px; color: var(--muted-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
@@ -260,8 +261,8 @@
   .settings h3.op-heading{ color: var(--op-soft); }
   .fee-table-wrap{ margin-top: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; }
   .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
-  .trend-box{ border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 12px; }
-  .trend-icon{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+  .trend-box{ border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 12px; text-align:center; }
+  .trend-icon{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin: 0 auto 10px; }
   .trend-icon svg{ width:16px; height:16px; }
   .trend-icon.in{ background: rgba(52,211,153,0.12); color: var(--profit); }
   .trend-icon.out{ background: rgba(251,122,122,0.12); color: var(--loss); }
@@ -332,6 +333,7 @@
       <button data-val="GOTV">GOTV</button>
       <button data-val="StarTimes">StarTimes</button>
       <button data-val="Showmax">Showmax</button>
+      <button data-val="Betting">Betting</button>
     </div>
 
     <div class="row2" id="amountFeeRow">
@@ -551,6 +553,10 @@
       <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
       <div class="hint">Your record book shows a dash under MC for Electricity/GOTV rows — no machine charge on bill payments — so this defaults to ₦0 and your full fee is profit. Edit if that ever changes.</div>
 
+      <h3>Betting</h3>
+      <div class="field"><label>Machine charge on betting top-ups (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="bettingFee" /></div>
+      <div class="hint">Betting top-ups typically DO carry a machine fee, unlike other bill payments — defaults to ₦100, unconfirmed. Edit to match what your terminal actually charges.</div>
+
       <h3>Service Fee Table <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
       <div class="hint">Set the fee you charge customers at each amount tier. Edit any box — this also shows as a quick reference in Educational &amp; Safety Tips.</div>
       <div class="row2" id="serviceFeeInputs"></div>
@@ -629,7 +635,7 @@
   let settings = {
     vatEnabled: true, vatRate: 7.5,
     stampEnabled: true, stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
-    billFee: 0,
+    billFee: 0, bettingFee: 100,
     autosaveEnabled: true, autosaveFlat: 40,
     rates: {
       Moniepoint: { pct: 0.5, flat: 100, threshold: 20000, transfer: 20 },
@@ -693,7 +699,7 @@
   }
 
   function computeBaseFee(provider, type, amount){
-    if(type === 'Bill') return settings.billFee || 0;
+    if(type === 'Bill') return (state.biller === 'Betting' ? settings.bettingFee : settings.billFee) || 0;
     const r = settings.rates[provider];
     if(!r || !amount || amount <= 0) return 0;
     if(type === 'Transfer') return r.transfer;
@@ -984,9 +990,8 @@
     $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : 'Amount withdrawn/sent (₦)');
     updateLayoutForType(isCombo);
 
-    $('#overrideFeeRow').style.display = isWithdrawal ? 'none' : 'flex';
-    if(isWithdrawal) $('#overrideFee').checked = false;
-    $('#overrideFeeLabel').textContent = isCombo ? 'all transfers same bank (rare)' : 'override fee (same bank transfer)';
+    $('#overrideFeeRow').style.display = 'flex';
+    $('#overrideFeeLabel').textContent = isCombo ? 'all transfers same bank (rare)' : (isWithdrawal ? 'override fee (free withdrawal)' : 'override fee (same bank transfer)');
 
     const override = $('#overrideFee').checked;
     const amount = numVal('#amount');
@@ -1015,7 +1020,7 @@
         val.textContent = fmt(remaining);
       }
     } else {
-      const manualBase = (override && !isWithdrawal) ? 0 : null;
+      const manualBase = override ? 0 : null;
       bd = computeBreakdown(state.provider, state.type, amount, manualBase);
     }
 
@@ -1071,6 +1076,7 @@
     setFmt('#stampFlat', settings.stampFlat);
     setFmt('#stampThreshold', settings.stampThreshold);
     setFmt('#billFee', settings.billFee);
+    setFmt('#bettingFee', settings.bettingFee);
     $('#autosaveEnabled').checked = !!settings.autosaveEnabled;
     setFmt('#autosaveFlat', settings.autosaveFlat);
     $('#stampOnWithdrawal').checked = !!settings.stampOnWithdrawal;
@@ -1137,7 +1143,7 @@
       });
     });
   }
-  ['#amount','#customerFee','#mp_flat','#mp_threshold','#mp_transfer','#op_flat','#op_threshold','#op_transfer','#stampFlat','#stampThreshold','#billFee','#autosaveFlat'].forEach(sel=>{
+  ['#amount','#customerFee','#mp_flat','#mp_threshold','#mp_transfer','#op_flat','#op_threshold','#op_transfer','#stampFlat','#stampThreshold','#billFee','#bettingFee','#autosaveFlat'].forEach(sel=>{
     attachCommaFormatting($(sel));
   });
   resetTransferBoxes();
@@ -1210,12 +1216,12 @@
     if(isCombo){
       bd = computeComboBreakdown(state.provider, amount, legs);
     } else {
-      const manualBase = (wasOverridden && state.type !== 'Withdrawal') ? 0 : null;
+      const manualBase = wasOverridden ? 0 : null;
       bd = computeBreakdown(state.provider, state.type, amount, manualBase);
     }
     const { base, vat, stamp, autosave, total } = bd;
 
-    if(customerFee <= 0){
+    if($('#customerFee').value.trim() === ''){
       setStatus('Enter the fee you charged the customer');
       return;
     }
@@ -1237,7 +1243,7 @@
       transferSameBank: isCombo ? legs.map(l=>!!l.sameBank) : null,
       cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
       baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
-      netProfit, manualFee: isCombo ? allLegsSameBank : (wasOverridden && state.type !== 'Withdrawal')
+      netProfit, manualFee: isCombo ? allLegsSameBank : wasOverridden
     };
     transactions.unshift(tx);
     await saveTransactions();
@@ -1273,6 +1279,7 @@
   $('#stampFlat').addEventListener('change', async ()=>{ settings.stampFlat = numVal('#stampFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampThreshold').addEventListener('change', async ()=>{ settings.stampThreshold = numVal('#stampThreshold'); await saveSettings(); refreshAuto(); render(); });
   $('#billFee').addEventListener('change', async ()=>{ settings.billFee = numVal('#billFee'); await saveSettings(); refreshAuto(); render(); });
+  $('#bettingFee').addEventListener('change', async ()=>{ settings.bettingFee = numVal('#bettingFee'); await saveSettings(); refreshAuto(); render(); });
   $('#autosaveEnabled').addEventListener('change', async ()=>{ settings.autosaveEnabled = $('#autosaveEnabled').checked; await saveSettings(); refreshAuto(); render(); });
   $('#autosaveFlat').addEventListener('change', async ()=>{ settings.autosaveFlat = numVal('#autosaveFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampOnWithdrawal').addEventListener('change', async ()=>{ settings.stampOnWithdrawal = $('#stampOnWithdrawal').checked; await saveSettings(); refreshAuto(); render(); });
@@ -1473,6 +1480,13 @@
     return t.type;
   }
 
+  function sameBankSubLabel(t){
+    if(t.type !== 'WithdrawTransfer' || !Array.isArray(t.transferSameBank)) return '';
+    const count = t.transferSameBank.filter(Boolean).length;
+    if(count === 0 || count === t.transferSameBank.length) return '';
+    return `${count} ${t.provider} - ${t.provider} Transfer${count === 1 ? '' : 's'}`;
+  }
+
   function comboAmountLine(t, useFmt){
     const f = useFmt || fmt;
     if(t.type !== 'WithdrawTransfer'){
@@ -1640,6 +1654,7 @@
           <div class="log-left">
             <span class="badge ${t.provider.toLowerCase()}">${t.provider}</span>
             <div class="type">${typeLabel(t)}</div>
+            ${sameBankSubLabel(t) ? `<div class="samebank-sublabel">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
             <div class="amountline">${comboAmountLine(t)} · charged ${fmt(t.customerFee)}</div>
           </div>
