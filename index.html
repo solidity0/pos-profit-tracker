@@ -13,6 +13,7 @@
     --radius: 18px;
     --radius-sm: 12px;
     --profit: #34D399;
+    --deepgreen: #16A34A; --deepgreen-tint: rgba(22,163,74,0.13);
     --loss: #FF3B30;
     --accent: #FF8A1E;
     --mp: #3B7CFF; --mp-soft: #83ABFF; --mp-tint: rgba(59,124,255,0.13);
@@ -27,7 +28,7 @@
     --surface-2: #131314;
     --surface-3: #1A1A1B;
     --line: #1E1E1F;
-    --line-soft: #29292C;
+    --line-soft: #4A4A52;
     --text: #F2F2F2;
     --muted: #8A8A8E;
     --muted-2: #525255;
@@ -41,7 +42,7 @@
     --surface-2: #F1F3F6;
     --surface-3: #E9EBEF;
     --line: #DFE2E7;
-    --line-soft: #D6DAE1;
+    --line-soft: #AEB4BF;
     --text: #14171A;
     --muted: #6B7280;
     --muted-2: #9CA3AF;
@@ -49,6 +50,7 @@
     --shadow-sm: 0 1px 4px rgba(15,23,42,0.09), 0 14px 28px -16px rgba(15,23,42,0.2);
     /* darker variants for text-on-white — the night-mode "soft" colors are too light to read here */
     --profit: #0E9F6E;
+    --deepgreen: #15803D; --deepgreen-tint: rgba(21,128,61,0.1);
     --loss: #DC2626;
     --accent: #C9660A;
     --mp-soft: #1D4ED8;
@@ -76,7 +78,7 @@
   .theme-toggle:hover{ border-color: var(--theme); color: var(--theme-soft); }
   .theme-toggle svg{ width:15px; height:15px; }
 
-  .card{ background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+  .card{ background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
   .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
   .log-toggle{ width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; font-family:'Inter',sans-serif; padding: 0 0 4px; margin: 0; }
   .log-toggle:hover{ color: var(--theme-soft); }
@@ -116,7 +118,8 @@
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
   .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 5px; font-weight:600; text-align:center; }
-  .field input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; }
+  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
+  .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
   .field input:focus{ border-color: var(--theme); }
   .field input:disabled{ color: var(--theme-soft); opacity: 0.9; -webkit-text-fill-color: var(--theme-soft); }
@@ -129,7 +132,7 @@
   .autofee{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom: 10px; }
   .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:600; text-align:center; }
   .autofee .toggle{ font-size: 11px; color: var(--muted); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
-  .autofee .toggle input{ width:auto; margin:0; accent-color: var(--theme); }
+  .autofee .toggle input{ width:19px; height:19px; margin:0; accent-color: var(--theme); }
   .autobox{ background: var(--theme-tint); border: 1.5px solid var(--theme); border-radius: var(--radius-sm); padding: 14px; transition: background 0.18s, border-color 0.18s; }
   .autobox.deduct{ background: rgba(255,59,48,0.1); border-color: var(--loss); }
   .autobox.deduct .total{ color: var(--loss); }
@@ -219,7 +222,9 @@
   .badge.moniepoint{ background: var(--mp-tint); color: var(--mp-soft); }
   .badge.opay{ background: var(--op-tint); color: var(--op-soft); }
   .log-left .type{ font-size: 13.5px; color: var(--text); font-weight:600; }
-  .log-left .samebank-sublabel{ font-size: 11px; color: var(--theme-soft); font-weight:600; margin-top:1px; }
+  .log-left .samebank-sublabel{ font-size: 11px; font-weight:600; margin-top:1px; }
+  .log-left .type.samebank-mp, .log-left .samebank-sublabel.samebank-mp{ color: var(--mp-soft); }
+  .log-left .type.samebank-op, .log-left .samebank-sublabel.samebank-op{ color: var(--op-soft); }
   .log-left .date{ font-size: 11px; color: var(--muted); margin-top: 4px; font-weight:500; }
   .log-left .amountline{ font-size: 11px; color: var(--muted); margin-top: 3px; font-weight:500; font-variant-numeric: tabular-nums; }
   .log-left .feenote{ font-size: 10.5px; color: var(--muted-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
@@ -242,11 +247,6 @@
   #settingsCaret{ display:inline-block; font-size: 9px; transition: transform 0.15s; }
   .settings-toggle.open #settingsCaret{ transform: rotate(90deg); }
   .settings-password{ display:flex; gap:8px; align-items:center; margin-top: 10px; flex-wrap:wrap; }
-  .pdf-password{ display:flex; gap:8px; align-items:center; margin-top: 12px; flex-wrap:wrap; }
-  .pdf-password input{ flex:1; min-width:140px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
-  .pdf-password input:focus{ border-color: var(--theme); }
-  .pdf-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
-  .pdf-password .hint{ width:100%; margin-top:2px; }
   .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
   .settings-password input:focus{ border-color: var(--theme); }
   .settings-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
@@ -289,12 +289,18 @@
   .switchrow label{ font-size: 12px; color: var(--text); font-weight:500; }
   .switchrow input[type="checkbox"]{ accent-color: var(--theme); }
   .resetbtn{ background:none; border: 1.5px solid var(--loss); color: var(--loss); font-family: 'Inter', sans-serif; font-weight:600; font-size: 12px; padding: 9px 14px; border-radius: var(--radius-sm); cursor:pointer; margin-top: 16px; transition: all 0.15s; }
+  .settings-bottom-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .donebtn{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; padding: 10px 22px; border-radius: var(--radius-sm); cursor:pointer; margin-top: 16px; transition: opacity 0.15s; }
+  .donebtn:hover{ opacity:0.9; }
   .resetbtn.armed{ background: var(--loss); color: #1A0E0E; }
   .card.has-clear{ position:relative; }
   .clearbtn{ background:none; border: 1.5px solid var(--line); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
   .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
   .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
+  .status.deepgreen{ color: var(--deepgreen); font-weight:700; }
+  #customerFee{ border-color: var(--deepgreen) !important; background: var(--deepgreen-tint) !important; color: var(--deepgreen); font-weight:600; }
+  #customerFee::placeholder{ color: var(--deepgreen); opacity:0.6; }
   .disclaimer{ font-size: 11px; color: var(--muted); line-height: 1.65; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
 </style>
 </head>
@@ -332,7 +338,6 @@
       <button data-val="DSTV">DSTV</button>
       <button data-val="GOTV">GOTV</button>
       <button data-val="StarTimes">StarTimes</button>
-      <button data-val="Showmax">Showmax</button>
       <button data-val="Betting">Betting</button>
     </div>
 
@@ -359,7 +364,7 @@
           <input type="text" id="cashAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 10,000" />
         </div>
         <div class="field" id="runningTotalWrap">
-          <label>Remaining to allocate (₦)</label>
+          <label>Remaining (₦)</label>
           <div class="running-total" id="runningTotalBox">
             <span class="val" id="runningTotalVal">₦0</span>
           </div>
@@ -461,11 +466,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
         Download / Share PDF
       </button>
-      <div class="pdf-password" id="pdfPasswordBox" style="display:none;">
-        <input type="password" id="pdfPasswordInput" autocomplete="off" placeholder="Owner password (optional)" />
-        <button id="pdfGenerateBtn">Generate</button>
-        <div class="hint">Enter the owner's password to include fee breakdowns and net profit in the file. Leave it blank for a basic report — amounts and fees charged only.</div>
-      </div>
       <div class="status" id="pdfStatus"></div>
     </div>
   </div>
@@ -514,6 +514,7 @@
         <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_threshold" /></div>
         <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_transfer" /></div>
       </div>
+      <div class="field"><label>VAT rate (%)</label><input type="number" id="mp_vatRate" step="0.1" /></div>
       <div class="field"><label>Auto-save per transaction (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="autosaveFlat" /></div>
       <div class="switchrow"><label>Track auto-save automatically</label><input type="checkbox" id="autosaveEnabled" checked /></div>
       <div class="hint">Currently set to exact 0.5%, confirmed against your real ₦100 (₦0.50) transaction. Note: your ₦8,100 (₦45) and ₦10,200 (₦55) transactions don't fit this exactly — those showed rounding up to the nearest ₦5, which doesn't match the ₦100 case. The exact rule for larger amounts isn't fully confirmed yet — use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
@@ -534,11 +535,11 @@
         <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_threshold" /></div>
         <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_transfer" /></div>
       </div>
+      <div class="field"><label>VAT rate (%)</label><input type="number" id="op_vatRate" step="0.1" /></div>
 
       <h3>VAT on machine fee</h3>
       <div class="switchrow"><label>Apply automatically</label><input type="checkbox" id="vatEnabled" checked /></div>
-      <div class="field"><label>VAT rate (%)</label><input type="number" id="vatRate" step="0.1" /></div>
-      <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free.</div>
+      <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free. Rate is set per-provider above.</div>
 
       <h3>Stamp Duty (EMTL)</h3>
       <div class="switchrow"><label>Apply automatically</label><input type="checkbox" id="stampEnabled" checked /></div>
@@ -549,13 +550,13 @@
       <div class="switchrow"><label>Also apply to Withdrawals</label><input type="checkbox" id="stampOnWithdrawal" /></div>
       <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too.</div>
 
-      <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes, Showmax)</h3>
+      <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes)</h3>
       <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
       <div class="hint">Your record book shows a dash under MC for Electricity/GOTV rows — no machine charge on bill payments — so this defaults to ₦0 and your full fee is profit. Edit if that ever changes.</div>
 
       <h3>Betting</h3>
       <div class="field"><label>Machine charge on betting top-ups (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="bettingFee" /></div>
-      <div class="hint">Betting top-ups typically DO carry a machine fee, unlike other bill payments — defaults to ₦100, unconfirmed. Edit to match what your terminal actually charges.</div>
+      <div class="hint">Betting top-ups default to ₦0 machine fee, same as other bill payments. Edit if your terminal actually charges something for it.</div>
 
       <h3>Service Fee Table <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
       <div class="hint">Set the fee you charge customers at each amount tier. Edit any box — this also shows as a quick reference in Educational &amp; Safety Tips.</div>
@@ -574,7 +575,10 @@
         This is built from an actual terminal statement. Annual income tax (progressive, on total yearly profit) is separate and not calculated here — use your Net Profit totals for that when you file.
       </div>
 
-      <button class="resetbtn" id="resetBtn">Erase all data</button>
+      <div class="settings-bottom-row">
+        <button class="resetbtn" id="resetBtn">Erase all data</button>
+        <button class="donebtn" id="settingsDoneBtn" type="button">Done</button>
+      </div>
       </div>
     </div>
   </div>
@@ -633,13 +637,13 @@
   let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today' };
   let transactions = [];
   let settings = {
-    vatEnabled: true, vatRate: 7.5,
+    vatEnabled: true,
     stampEnabled: true, stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
-    billFee: 0, bettingFee: 100,
+    billFee: 0, bettingFee: 0,
     autosaveEnabled: true, autosaveFlat: 40,
     rates: {
-      Moniepoint: { pct: 0.5, flat: 100, threshold: 20000, transfer: 20 },
-      Opay:       { pct: 0.5, flat: 100, threshold: 20000, transfer: 20 }
+      Moniepoint: { pct: 0.5, flat: 100, threshold: 20000, transfer: 20, vatRate: 7.5 },
+      Opay:       { pct: 0.5, flat: 100, threshold: 20000, transfer: 20, vatRate: 7.5 }
     },
     customerFees: { 100:50, 500:50, 1000:100, 2000:100, 5000:150, 10000:200, 15000:250, 20000:300 },
     customerFeeAboveRate: 100,
@@ -692,9 +696,10 @@
     try{ await store.set('theme', next); }catch(e){}
   });
 
-  function setStatus(msg){
+  function setStatus(msg, cls){
     const el = $('#status');
     el.textContent = msg;
+    el.className = 'status' + (cls ? ' ' + cls : '');
     if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 2000);
   }
 
@@ -720,7 +725,7 @@
     legs.forEach(leg=>{
       const tBase = leg.sameBank ? 0 : computeBaseFee(provider, 'Transfer', leg.amount);
       transferBaseTotal += tBase;
-      if(!leg.sameBank && settings.vatEnabled) vat += tBase * (settings.vatRate/100);
+      if(!leg.sameBank && settings.vatEnabled) vat += tBase * ((settings.rates[provider].vatRate||0)/100);
       if(settings.stampEnabled && leg.amount >= settings.stampThreshold) stamp += settings.stampFlat;
     });
     const base = +(withdrawalBase + transferBaseTotal).toFixed(2);
@@ -744,7 +749,7 @@
       const base = +(withdrawalBase + transferBase).toFixed(2);
       // VAT only applies to the transfer-type fee, not the withdrawal fee (confirmed: a plain
       // withdrawal shows no VAT line at all, while a plain transfer's fee gets 7.5% VAT).
-      const vat = settings.vatEnabled ? +(transferBase * (settings.vatRate/100)).toFixed(2) : 0;
+      const vat = settings.vatEnabled ? +(transferBase * ((settings.rates[provider].vatRate||0)/100)).toFixed(2) : 0;
       let stamp = 0;
       if(settings.stampEnabled && tAmt >= settings.stampThreshold) stamp = settings.stampFlat;
       const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled && (amount > 0 || tAmt > 0)) ? settings.autosaveFlat : 0;
@@ -754,7 +759,7 @@
     }
     const base = (manualBase !== null && manualBase !== undefined) ? manualBase : computeBaseFee(provider, type, amount);
     const isTransferLike = (type === 'Transfer' || type === 'WithdrawTransfer');
-    const vat = (settings.vatEnabled && isTransferLike) ? +(base * (settings.vatRate/100)).toFixed(2) : 0;
+    const vat = (settings.vatEnabled && isTransferLike) ? +(base * ((settings.rates[provider].vatRate||0)/100)).toFixed(2) : 0;
     let stamp = 0;
     if(settings.stampEnabled && amount >= settings.stampThreshold){
       if(isTransferLike || (type === 'Withdrawal' && settings.stampOnWithdrawal)) stamp = settings.stampFlat;
@@ -990,7 +995,8 @@
     $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : 'Amount withdrawn/sent (₦)');
     updateLayoutForType(isCombo);
 
-    $('#overrideFeeRow').style.display = 'flex';
+    $('#overrideFeeRow').style.display = isBill ? 'none' : 'flex';
+    if(isBill) $('#overrideFee').checked = false;
     $('#overrideFeeLabel').textContent = isCombo ? 'all transfers same bank (rare)' : (isWithdrawal ? 'override fee (free withdrawal)' : 'override fee (same bank transfer)');
 
     const override = $('#overrideFee').checked;
@@ -1066,12 +1072,13 @@
     setFmt('#mp_flat', settings.rates.Moniepoint.flat);
     setFmt('#mp_threshold', settings.rates.Moniepoint.threshold);
     setFmt('#mp_transfer', settings.rates.Moniepoint.transfer);
+    $('#mp_vatRate').value = settings.rates.Moniepoint.vatRate;
     $('#op_pct').value = settings.rates.Opay.pct;
     setFmt('#op_flat', settings.rates.Opay.flat);
     setFmt('#op_threshold', settings.rates.Opay.threshold);
     setFmt('#op_transfer', settings.rates.Opay.transfer);
+    $('#op_vatRate').value = settings.rates.Opay.vatRate;
     $('#vatEnabled').checked = !!settings.vatEnabled;
-    $('#vatRate').value = settings.vatRate;
     $('#stampEnabled').checked = !!settings.stampEnabled;
     setFmt('#stampFlat', settings.stampFlat);
     setFmt('#stampThreshold', settings.stampThreshold);
@@ -1222,7 +1229,7 @@
     const { base, vat, stamp, autosave, total } = bd;
 
     if($('#customerFee').value.trim() === ''){
-      setStatus('Enter the fee you charged the customer');
+      setStatus('Enter the fee you charged the customer', 'deepgreen');
       return;
     }
     if(isCombo && (!legs || legs.length === 0)){
@@ -1253,7 +1260,7 @@
     $('#customerFee').value = '';
     $('#overrideFee').checked = false;
     refreshAuto();
-    setStatus('Added ✓');
+    setStatus('Added ✓', 'deepgreen');
     render();
     openLogDropdown();
   });
@@ -1268,13 +1275,14 @@
   wireRateField('#mp_flat','Moniepoint','flat');
   wireRateField('#mp_threshold','Moniepoint','threshold');
   wireRateField('#mp_transfer','Moniepoint','transfer');
+  wireRateField('#mp_vatRate','Moniepoint','vatRate');
   wireRateField('#op_pct','Opay','pct');
   wireRateField('#op_flat','Opay','flat');
   wireRateField('#op_threshold','Opay','threshold');
   wireRateField('#op_transfer','Opay','transfer');
+  wireRateField('#op_vatRate','Opay','vatRate');
 
   $('#vatEnabled').addEventListener('change', async ()=>{ settings.vatEnabled = $('#vatEnabled').checked; await saveSettings(); refreshAuto(); render(); });
-  $('#vatRate').addEventListener('change', async ()=>{ settings.vatRate = parseFloat($('#vatRate').value) || 0; await saveSettings(); refreshAuto(); render(); });
   $('#stampEnabled').addEventListener('change', async ()=>{ settings.stampEnabled = $('#stampEnabled').checked; await saveSettings(); refreshAuto(); render(); });
   $('#stampFlat').addEventListener('change', async ()=>{ settings.stampFlat = numVal('#stampFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampThreshold').addEventListener('change', async ()=>{ settings.stampThreshold = numVal('#stampThreshold'); await saveSettings(); refreshAuto(); render(); });
@@ -1438,6 +1446,10 @@
       btn.classList.remove('armed');
     }, 3000);
   }
+
+  $('#settingsDoneBtn').addEventListener('click', ()=>{
+    hideSettingsPanels();
+  });
 
   $('#resetBtn').addEventListener('click', ()=>{
     armTapTwice($('#resetBtn'), 'Erase all data', 'Tap again to confirm', async ()=>{
@@ -1649,12 +1661,15 @@
         const profitBlock = settingsUnlocked
           ? `<div class="profit-label">${t.netProfit<0?'loss':'profit'}</div><div class="profit ${t.netProfit<0?'neg':''}">${fmt(t.netProfit)}</div>`
           : `<div class="profit-locked">${eyeOffSvg}</div>`;
+        const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
+        const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
+        const typeClass = isSameBankTitle ? providerColorClass : '';
         item.innerHTML = `
           <div class="log-icon ${iconClass}">${iconSvg}</div>
           <div class="log-left">
             <span class="badge ${t.provider.toLowerCase()}">${t.provider}</span>
-            <div class="type">${typeLabel(t)}</div>
-            ${sameBankSubLabel(t) ? `<div class="samebank-sublabel">${sameBankSubLabel(t)}</div>` : ''}
+            <div class="type ${typeClass}">${typeLabel(t)}</div>
+            ${sameBankSubLabel(t) ? `<div class="samebank-sublabel ${providerColorClass}">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
             <div class="amountline">${comboAmountLine(t)} · charged ${fmt(t.customerFee)}</div>
           </div>
@@ -1672,17 +1687,16 @@
     }
   }
 
-  async function generatePdf(fullAccess){
+  async function generatePdf(){
     const pdfBtn = $('#pdfBtn');
     const pdfStatus = $('#pdfStatus');
     if(typeof window.jspdf === 'undefined'){
       pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
       return;
     }
-    const genBtn = $('#pdfGenerateBtn');
-    genBtn.disabled = true;
-    const originalGenLabel = genBtn.textContent;
-    genBtn.textContent = 'Building…';
+    pdfBtn.disabled = true;
+    const originalBtnLabel = pdfBtn.textContent;
+    pdfBtn.textContent = 'Building…';
 
     const filtered = getFiltered().slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
     let sumCustomer=0, sumBase=0, sumVat=0, sumStamp=0, sumAutosave=0, sumNet=0;
@@ -1716,13 +1730,12 @@
     doc.setDrawColor(220); doc.line(marginX, y, pageW - marginX, y);
     y += 22;
 
-    const summaryRows = [];
-    if(fullAccess){
-      summaryRows.push(['VAT', '-' + fmtPdf(sumVat)]);
-      summaryRows.push(['Stamp duty', '-' + fmtPdf(sumStamp)]);
-      summaryRows.push(['Moniepoint/Opay fee', '-' + fmtPdf(sumBase)]);
-      if(sumAutosave > 0) summaryRows.push(['Auto-save (Moniepoint)', '-' + fmtPdf(sumAutosave)]);
-    }
+    const summaryRows = [
+      ['VAT', '-' + fmtPdf(sumVat)],
+      ['Stamp duty', '-' + fmtPdf(sumStamp)],
+      ['Moniepoint/Opay fee', '-' + fmtPdf(sumBase)]
+    ];
+    if(sumAutosave > 0) summaryRows.push(['Auto-save (Moniepoint)', '-' + fmtPdf(sumAutosave)]);
     summaryRows.push(['Customer fees collected', fmtPdf(sumCustomer)]);
 
     doc.setFontSize(11); doc.setTextColor(30);
@@ -1738,17 +1751,11 @@
     doc.setDrawColor(220); doc.line(marginX, y, pageW - marginX, y);
     y += 24;
 
-    if(fullAccess){
-      doc.setFont('helvetica','bold'); doc.setFontSize(14);
-      doc.text('NET PROFIT', marginX, y);
-      doc.setFontSize(16);
-      doc.text(fmtPdf(sumNet), pageW - marginX, y, { align: 'right' });
-      y += 14;
-    } else {
-      doc.setFont('helvetica','italic'); doc.setFontSize(10); doc.setTextColor(140);
-      doc.text('Net profit hidden — owner password required', marginX, y);
-      y += 14;
-    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('NET PROFIT', marginX, y);
+    doc.setFontSize(16);
+    doc.text(fmtPdf(sumNet), pageW - marginX, y, { align: 'right' });
+    y += 14;
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120);
     doc.text(`${filtered.length} transaction${filtered.length===1?'':'s'}`, marginX, y);
     y += 30;
@@ -1758,7 +1765,7 @@
     y += 20;
 
     const pageH = doc.internal.pageSize.getHeight();
-    const rowHeight = fullAccess ? 40 : 30;
+    const rowHeight = 40;
     filtered.forEach((t, idx)=>{
       if(y > pageH - rowHeight - 20){
         doc.addPage();
@@ -1768,13 +1775,11 @@
       const timeStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
       const typeStr = t.provider + ' · ' + typeLabel(t);
 
-      // Line 1: type/provider on the left, net profit bold on the right (only with full access)
+      // Line 1: type/provider on the left, net profit bold on the right
       doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(30);
       doc.text(typeStr, marginX, y);
-      if(fullAccess){
-        doc.setTextColor(t.netProfit < 0 ? 200 : 20, t.netProfit < 0 ? 40 : 120, t.netProfit < 0 ? 40 : 60);
-        doc.text(fmtPdf(t.netProfit), pageW - marginX, y, { align: 'right' });
-      }
+      doc.setTextColor(t.netProfit < 0 ? 200 : 20, t.netProfit < 0 ? 40 : 120, t.netProfit < 0 ? 40 : 60);
+      doc.text(fmtPdf(t.netProfit), pageW - marginX, y, { align: 'right' });
       y += 13;
 
       // Line 2: time, amount, and what was charged to the customer
@@ -1783,15 +1788,13 @@
       doc.text(`${timeStr} · ${amountPart} · charged ${fmtPdf(t.customerFee)}`, marginX, y);
       y += 12;
 
-      // Line 3: the fee breakdown, owner-only
-      if(fullAccess){
-        doc.setFontSize(8.5); doc.setTextColor(140);
-        let feeLine = t.manualFee ? `fee ${fmtPdf(t.baseFee)} (manual)` : `fee ${fmtPdf(t.baseFee)}`;
-        feeLine += ` + VAT ${fmtPdf(t.vatAmt)} + stamp ${fmtPdf(t.stampAmt)}`;
-        if(t.autosaveAmt) feeLine += ` + autosave ${fmtPdf(t.autosaveAmt)}`;
-        doc.text(feeLine, marginX, y);
-        y += 10;
-      }
+      // Line 3: the fee breakdown
+      doc.setFontSize(8.5); doc.setTextColor(140);
+      let feeLine = t.manualFee ? `fee ${fmtPdf(t.baseFee)} (manual)` : `fee ${fmtPdf(t.baseFee)}`;
+      feeLine += ` + VAT ${fmtPdf(t.vatAmt)} + stamp ${fmtPdf(t.stampAmt)}`;
+      if(t.autosaveAmt) feeLine += ` + autosave ${fmtPdf(t.autosaveAmt)}`;
+      doc.text(feeLine, marginX, y);
+      y += 10;
 
       if(idx < filtered.length - 1){
         doc.setDrawColor(235);
@@ -1800,7 +1803,7 @@
       y += 10;
     });
 
-    const fileName = `ledger-${periodLabel.toLowerCase().replace(/\s+/g,'-')}-${now.toISOString().slice(0,10)}${fullAccess ? '' : '-basic'}.pdf`;
+    const fileName = `ledger-${periodLabel.toLowerCase().replace(/\s+/g,'-')}-${now.toISOString().slice(0,10)}.pdf`;
     const blob = doc.output('blob');
 
     let shared = false;
@@ -1808,7 +1811,7 @@
       if(navigator.canShare && navigator.share){
         const file = new File([blob], fileName, { type: 'application/pdf' });
         if(navigator.canShare({ files: [file] })){
-          await navigator.share({ files: [file], title: 'Ledger Daily Report', text: `${periodLabel} report${fullAccess ? ' — Net profit ' + fmt(sumNet) : ''}` });
+          await navigator.share({ files: [file], title: 'Ledger Daily Report', text: `${periodLabel} report — Net profit ${fmt(sumNet)}` });
           shared = true;
         }
       }
@@ -1820,25 +1823,11 @@
       setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
     }
 
-    genBtn.disabled = false;
-    genBtn.textContent = originalGenLabel;
-    $('#pdfPasswordBox').style.display = 'none';
-    $('#pdfPasswordInput').value = '';
+    pdfBtn.disabled = false;
+    pdfBtn.textContent = originalBtnLabel;
   }
 
-  $('#pdfBtn').addEventListener('click', ()=>{
-    const box = $('#pdfPasswordBox');
-    box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
-    if(box.style.display === 'flex') $('#pdfPasswordInput').focus();
-  });
-  function triggerPdfGeneration(){
-    const pw = $('#pdfPasswordInput').value;
-    generatePdf(pw === SETTINGS_PASSWORD);
-  }
-  $('#pdfGenerateBtn').addEventListener('click', triggerPdfGeneration);
-  $('#pdfPasswordInput').addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter') triggerPdfGeneration();
-  });
+  $('#pdfBtn').addEventListener('click', generatePdf);
 
   let lastKnownDate = new Date().toDateString();
   setInterval(()=>{
