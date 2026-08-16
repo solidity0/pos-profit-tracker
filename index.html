@@ -2,7 +2,7 @@
 <html lang="en" data-theme="night">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="color-scheme" content="dark light" />
 <title>Ledger</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -57,12 +57,15 @@
     --op-soft: #0D8F73;
   }
   *{ box-sizing: border-box; }
+  html{ -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body{
     margin:0;
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     padding-bottom: 48px;
   }
   h1,h2,h3, .display{ font-family: 'Space Grotesk', sans-serif; }
@@ -81,7 +84,7 @@
   .card{ background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
   .scroll-panel{ max-height: 65vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
   .scroll-panel::-webkit-scrollbar{ display: none; width: 0; height: 0; }
-  .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
+  .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
   .log-toggle{ width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; font-family:'Inter',sans-serif; padding: 0 0 4px; margin: 0; }
   .log-toggle:hover{ color: var(--theme-soft); }
   .log-caret{ font-size: 10px; transition: transform 0.15s; }
@@ -89,7 +92,7 @@
   #logContent{ margin-top: 14px; }
 
   .segmented{ display:flex; background: var(--surface-2); border-radius: 999px; padding: 4px; margin-bottom: 12px; }
-  .segmented button{ flex:1; border:none; background: transparent; color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13.5px; padding: 10px 6px; border-radius: 999px; cursor:pointer; transition: background 0.18s, color 0.18s; }
+  .segmented button{ flex:1; border:none; background: transparent; color: var(--text); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13.5px; padding: 10px 6px; border-radius: 999px; cursor:pointer; transition: background 0.18s, color 0.18s; }
   #typeSeg{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; background:none; padding:0; }
   #typeSeg button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; padding: 14px 4px 12px; line-height:1.25; box-shadow:none; }
   #typeSeg button svg{ width:19px; height:19px; }
@@ -116,10 +119,10 @@
   #entryCard{ border-color: var(--theme); box-shadow: var(--shadow-sm), 0 0 0 1px var(--theme-tint); transition: border-color 0.18s, box-shadow 0.18s; }
 
   .biller-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:7px; margin-bottom: 14px; }
-  .biller-row button{ background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); padding: 7px 13px; border-radius: 20px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; cursor:pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  .biller-row button{ background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); padding: 7px 13px; border-radius: 20px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; cursor:pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
-  .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 5px; font-weight:600; text-align:center; }
+  .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); margin-bottom: 5px; font-weight:600; text-align:center; }
   .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
@@ -132,32 +135,33 @@
   }
 
   .autofee{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom: 10px; }
-  .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:600; text-align:center; }
-  .autofee .toggle{ font-size: 11px; color: var(--muted); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
+  .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:600; text-align:center; }
+  .autofee .toggle{ font-size: 11px; color: var(--text); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
   .autofee .toggle input{ width:19px; height:19px; margin:0; accent-color: var(--theme); }
   .autobox{ background: var(--theme-tint); border: 1.5px solid var(--theme); border-radius: var(--radius-sm); padding: 14px; transition: background 0.18s, border-color 0.18s; }
   .autobox.deduct{ background: rgba(255,59,48,0.1); border-color: var(--loss); }
   .autobox.deduct .total{ color: var(--loss); }
-  .autobox-label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:600; text-align:center; margin-bottom: 6px; }
+  .autobox-label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:600; text-align:center; margin-bottom: 6px; }
 
-  #amountFieldWrap.withdrawn-field label{ color: var(--theme-soft); font-weight:700; }
-  #amountFieldWrap.withdrawn-field input{ background: var(--theme-tint); border-color: var(--theme); text-align:center; font-weight:600; }
+  #amountFieldWrap.withdrawn-field label{ color: var(--text); font-weight:700; }
+  #amountFieldWrap.withdrawn-field input{ border-color: var(--theme); text-align:center; font-weight:600; }
+  #amount, .field input.transfer-amount-input{ border-color: var(--theme); }
+  #amount{ text-align:center; }
   #transferAmountsGrid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px; }
   #transferAmountsGrid .field{ position:relative; margin-bottom:0; }
   #transferAmountsGrid .field input{ text-align:center; }
   .samebank-toggle{ display:flex; align-items:center; justify-content:center; gap:5px; margin-top:7px; font-size:10px; color:var(--muted); cursor:pointer; user-select:none; font-weight:500; }
   .samebank-toggle input{ width:auto; margin:0; accent-color: var(--theme); }
-  #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line-soft); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
+  #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   #runningTotalRow{ align-items:stretch; }
   #cashField, #runningTotalWrap{ display:flex; flex-direction:column; margin-bottom:16px; }
-  #cashField label, #runningTotalWrap label{ font-size: 11px; }
   #cashField input, .running-total{ height:48px; box-sizing:border-box; }
   #cashField{ position:relative; }
   #cashField input{ text-align:center; }
-  #cashField .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line-soft); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
+  #cashField .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   .add-transfer{ width:100%; background:none; border:1.5px dashed var(--line-soft); color:var(--theme-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:14px; }
   .add-transfer:hover{ border-color: var(--theme); color: var(--theme); }
-  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:0 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--line-soft); transition: border-color 0.15s, background 0.15s; }
+  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:0 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--theme); transition: border-color 0.15s, background 0.15s; }
   .running-total .val{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-variant-numeric:tabular-nums; }
   .running-total.over{ border-color: var(--loss); background: rgba(255,59,48,0.08); }
   .running-total.over .val{ color: var(--loss); }
@@ -176,7 +180,7 @@
   .receipt::before{ top:-4.5px; } .receipt::after{ bottom:-4.5px; transform: rotate(180deg); }
 
   .tabs{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; background:none; padding:0; }
-  .tabs button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 10.5px; font-weight: 700; padding: 12px 3px 10px; border-radius: var(--radius-sm); cursor:pointer; transition: background 0.18s, color 0.18s, border-color 0.18s; line-height:1.25; }
+  .tabs button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Space Grotesk', sans-serif; font-size: 10.5px; font-weight: 700; padding: 12px 3px 10px; border-radius: var(--radius-sm); cursor:pointer; transition: background 0.18s, color 0.18s, border-color 0.18s; line-height:1.25; }
   .tabs button svg{ width:17px; height:17px; }
   .tabs button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
 
@@ -186,7 +190,7 @@
   .summary-caret{ font-size: 10px; transition: transform 0.15s; }
   .summary-caret.open{ transform: rotate(90deg); }
   .summary-content{ margin-top: 14px; }
-  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Space Grotesk', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Space Grotesk', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .provider-filter button.active{ border-color: var(--accent); color: var(--accent); background: rgba(255,138,30,0.1); }
   #providerFilter button[data-val="Moniepoint"].active{ border-color: var(--mp); color: var(--mp-soft); background: var(--mp-tint); }
   #providerFilter button[data-val="Opay"].active{ border-color: var(--op); color: var(--op-soft); background: var(--op-tint); }
@@ -194,7 +198,7 @@
   .rline{ display:flex; justify-content:space-between; font-size: 13.5px; padding: 7px 0; color: var(--text); font-weight:500; }
   .rline .amt{ font-variant-numeric: tabular-nums; font-weight:600; }
   .rline.neg .amt{ color: var(--loss); }
-  .dashed{ border-top: 1.5px dashed var(--line-soft); margin: 10px 0; }
+  .dashed{ border-top: 1.5px dashed var(--line); margin: 10px 0; }
 
   .netline{ display:flex; justify-content:space-between; align-items:baseline; padding-top: 12px; }
   .netline .lbl{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -276,7 +280,7 @@
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
   .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
   .tip-row textarea:focus{ border-color: var(--theme); }
-  .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
+  .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
   .tip-row .tip-remove:hover{ border-color: var(--loss); }
   .fee-table-title{ width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none; cursor:pointer; padding:0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight:700; margin-bottom: 0; font-family: 'Inter', sans-serif; }
   .fee-table-caret{ font-size: 9px; transition: transform 0.15s; }
@@ -297,7 +301,7 @@
   .donebtn:hover{ opacity:0.9; }
   .resetbtn.armed{ background: var(--loss); color: #1A0E0E; }
   .card.has-clear{ position:relative; }
-  .clearbtn{ background:none; border: 1.5px solid var(--line-soft); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
+  .clearbtn{ background:none; border: 1.5px solid var(--line); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
   .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
   .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
@@ -478,7 +482,7 @@
       <span class="log-caret" id="safetyCaret">▶</span>
       <span>Educational &amp; Safety Tips</span>
     </button>
-    <div id="safetyContent" style="display:none; margin-top:14px;">
+    <div id="safetyContent" class="scroll-panel" style="display:none; margin-top:14px;">
       <ul id="safetyTipsList" style="margin:0; padding-left:18px; color:var(--muted); font-size:12.5px; line-height:1.9;"></ul>
       <div class="fee-table-wrap" style="margin-top:14px;">
         <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:700;margin-bottom:2px;">Your service fee table (quick reference)</div>
@@ -924,6 +928,13 @@
 
   let transferBoxCount = 0;
 
+  function renumberTransferBoxes(){
+    document.querySelectorAll('#transferAmountsGrid .field').forEach((field, i)=>{
+      const label = field.querySelector('label');
+      if(label) label.textContent = `Transfer ${i + 1} (₦)`;
+    });
+  }
+
   function getTransferLegs(){
     return Array.from(document.querySelectorAll('#transferAmountsGrid .field')).map(field => {
       const inp = field.querySelector('.transfer-amount-input');
@@ -936,12 +947,11 @@
 
   function addTransferBox(removable){
     transferBoxCount++;
-    const n = transferBoxCount;
     const field = document.createElement('div');
     field.className = 'field';
     field.innerHTML = `
       ${removable ? '<span class="remove-x" data-remove>✕</span>' : ''}
-      <label>Transfer ${n} (₦)</label>
+      <label>Transfer (₦)</label>
       <input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 50,000" class="transfer-amount-input" />
       <label class="samebank-toggle"><input type="checkbox" class="samebank-check" />Same bank (free)</label>
     `;
@@ -953,9 +963,11 @@
     if(removable){
       field.querySelector('[data-remove]').addEventListener('click', ()=>{
         field.remove();
+        renumberTransferBoxes();
         refreshAuto();
       });
     }
+    renumberTransferBoxes();
   }
 
   function hideCashField(){
