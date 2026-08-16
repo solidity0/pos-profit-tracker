@@ -147,16 +147,17 @@
   #transferAmountsGrid .field input{ text-align:center; }
   .samebank-toggle{ display:flex; align-items:center; justify-content:center; gap:5px; margin-top:7px; font-size:10px; color:var(--muted); cursor:pointer; user-select:none; font-weight:500; }
   .samebank-toggle input{ width:auto; margin:0; accent-color: var(--theme); }
-  #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
+  #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line-soft); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   #runningTotalRow{ align-items:stretch; }
   #cashField, #runningTotalWrap{ display:flex; flex-direction:column; margin-bottom:16px; }
+  #cashField label, #runningTotalWrap label{ font-size: 11px; }
   #cashField input, .running-total{ height:48px; box-sizing:border-box; }
   #cashField{ position:relative; }
   #cashField input{ text-align:center; }
-  #cashField .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
-  .add-transfer{ width:100%; background:none; border:1.5px dashed var(--line); color:var(--theme-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:14px; }
+  #cashField .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line-soft); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
+  .add-transfer{ width:100%; background:none; border:1.5px dashed var(--line-soft); color:var(--theme-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:14px; }
   .add-transfer:hover{ border-color: var(--theme); color: var(--theme); }
-  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:0 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--line); transition: border-color 0.15s, background 0.15s; }
+  .running-total{ display:flex; justify-content:center; align-items:center; font-size:16px; font-weight:500; padding:0 13px; border-radius: var(--radius-sm); background: var(--surface-2); border:1.5px solid var(--line-soft); transition: border-color 0.15s, background 0.15s; }
   .running-total .val{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-variant-numeric:tabular-nums; }
   .running-total.over{ border-color: var(--loss); background: rgba(255,59,48,0.08); }
   .running-total.over .val{ color: var(--loss); }
@@ -193,7 +194,7 @@
   .rline{ display:flex; justify-content:space-between; font-size: 13.5px; padding: 7px 0; color: var(--text); font-weight:500; }
   .rline .amt{ font-variant-numeric: tabular-nums; font-weight:600; }
   .rline.neg .amt{ color: var(--loss); }
-  .dashed{ border-top: 1.5px dashed var(--line); margin: 10px 0; }
+  .dashed{ border-top: 1.5px dashed var(--line-soft); margin: 10px 0; }
 
   .netline{ display:flex; justify-content:space-between; align-items:baseline; padding-top: 12px; }
   .netline .lbl{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -275,7 +276,7 @@
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
   .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
   .tip-row textarea:focus{ border-color: var(--theme); }
-  .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
+  .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
   .tip-row .tip-remove:hover{ border-color: var(--loss); }
   .fee-table-title{ width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none; cursor:pointer; padding:0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight:700; margin-bottom: 0; font-family: 'Inter', sans-serif; }
   .fee-table-caret{ font-size: 9px; transition: transform 0.15s; }
@@ -296,7 +297,7 @@
   .donebtn:hover{ opacity:0.9; }
   .resetbtn.armed{ background: var(--loss); color: #1A0E0E; }
   .card.has-clear{ position:relative; }
-  .clearbtn{ background:none; border: 1.5px solid var(--line); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
+  .clearbtn{ background:none; border: 1.5px solid var(--line-soft); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
   .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
   .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
