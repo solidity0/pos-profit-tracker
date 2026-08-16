@@ -79,6 +79,8 @@
   .theme-toggle svg{ width:15px; height:15px; }
 
   .card{ background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+  .scroll-panel{ max-height: 65vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
+  .scroll-panel::-webkit-scrollbar{ display: none; width: 0; height: 0; }
   .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
   .log-toggle{ width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; font-family:'Inter',sans-serif; padding: 0 0 4px; margin: 0; }
   .log-toggle:hover{ color: var(--theme-soft); }
@@ -118,7 +120,7 @@
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
   .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 5px; font-weight:600; text-align:center; }
-  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
+  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
   .field input:focus{ border-color: var(--theme); }
@@ -247,7 +249,7 @@
   #settingsCaret{ display:inline-block; font-size: 9px; transition: transform 0.15s; }
   .settings-toggle.open #settingsCaret{ transform: rotate(90deg); }
   .settings-password{ display:flex; gap:8px; align-items:center; margin-top: 10px; flex-wrap:wrap; }
-  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
+  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
   .settings-password input:focus{ border-color: var(--theme); }
   .settings-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
   .settings-password .status{ width:100%; margin-top:2px; text-align:left; color: var(--loss); }
@@ -271,7 +273,7 @@
   .trend-label.out{ color: var(--loss); }
   .trend-amt{ font-size: 17px; font-weight: 700; font-family:'Space Grotesk',sans-serif; }
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
-  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--text); font-family: 'Inter', sans-serif; font-size: 12.5px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
+  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
   .tip-row textarea:focus{ border-color: var(--theme); }
   .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
   .tip-row .tip-remove:hover{ border-color: var(--loss); }
@@ -425,7 +427,7 @@
       <span class="log-caret" id="logCaret">▶</span>
       <span>Transaction Log</span>
     </button>
-    <div id="logContent" style="display:none;">
+    <div id="logContent" class="scroll-panel" style="display:none;">
       <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
       <div id="logList"></div>
       <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
@@ -494,7 +496,7 @@
         <div class="status" id="settingsPasswordStatus"></div>
       </div>
 
-      <div class="settings-content settings" id="settingsContent" style="display:none;">
+      <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
       <div class="lock-reminder">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -938,7 +940,7 @@
     field.className = 'field';
     field.innerHTML = `
       ${removable ? '<span class="remove-x" data-remove>✕</span>' : ''}
-      <label>${n === 1 ? 'Amount Transferred (₦)' : 'Amount Transferred ' + n + ' (₦)'}</label>
+      <label>Transfer ${n} (₦)</label>
       <input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 50,000" class="transfer-amount-input" />
       <label class="samebank-toggle"><input type="checkbox" class="samebank-check" />Same bank (free)</label>
     `;
@@ -1460,7 +1462,7 @@
   });
 
   $('#clearLogBtn').addEventListener('click', ()=>{
-    const visible = getFiltered();
+    const visible = getTodayLogEntries();
     if(visible.length === 0){ setStatus('Nothing to clear'); return; }
     armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, async ()=>{
       const idsToRemove = new Set(visible.map(t=>t.id));
@@ -1557,6 +1559,23 @@
     });
   }
 
+  function getFilteredForLog(){
+    // Transaction Log always shows every day (grouped by date), independent of whatever
+    // period tab happens to be selected in the separate Performance Overview card — only
+    // the provider filter carries over, since that's a shared, log-relevant filter.
+    return transactions.filter(t => state.providerFilter === 'All' || t.provider === state.providerFilter);
+  }
+
+  function getTodayLogEntries(){
+    // Clear is always scoped to today only, regardless of any period filter set elsewhere
+    // in the app (e.g. Performance Overview) — it should never reach into previous days.
+    return transactions.filter(t=>{
+      const todayOk = isInPeriod(t.date, 'today');
+      const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
+      return todayOk && provOk;
+    });
+  }
+
   function renderVolumeAnalysis(){
     const inEl = $('#trendMoneyIn');
     const outEl = $('#trendMoneyOut');
@@ -1616,8 +1635,9 @@
 
     const clearBtn = $('#clearLogBtn');
     const logList = $('#logList');
+    const logFiltered = getFilteredForLog();
     logList.innerHTML = '';
-    if(filtered.length === 0){
+    if(logFiltered.length === 0){
       $('#emptyState').style.display = 'block';
       clearBtn.style.display = 'none';
     } else {
@@ -1625,7 +1645,7 @@
       let lastDayKey = null;
       let dayGroup = null;
       let firstGroup = true;
-      filtered.forEach(t=>{
+      logFiltered.forEach(t=>{
         const d = new Date(t.date);
         const dayKey = d.toDateString();
         if(dayKey !== lastDayKey){
