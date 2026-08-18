@@ -30,7 +30,9 @@
     --line: #1E1E1F;
     --line-soft: #4A4A52;
     --text: #E5E5E5;
+    --text-dim: #D5D5D5;
     --muted: #8A8A8E;
+    --muted-strong: #939797;
     --muted-2: #525255;
     --shadow: 0 0 0 1px rgba(255,255,255,0.035), 0 20px 44px -18px rgba(0,0,0,0.85);
     --shadow-sm: 0 0 0 1px rgba(255,255,255,0.045), 0 12px 26px -14px rgba(0,0,0,0.8);
@@ -44,7 +46,9 @@
     --line: #DFE2E7;
     --line-soft: #AEB4BF;
     --text: #000000;
+    --text-dim: #000000;
     --muted: #6B7280;
+    --muted-strong: #606773;
     --muted-2: #9CA3AF;
     --shadow: 0 2px 6px rgba(15,23,42,0.08), 0 24px 48px -20px rgba(15,23,42,0.22);
     --shadow-sm: 0 1px 4px rgba(15,23,42,0.09), 0 14px 28px -16px rgba(15,23,42,0.2);
@@ -85,6 +89,7 @@
   .scroll-panel{ max-height: 65vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
   .scroll-panel::-webkit-scrollbar{ display: none; width: 0; height: 0; }
   .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
+  #entryCard .autofee label, #entryCard .autofee .toggle, #entryCard .autobox-label{ color: var(--text-dim); }
   .log-toggle{ width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; font-family:'Inter',sans-serif; padding: 0 0 4px; margin: 0; }
   .log-toggle:hover{ color: var(--theme-soft); }
   .log-caret{ font-size: 10px; transition: transform 0.15s; }
@@ -104,7 +109,7 @@
   #typeSeg .icon-combo svg{ width:15px; height:19px; }
   #typeSeg button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
   #providerSeg{ display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; background:none; padding:0; }
-  #providerSeg button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; padding: 16px 6px 14px; box-shadow:none; }
+  #providerSeg button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; padding: 16px 6px 14px; box-shadow:none; }
   #providerSeg .provider-avatar{ width:28px; height:28px; margin-right:0; }
   #providerSeg .provider-avatar.letter{ background: var(--mp); }
   #providerSeg button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
@@ -122,7 +127,7 @@
   .biller-row button{ background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); padding: 7px 13px; border-radius: 20px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; cursor:pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
-  .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); margin-bottom: 5px; font-weight:600; text-align:center; }
+  .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 5px; font-weight:600; text-align:center; }
   .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
@@ -190,7 +195,7 @@
   .summary-caret{ font-size: 10px; transition: transform 0.15s; }
   .summary-caret.open{ transform: rotate(90deg); }
   .summary-content{ margin-top: 14px; }
-  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Space Grotesk', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Inter', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .provider-filter button.active{ border-color: var(--accent); color: var(--accent); background: rgba(255,138,30,0.1); }
   #providerFilter button[data-val="Moniepoint"].active{ border-color: var(--mp); color: var(--mp-soft); background: var(--mp-tint); }
   #providerFilter button[data-val="Opay"].active{ border-color: var(--op); color: var(--op-soft); background: var(--op-tint); }
@@ -225,15 +230,16 @@
   .log-icon.combo svg{ width:11px; height:15px; }
   .log-icon.combo svg:first-child{ color: var(--profit); }
   .log-icon.combo svg:last-child{ color: var(--loss); }
-  .log-left .badge{ display:inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif; }
-  .badge.moniepoint{ background: var(--mp-tint); color: var(--mp-soft); }
-  .badge.opay{ background: var(--op-tint); color: var(--op-soft); }
-  .log-left .type{ font-size: 13.5px; color: var(--text); font-weight:600; }
-  .log-left .samebank-sublabel{ font-size: 11px; font-weight:600; margin-top:1px; }
+  .log-left .badge{ display:block; font-size: 11.34px; font-weight: 500; line-height:1.3; margin-bottom: 6px; font-family: 'Inter', sans-serif; }
+  .badge.moniepoint{ color: var(--mp-soft); }
+  .badge.opay{ color: var(--op-soft); }
+  .log-left .type{ font-size: 11.34px; color: var(--text); font-weight:500; }
+  .log-left .samebank-sublabel{ font-size: 11.34px; font-weight:500; margin-top:1px; }
   .log-left .type.samebank-mp, .log-left .samebank-sublabel.samebank-mp{ color: var(--mp-soft); }
   .log-left .type.samebank-op, .log-left .samebank-sublabel.samebank-op{ color: var(--op-soft); }
-  .log-left .date{ font-size: 11px; color: var(--muted); margin-top: 4px; font-weight:500; }
-  .log-left .amountline{ font-size: 11px; color: var(--muted); margin-top: 3px; font-weight:500; font-variant-numeric: tabular-nums; }
+  .log-left .date{ font-size: 11px; color: var(--muted-strong); margin-top: 4px; font-weight:500; }
+  .log-left .amountline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:500; font-variant-numeric: tabular-nums; }
+  .log-left .amountline .fig{ color: inherit; font-size: inherit; font-weight:500; }
   .log-left .feenote{ font-size: 10.5px; color: var(--muted-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
   .log-left{ flex:1; min-width:0; }
   .log-right{ text-align:right; flex-shrink:0; }
@@ -265,7 +271,7 @@
   .settings .field{ margin-top: 12px; }
   .settings h3{ font-size: 11px; color: var(--theme-soft); text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 4px; font-weight:700; }
   .settings h3.mp-heading{ color: var(--mp-soft); }
-  .settings h3.op-heading{ color: var(--op-soft); }
+  .settings h3.op-heading{ color: var(--op-soft); font-family: 'Inter', sans-serif; }
   .fee-table-wrap{ margin-top: 12px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; }
   .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
   .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 14px 12px; text-align:center; }
@@ -329,7 +335,7 @@
 
     <div class="segmented" id="providerSeg">
       <button data-val="Moniepoint" class="active"><span class="provider-avatar letter">M</span><span>Moniepoint</span></button>
-      <button data-val="Opay"><span class="provider-avatar ring"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="21" cy="20" r="13" fill="none" stroke="#17C4A0" stroke-width="7"/><rect x="0" y="16.5" width="10" height="7" fill="#241463"/></svg></span><span>Opay</span></button>
+      <button data-val="Opay"><span class="provider-avatar ring"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="21" cy="20" r="13" fill="none" stroke="#17C4A0" stroke-width="7"/><rect x="0" y="16.5" width="10" height="7" fill="#241463"/></svg></span><span>OPay</span></button>
     </div>
 
     <div class="segmented" id="typeSeg">
@@ -393,7 +399,7 @@
     </div>
 
     <button class="addbtn" id="addBtn">Add Transaction</button>
-    <div class="hint">Net profit = fee you charged customer − everything Moniepoint/Opay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
+    <div class="hint">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
   </div>
 
@@ -455,12 +461,12 @@
       <div class="provider-filter" id="providerFilter">
         <button data-val="All" class="active">All</button>
         <button data-val="Moniepoint">Moniepoint</button>
-        <button data-val="Opay">Opay</button>
+        <button data-val="Opay">OPay</button>
       </div>
 
       <div class="rline neg"><span>VAT</span><span class="amt" id="sumVat">−₦0</span></div>
       <div class="rline neg"><span>Stamp duty</span><span class="amt" id="sumStamp">−₦0</span></div>
-      <div class="rline neg"><span>Moniepoint/Opay fee</span><span class="amt" id="sumBaseFee">−₦0</span></div>
+      <div class="rline neg"><span>Moniepoint/OPay fee</span><span class="amt" id="sumBaseFee">−₦0</span></div>
       <div class="rline neg" id="sumAutosaveRow" style="display:none;"><span>Auto-save (Moniepoint)</span><span class="amt" id="sumAutosave">−₦0</span></div>
       <div class="rline"><span>Customer fees collected</span><span class="amt" id="sumCustomerFee">₦0</span></div>
       <div class="dashed"></div>
@@ -533,7 +539,7 @@
         <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
       </div>
 
-      <h3 class="op-heading">Opay rates <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(flat ₦100+ confirmed by you; % rate and rounding still unverified)</span></h3>
+      <h3 class="op-heading">OPay rates <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(flat ₦100+ confirmed by you; % rate and rounding still unverified)</span></h3>
       <div class="row2">
         <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="op_pct" step="0.01" /></div>
         <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_flat" /></div>
@@ -656,7 +662,7 @@
     customerFeeAboveRate: 100,
     customerFeesCombo: { r1:'100', r2:'200', r3:'300', r4:'500', r5:'700 – 1,000', r6:'1,500 – 3,000' },
     safetyTips: [
-      'Never share your PIN, OTP, or login password with anyone — not even someone claiming to be from Moniepoint/Opay support.',
+      'Never share your PIN, OTP, or login password with anyone — not even someone claiming to be from Moniepoint/OPay support.',
       'Always confirm an incoming transfer has actually landed in your account before handing out cash — a screenshot or SMS shown to you is not proof of payment.',
       'Watch out for reversal scams: a customer claims a transfer failed and asks for their cash back before you have confirmed your balance.',
       'Verify the receiving account name and number before sending — a wrongly sent transfer can take days to reverse, or may not reverse at all.',
@@ -1128,7 +1134,7 @@
       root.setProperty('--theme', '#17C4A0');
       root.setProperty('--theme-soft', isDay ? '#0D8F73' : '#5FE3C4');
       root.setProperty('--theme-tint', isDay ? 'rgba(23,196,160,0.10)' : 'rgba(23,196,160,0.13)');
-      root.setProperty('--theme-text', '#241463');
+      root.setProperty('--theme-text', '#ffffff');
     } else {
       root.setProperty('--theme', '#3B7CFF');
       root.setProperty('--theme-soft', isDay ? '#1D4ED8' : '#83ABFF');
@@ -1497,13 +1503,15 @@
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
+  function providerDisplay(p){ return p === 'Opay' ? 'OPay' : p; }
+
   function typeLabel(t){
     if(t.type === 'Bill') return 'Bill · ' + t.biller;
     if(t.type === 'WithdrawTransfer'){
-      if(t.manualFee) return `${t.provider} - ${t.provider} Transfer`;
+      if(t.manualFee) return `${providerDisplay(t.provider)} - ${providerDisplay(t.provider)} Transfer`;
       return 'Withdraw+Transfer';
     }
-    if(t.type === 'Transfer' && t.manualFee) return `${t.provider} - ${t.provider} Transfer`;
+    if(t.type === 'Transfer' && t.manualFee) return `${providerDisplay(t.provider)} - ${providerDisplay(t.provider)} Transfer`;
     return t.type;
   }
 
@@ -1511,11 +1519,12 @@
     if(t.type !== 'WithdrawTransfer' || !Array.isArray(t.transferSameBank)) return '';
     const count = t.transferSameBank.filter(Boolean).length;
     if(count === 0 || count === t.transferSameBank.length) return '';
-    return `${count} ${t.provider} - ${t.provider} Transfer${count === 1 ? '' : 's'}`;
+    return `${count} ${providerDisplay(t.provider)} - ${providerDisplay(t.provider)} Transfer${count === 1 ? '' : 's'}`;
   }
 
-  function comboAmountLine(t, useFmt){
-    const f = useFmt || fmt;
+  function comboAmountLine(t, useFmt, wrap){
+    const rawFmt = useFmt || fmt;
+    const f = wrap ? (n) => `<span class="fig">${rawFmt(n)}</span>` : rawFmt;
     if(t.type !== 'WithdrawTransfer'){
       return (t.type === 'Bill' ? 'paid' : 'amount') + ' ' + f(t.amount);
     }
@@ -1700,11 +1709,11 @@
         item.innerHTML = `
           <div class="log-icon ${iconClass}">${iconSvg}</div>
           <div class="log-left">
-            <span class="badge ${t.provider.toLowerCase()}">${t.provider}</span>
+            <span class="badge ${t.provider.toLowerCase()}">${providerDisplay(t.provider)}</span>
             <div class="type ${typeClass}">${typeLabel(t)}</div>
             ${sameBankSubLabel(t) ? `<div class="samebank-sublabel ${providerColorClass}">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
-            <div class="amountline">${comboAmountLine(t)} · charged ${fmt(t.customerFee)}</div>
+            <div class="amountline">${comboAmountLine(t, null, true)} · charged <span class="fig">${fmt(t.customerFee)}</span></div>
           </div>
           <div class="log-right">
             ${profitBlock}
@@ -1731,6 +1740,31 @@
     const originalBtnLabel = pdfBtn.textContent;
     pdfBtn.textContent = 'Building…';
 
+    const MP_RGB = [59,124,255];
+    const OP_RGB = [23,196,160];
+    function providerColor(p){ return p === 'Opay' ? OP_RGB : MP_RGB; }
+    function drawSegments(doc, x, y, segments){
+      let cx = x;
+      segments.forEach(seg=>{
+        doc.setTextColor(seg.color[0], seg.color[1], seg.color[2]);
+        doc.text(seg.text, cx, y);
+        cx += doc.getTextWidth(seg.text);
+      });
+      return cx;
+    }
+    function colorizeLabel(label, baseColor){
+      const segments = [];
+      const regex = /(Moniepoint|OPay)/g;
+      let lastIndex = 0, match;
+      while((match = regex.exec(label)) !== null){
+        if(match.index > lastIndex) segments.push({ text: label.slice(lastIndex, match.index), color: baseColor });
+        segments.push({ text: match[0], color: providerColor(match[0] === 'OPay' ? 'Opay' : 'Moniepoint') });
+        lastIndex = match.index + match[0].length;
+      }
+      if(lastIndex < label.length) segments.push({ text: label.slice(lastIndex), color: baseColor });
+      return segments;
+    }
+
     const filtered = getFiltered().slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
     let sumCustomer=0, sumBase=0, sumVat=0, sumStamp=0, sumAutosave=0, sumNet=0;
     filtered.forEach(t=>{
@@ -1744,7 +1778,7 @@
 
     const periodLabels = { today: 'Today', week: 'This Week', month: 'This Month', all: 'All Time' };
     const periodLabel = periodLabels[state.period] || 'Today';
-    const providerLabel = state.providerFilter === 'All' ? 'Moniepoint + Opay' : state.providerFilter;
+    const providerLabel = state.providerFilter === 'All' ? 'Moniepoint + OPay' : providerDisplay(state.providerFilter);
     const now = new Date();
 
     const { jsPDF } = window.jspdf;
@@ -1756,8 +1790,9 @@
     doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
     doc.text('Ledger — Daily Report', marginX, y);
     y += 22;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
-    doc.text(`${periodLabel} · ${providerLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`, marginX, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    const headerLabel = `${periodLabel} · ${providerLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`;
+    drawSegments(doc, marginX, y, colorizeLabel(headerLabel, [90,90,90]));
     y += 26;
 
     doc.setDrawColor(220); doc.line(marginX, y, pageW - marginX, y);
@@ -1766,16 +1801,16 @@
     const summaryRows = [
       ['VAT', '-' + fmtPdf(sumVat)],
       ['Stamp duty', '-' + fmtPdf(sumStamp)],
-      ['Moniepoint/Opay fee', '-' + fmtPdf(sumBase)]
+      ['Moniepoint/OPay fee', '-' + fmtPdf(sumBase)]
     ];
     if(sumAutosave > 0) summaryRows.push(['Auto-save (Moniepoint)', '-' + fmtPdf(sumAutosave)]);
     summaryRows.push(['Customer fees collected', fmtPdf(sumCustomer)]);
 
-    doc.setFontSize(11); doc.setTextColor(30);
+    doc.setFontSize(11);
     summaryRows.forEach(([label, val])=>{
       doc.setFont('helvetica','normal');
-      doc.text(label, marginX, y);
-      doc.setFont('helvetica','bold');
+      drawSegments(doc, marginX, y, colorizeLabel(label, [30,30,30]));
+      doc.setFont('helvetica','bold'); doc.setTextColor(30);
       doc.text(val, pageW - marginX, y, { align: 'right' });
       y += 18;
     });
@@ -1806,11 +1841,17 @@
       }
       const d = new Date(t.date);
       const timeStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
-      const typeStr = t.provider + ' · ' + typeLabel(t);
+      const providerText = providerDisplay(t.provider);
+      const restOfTypeStr = ' · ' + typeLabel(t);
+      const rowProviderColor = providerColor(t.provider);
 
-      // Line 1: type/provider on the left, net profit bold on the right
-      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(30);
-      doc.text(typeStr, marginX, y);
+      // Line 1: provider (brand color) + type (black) on the left, net profit bold on the right
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+      doc.setTextColor(rowProviderColor[0], rowProviderColor[1], rowProviderColor[2]);
+      doc.text(providerText, marginX, y);
+      const providerWidth = doc.getTextWidth(providerText);
+      doc.setTextColor(30);
+      doc.text(restOfTypeStr, marginX + providerWidth, y);
       doc.setTextColor(t.netProfit < 0 ? 200 : 20, t.netProfit < 0 ? 40 : 120, t.netProfit < 0 ? 40 : 60);
       doc.text(fmtPdf(t.netProfit), pageW - marginX, y, { align: 'right' });
       y += 13;
