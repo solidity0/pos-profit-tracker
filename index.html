@@ -1348,7 +1348,7 @@
       const leftoverCheck = (amount + cashAmount) - legsSumCheck;
       if(leftoverCheck < 0){
         const overAmt = fmt(Math.abs(leftoverCheck));
-        setStatus(`Transfers exceed available funds by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, 'error');
+        setStatus(`Transfers exceed available funds for this transaction by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, 'error');
         return;
       }
       if(leftoverCheck > 0 && !state.remainingHandling){
