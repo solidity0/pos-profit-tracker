@@ -128,10 +128,12 @@
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
   .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 5px; font-weight:600; text-align:center; }
-  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
+  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
   .field input:focus{ border-color: var(--theme); }
+  #customStartDate, #customEndDate{ color-scheme: dark; }
+  [data-theme="day"] #customStartDate, [data-theme="day"] #customEndDate{ color-scheme: light; }
   .field input:disabled{ color: var(--theme-soft); opacity: 0.9; -webkit-text-fill-color: var(--theme-soft); }
   .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
@@ -185,7 +187,7 @@
   .receipt::before{ top:-4.5px; } .receipt::after{ bottom:-4.5px; transform: rotate(180deg); }
 
   .tabs{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; background:none; padding:0; }
-  .tabs button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Space Grotesk', sans-serif; font-size: 10.5px; font-weight: 700; padding: 12px 3px 10px; border-radius: var(--radius-sm); cursor:pointer; transition: background 0.18s, color 0.18s, border-color 0.18s; line-height:1.25; }
+  .tabs button{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background: var(--theme-tint); border: 1.5px solid var(--theme); color: var(--theme-soft); font-family: 'Space Grotesk', sans-serif; font-size: 10.5px; font-weight: 700; padding: 12px 3px 10px; border-radius: var(--radius-sm); cursor:pointer; transition: background 0.18s, color 0.18s, border-color 0.18s; line-height:1.25; }
   .tabs button svg{ width:17px; height:17px; }
   .tabs button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
 
@@ -195,10 +197,12 @@
   .summary-caret{ font-size: 10px; transition: transform 0.15s; }
   .summary-caret.open{ transform: rotate(90deg); }
   .summary-content{ margin-top: 14px; }
-  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Inter', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
-  .provider-filter button.active{ border-color: var(--accent); color: var(--accent); background: rgba(255,138,30,0.1); }
-  #providerFilter button[data-val="Moniepoint"].active{ border-color: var(--mp); color: var(--mp-soft); background: var(--mp-tint); }
-  #providerFilter button[data-val="Opay"].active{ border-color: var(--op); color: var(--op-soft); background: var(--op-tint); }
+  .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--theme); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Inter', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .provider-filter button.active{ border-color: var(--accent); color: #ffffff; background: var(--accent); }
+  #providerFilter button[data-val="Moniepoint"]{ border-color: var(--mp); color: var(--mp-soft); }
+  #providerFilter button[data-val="Opay"]{ border-color: var(--op); color: var(--op-soft); }
+  #providerFilter button[data-val="Moniepoint"].active{ border-color: var(--mp); color: #ffffff; background: var(--mp); }
+  #providerFilter button[data-val="Opay"].active{ border-color: var(--op); color: #ffffff; background: var(--op); }
 
   .rline{ display:flex; justify-content:space-between; font-size: 13.5px; padding: 7px 0; color: var(--text); font-weight:500; }
   .rline .amt{ font-variant-numeric: tabular-nums; font-weight:600; }
@@ -251,6 +255,7 @@
   .log-right .profit{ font-size: 15px; font-weight: 700; color: var(--profit); font-variant-numeric: tabular-nums; }
   .log-right .profit.neg{ color: var(--loss); }
   .log-right .del{ background:none; border:none; color: var(--muted-2); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; }
+  .log-right .del-locked{ display:inline-block; color: var(--muted-2); font-size: 10.5px; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; opacity:0.7; cursor:default; }
 
   .empty{ text-align:center; color: var(--muted); font-size: 13px; padding: 24px 0; }
 
@@ -260,7 +265,7 @@
   #settingsCaret{ display:inline-block; font-size: 9px; transition: transform 0.15s; }
   .settings-toggle.open #settingsCaret{ transform: rotate(90deg); }
   .settings-password{ display:flex; gap:8px; align-items:center; margin-top: 10px; flex-wrap:wrap; }
-  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
+  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
   .settings-password input:focus{ border-color: var(--theme); }
   .settings-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
   .settings-password .status{ width:100%; margin-top:2px; text-align:left; color: var(--loss); }
@@ -284,7 +289,7 @@
   .trend-label.out{ color: var(--loss); }
   .trend-amt{ font-size: 17px; font-weight: 700; font-family:'Space Grotesk',sans-serif; }
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
-  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
+  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
   .tip-row textarea:focus{ border-color: var(--theme); }
   .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
   .tip-row .tip-remove:hover{ border-color: var(--loss); }
@@ -311,6 +316,7 @@
   .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
   .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
+  .status.error{ color: var(--loss); font-weight:700; }
   .status.deepgreen{ color: var(--deepgreen); font-weight:700; }
   #customerFee{ border-color: var(--deepgreen) !important; background: var(--deepgreen-tint) !important; color: var(--deepgreen); font-weight:600; }
   #customerFee::placeholder{ color: var(--deepgreen); opacity:0.6; }
@@ -383,6 +389,17 @@
           </div>
         </div>
       </div>
+
+      <div id="remainingHandlingGroup" style="display:none; margin-top:2px; margin-bottom:14px;">
+        <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:10px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+          <input type="checkbox" id="remainingHandlingCustomerCheck" style="width:17px; height:17px; flex-shrink:0;" />
+          <span id="remainingHandlingCustomerLabel">₦0 cash to customer</span>
+        </label>
+        <label class="samebank-toggle" style="justify-content:center; gap:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+          <input type="checkbox" id="remainingHandlingBalanceCheck" style="width:17px; height:17px; flex-shrink:0;" />
+          <span id="remainingHandlingBalanceLabel">₦0 kept as service fee/charge</span>
+        </label>
+      </div>
     </div>
 
     <div id="customerFeeStandaloneSlot"></div>
@@ -452,11 +469,25 @@
     </button>
 
     <div class="summary-content" id="summaryContent" style="display:none;">
-      <div class="tabs" id="periodTabs">
+      <div class="tabs" id="periodTabs" style="grid-template-columns: repeat(5, 1fr);">
         <button data-val="today" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span>Today</span></button>
         <button data-val="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg><span>This Week</span></button>
         <button data-val="month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg><span>This Month</span></button>
         <button data-val="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 12h4M3 12l3-3M3 12l3 3"/></svg><span>All Time</span></button>
+        <button data-val="custom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="7" x2="19" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="17" x2="13" y2="17"/></svg><span>Custom</span></button>
+      </div>
+      <div id="customDateWrap" style="display:none;">
+        <div class="row2" id="customDateRow" style="margin-bottom:12px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>Start Date</label>
+            <input type="date" id="customStartDate" />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>End Date</label>
+            <input type="date" id="customEndDate" />
+          </div>
+        </div>
+        <button class="addbtn" id="applyDateFilterBtn" type="button" style="margin-bottom:16px;">Apply Filter</button>
       </div>
       <div class="provider-filter" id="providerFilter">
         <button data-val="All" class="active">All</button>
@@ -647,7 +678,7 @@
     });
   }
 
-  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today' };
+  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today', customStart: null, customEnd: null, remainingHandling: null };
   let transactions = [];
   let settings = {
     vatEnabled: true,
@@ -713,7 +744,8 @@
     const el = $('#status');
     el.textContent = msg;
     el.className = 'status' + (cls ? ' ' + cls : '');
-    if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 2000);
+    const duration = cls === 'error' ? 6000 : 2000;
+    if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, duration);
   }
 
   function computeBaseFee(provider, type, amount){
@@ -989,6 +1021,9 @@
     addTransferBox(false);
     addTransferBox(false);
     hideCashField();
+    state.remainingHandling = null;
+    $('#remainingHandlingCustomerCheck').checked = false;
+    $('#remainingHandlingBalanceCheck').checked = false;
   }
 
   function updateLayoutForType(isCombo){
@@ -1045,6 +1080,12 @@
         box.classList.add('exact');
       } else {
         val.textContent = fmt(remaining);
+      }
+      const showRemainingToggle = remaining > 0;
+      $('#remainingHandlingGroup').style.display = showRemainingToggle ? 'block' : 'none';
+      if(showRemainingToggle){
+        $('#remainingHandlingCustomerLabel').textContent = `${fmt(remaining)} cash to customer`;
+        $('#remainingHandlingBalanceLabel').textContent = `${fmt(remaining)} kept as service fee/charge`;
       }
     } else {
       const manualBase = override ? 0 : null;
@@ -1192,6 +1233,22 @@
     refreshAuto();
   });
   $('#cashAmount').addEventListener('input', refreshAuto);
+  $('#remainingHandlingCustomerCheck').addEventListener('change', ()=>{
+    if($('#remainingHandlingCustomerCheck').checked){
+      $('#remainingHandlingBalanceCheck').checked = false;
+      state.remainingHandling = 'customer';
+    } else {
+      state.remainingHandling = null;
+    }
+  });
+  $('#remainingHandlingBalanceCheck').addEventListener('change', ()=>{
+    if($('#remainingHandlingBalanceCheck').checked){
+      $('#remainingHandlingCustomerCheck').checked = false;
+      state.remainingHandling = 'balance';
+    } else {
+      state.remainingHandling = null;
+    }
+  });
 
   wireSegment('providerSeg','provider');
   wireSegment('typeSeg','type');
@@ -1207,13 +1264,42 @@
     refreshAuto();
   });
 
+  function toDateInputValue(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
   $('#periodTabs').querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       $('#periodTabs').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       state.period = btn.dataset.val;
+      if(state.period === 'custom'){
+        $('#customDateWrap').style.display = 'block';
+        if(!state.customStart && !state.customEnd){
+          const today = new Date();
+          const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 6);
+          state.customStart = toDateInputValue(weekAgo);
+          state.customEnd = toDateInputValue(today);
+        }
+        $('#customStartDate').value = state.customStart || '';
+        $('#customEndDate').value = state.customEnd || '';
+        updateApplyFilterLabel();
+      } else {
+        $('#customDateWrap').style.display = 'none';
+      }
       render();
     });
+  });
+  function updateApplyFilterLabel(){
+    const count = (($('#customStartDate').value ? 1 : 0) + ($('#customEndDate').value ? 1 : 0));
+    $('#applyDateFilterBtn').textContent = count > 0 ? `Apply Filter (${count})` : 'Apply Filter';
+  }
+  $('#customStartDate').addEventListener('input', updateApplyFilterLabel);
+  $('#customEndDate').addEventListener('input', updateApplyFilterLabel);
+  $('#applyDateFilterBtn').addEventListener('click', ()=>{
+    state.customStart = $('#customStartDate').value || null;
+    state.customEnd = $('#customEndDate').value || null;
+    render();
   });
   $('#trendPeriodTabs').querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1257,9 +1343,24 @@
       setStatus('Enter at least one transfer amount');
       return;
     }
+    if(isCombo){
+      const legsSumCheck = legs.reduce((a,l)=>a+l.amount, 0);
+      const leftoverCheck = (amount + cashAmount) - legsSumCheck;
+      if(leftoverCheck < 0){
+        const overAmt = fmt(Math.abs(leftoverCheck));
+        setStatus(`Transfers exceed available funds by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, 'error');
+        return;
+      }
+      if(leftoverCheck > 0 && !state.remainingHandling){
+        setStatus('Select whether the remaining balance is cash to customer or kept as service fee/charge', 'error');
+        return;
+      }
+    }
 
     const netProfit = customerFee - total;
     const allLegsSameBank = isCombo && legs.length > 0 && legs.every(l => l.sameBank);
+    const legsSum = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
+    const leftover = isCombo ? (amount + cashAmount) - legsSum : 0;
 
     const tx = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
@@ -1270,6 +1371,7 @@
       transferAmounts: isCombo ? legs.map(l=>l.amount) : null,
       transferSameBank: isCombo ? legs.map(l=>!!l.sameBank) : null,
       cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
+      remainingHandling: (isCombo && leftover > 0) ? state.remainingHandling : null,
       baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
       netProfit, manualFee: isCombo ? allLegsSameBank : wasOverridden
     };
@@ -1534,7 +1636,8 @@
       const pool = t.amount + cash;
       const leftover = pool - sentTotal;
       const cashPart = cash > 0 ? ` + ${f(cash)} cash brought in` : '';
-      const leftoverPart = leftover > 0 ? ` + ${f(leftover)} cash to customer` : '';
+      const leftoverLabel = t.remainingHandling === 'balance' ? 'kept as service fee/charge' : 'cash to customer';
+      const leftoverPart = leftover > 0 ? ` + ${f(leftover)} ${leftoverLabel}` : '';
       if(t.transferAmounts.length === 1){
         return `withdrew ${f(t.amount)}${cashPart} + sent ${f(t.transferAmounts[0])}${leftoverPart}`;
       }
@@ -1570,7 +1673,25 @@
       return d >= monday;
     }
     if(period === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    if(period === 'custom'){
+      if(!state.customStart && !state.customEnd) return true;
+      if(state.customStart){
+        const start = new Date(state.customStart + 'T00:00:00');
+        if(d < start) return false;
+      }
+      if(state.customEnd){
+        const end = new Date(state.customEnd + 'T23:59:59');
+        if(d > end) return false;
+      }
+      return true;
+    }
     return true;
+  }
+
+  function customRangeLabel(){
+    if(!state.customStart && !state.customEnd) return 'Custom (pick dates)';
+    const fmtD = (s) => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' }) : '…';
+    return `${fmtD(state.customStart)} – ${fmtD(state.customEnd)}`;
   }
 
   function getFiltered(){
@@ -1582,10 +1703,13 @@
   }
 
   function getFilteredForLog(){
-    // Transaction Log always shows every day (grouped by date), independent of whatever
-    // period tab happens to be selected in the separate Performance Overview card — only
-    // the provider filter carries over, since that's a shared, log-relevant filter.
-    return transactions.filter(t => state.providerFilter === 'All' || t.provider === state.providerFilter);
+    // Transaction Log now respects the same period/date filter as Performance Overview,
+    // in addition to the provider filter, so the two sections stay in sync.
+    return transactions.filter(t=>{
+      const periodOk = isInPeriod(t.date, state.period);
+      const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
+      return periodOk && provOk;
+    });
   }
 
   function getTodayLogEntries(){
@@ -1706,6 +1830,10 @@
         const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
         const typeClass = isSameBankTitle ? providerColorClass : '';
+        const minutesSinceLogged = (Date.now() - new Date(t.date).getTime()) / 60000;
+        const deleteControl = minutesSinceLogged <= 15
+          ? `<button class="del" data-id="${t.id}">delete</button>`
+          : `<span class="del-locked" title="Entries can only be deleted within 15 minutes of being logged">locked</span>`;
         item.innerHTML = `
           <div class="log-icon ${iconClass}">${iconSvg}</div>
           <div class="log-left">
@@ -1717,8 +1845,7 @@
           </div>
           <div class="log-right">
             ${profitBlock}
-            <button class="del" data-id="${t.id}">delete</button>
-
+            ${deleteControl}
           </div>
         `;
         dayGroup.appendChild(item);
@@ -1776,7 +1903,7 @@
       sumNet += t.netProfit;
     });
 
-    const periodLabels = { today: 'Today', week: 'This Week', month: 'This Month', all: 'All Time' };
+    const periodLabels = { today: 'Today', week: 'This Week', month: 'This Month', all: 'All Time', custom: customRangeLabel() };
     const periodLabel = periodLabels[state.period] || 'Today';
     const providerLabel = state.providerFilter === 'All' ? 'Moniepoint + OPay' : providerDisplay(state.providerFilter);
     const now = new Date();
@@ -1784,6 +1911,7 @@
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
     const marginX = 40;
     let y = 50;
 
@@ -1828,11 +1956,38 @@
     doc.text(`${filtered.length} transaction${filtered.length===1?'':'s'}`, marginX, y);
     y += 30;
 
+    // Daily Breakdown — only meaningful when the filtered range spans more than one day
+    const dayGroups = new Map();
+    filtered.forEach(t=>{
+      const dayKey = new Date(t.date).toDateString();
+      if(!dayGroups.has(dayKey)) dayGroups.set(dayKey, { net: 0, count: 0, date: new Date(t.date) });
+      const g = dayGroups.get(dayKey);
+      g.net += t.netProfit;
+      g.count += 1;
+    });
+    if(dayGroups.size > 1){
+      if(y > pageH - 80){ doc.addPage(); y = 50; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30);
+      doc.text('Daily Breakdown', marginX, y);
+      y += 18;
+      Array.from(dayGroups.values()).forEach(g=>{
+        if(y > pageH - 30){ doc.addPage(); y = 50; }
+        doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(60);
+        const dayLabel = g.date.toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+        doc.text(`${dayLabel}  ·  ${g.count} transaction${g.count===1?'':'s'}`, marginX, y);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(g.net < 0 ? 200 : 20, g.net < 0 ? 40 : 120, g.net < 0 ? 40 : 60);
+        doc.text(fmtPdf(g.net), pageW - marginX, y, { align: 'right' });
+        y += 16;
+      });
+      y += 16;
+      doc.setDrawColor(220); doc.line(marginX, y - 8, pageW - marginX, y - 8);
+    }
+
     doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30);
     doc.text('Transaction Log', marginX, y);
     y += 20;
 
-    const pageH = doc.internal.pageSize.getHeight();
     const rowHeight = 40;
     filtered.forEach((t, idx)=>{
       if(y > pageH - rowHeight - 20){
@@ -1877,7 +2032,7 @@
       y += 10;
     });
 
-    const fileName = `ledger-${periodLabel.toLowerCase().replace(/\s+/g,'-')}-${now.toISOString().slice(0,10)}.pdf`;
+    const fileName = `ledger-${periodLabel.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}-${now.toISOString().slice(0,10)}.pdf`;
     const blob = doc.output('blob');
 
     let shared = false;
@@ -1909,8 +2064,10 @@
     if(nowDate !== lastKnownDate){
       lastKnownDate = nowDate;
       $('#todayLabel').textContent = new Date().toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
-      render();
     }
+    // Re-render periodically so the 15-minute delete lock on log entries takes effect
+    // even if the user hasn't interacted with the app since logging a transaction.
+    render();
   }, 30000);
 
   loadData();
