@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="color-scheme" content="dark light" />
 <title>Ledger</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@600;700&display=swap');
 
@@ -255,7 +255,7 @@
   .log-right .profit{ font-size: 15px; font-weight: 700; color: var(--profit); font-variant-numeric: tabular-nums; }
   .log-right .profit.neg{ color: var(--loss); }
   .log-right .del{ background:none; border:none; color: var(--muted-2); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; }
-  .log-right .del-locked{ display:inline-block; color: var(--muted-2); font-size: 10.5px; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; opacity:0.7; cursor:default; }
+  .log-right .del-locked{ display:inline-block; background:none; border:none; color: var(--muted-2); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; opacity:0.7; }
 
   .empty{ text-align:center; color: var(--muted); font-size: 13px; padding: 24px 0; }
 
@@ -318,6 +318,10 @@
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
   .status.error{ color: var(--loss); font-weight:700; }
   .status.deepgreen{ color: var(--deepgreen); font-weight:700; }
+  .status-line{ margin-top: 4px; }
+  .status-line:first-child{ margin-top: 0; }
+  .status-line.deepgreen{ color: var(--deepgreen); font-weight:700; }
+  .status-line.error{ color: var(--loss); font-weight:700; }
   #customerFee{ border-color: var(--deepgreen) !important; background: var(--deepgreen-tint) !important; color: var(--deepgreen); font-weight:600; }
   #customerFee::placeholder{ color: var(--deepgreen); opacity:0.6; }
   .disclaimer{ font-size: 11px; color: var(--muted); line-height: 1.65; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
@@ -391,11 +395,16 @@
       </div>
 
       <div id="remainingHandlingGroup" style="display:none; margin-top:2px; margin-bottom:14px;">
-        <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:10px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+        <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
           <input type="checkbox" id="remainingHandlingCustomerCheck" style="width:17px; height:17px; flex-shrink:0;" />
-          <span id="remainingHandlingCustomerLabel">₦0 cash to customer</span>
+          <span id="remainingHandlingCustomerLabel">Gave ₦0 cash to customer</span>
         </label>
-        <label class="samebank-toggle" style="justify-content:center; gap:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+        <div class="field" id="cashGivenAmountWrap" style="display:none; margin: 6px 0 10px;">
+          <label>Amount actually given to customer (₦)</label>
+          <input type="text" id="cashGivenAmount" inputmode="numeric" autocomplete="off" />
+          <div class="hint" id="cashGivenKeptHint" style="text-align:center; margin-top:6px; display:none;"></div>
+        </div>
+        <label class="samebank-toggle" id="remainingHandlingBalanceRow" style="justify-content:center; gap:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
           <input type="checkbox" id="remainingHandlingBalanceCheck" style="width:17px; height:17px; flex-shrink:0;" />
           <span id="remainingHandlingBalanceLabel">₦0 kept as service fee/charge</span>
         </label>
@@ -748,6 +757,18 @@
     if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, duration);
   }
 
+  function setStatusLines(lines){
+    // Renders multiple validation messages at once, each on its own line with its own color
+    // (e.g. the green "enter fee" reminder alongside a red "funds exceeded" warning).
+    const el = $('#status');
+    const html = lines.map(l => `<div class="status-line ${l.cls || ''}">${l.msg}</div>`).join('');
+    el.innerHTML = html;
+    el.className = 'status';
+    const hasError = lines.some(l => l.cls === 'error');
+    const duration = hasError ? 6000 : 2000;
+    if(html) setTimeout(()=>{ if(el.innerHTML === html) el.innerHTML = ''; }, duration);
+  }
+
   function computeBaseFee(provider, type, amount){
     if(type === 'Bill') return (state.biller === 'Betting' ? settings.bettingFee : settings.billFee) || 0;
     const r = settings.rates[provider];
@@ -1024,6 +1045,9 @@
     state.remainingHandling = null;
     $('#remainingHandlingCustomerCheck').checked = false;
     $('#remainingHandlingBalanceCheck').checked = false;
+    $('#cashGivenAmount').value = '';
+    $('#cashGivenAmountWrap').style.display = 'none';
+    $('#cashGivenKeptHint').style.display = 'none';
   }
 
   function updateLayoutForType(isCombo){
@@ -1039,6 +1063,37 @@
       amountWrap.classList.remove('withdrawn-field');
       $('#amountFeeRow').style.gridTemplateColumns = '';
       if(feeWrap.parentElement !== $('#amountFeeRow')) $('#amountFeeRow').appendChild(feeWrap);
+    }
+  }
+
+  function computeCurrentRemaining(){
+    const amount = numVal('#amount');
+    const cash = numVal('#cashAmount');
+    const legs = getTransferLegs();
+    const sum = legs.reduce((a,l)=>a+l.amount, 0);
+    return (amount + cash) - sum;
+  }
+
+  function updateRemainingHandlingUI(remaining){
+    const customerChecked = $('#remainingHandlingCustomerCheck').checked;
+    $('#cashGivenAmountWrap').style.display = customerChecked ? 'block' : 'none';
+    $('#remainingHandlingBalanceRow').style.display = customerChecked ? 'none' : 'flex';
+
+    if(customerChecked){
+      const rawGiven = ($('#cashGivenAmount').value || '').replace(/,/g,'');
+      const given = rawGiven === '' ? remaining : Math.min(Math.max(parseFloat(rawGiven) || 0, 0), remaining);
+      const kept = +(remaining - given).toFixed(2);
+      $('#remainingHandlingCustomerLabel').textContent = given > 0 ? `Gave ${fmt(given)} cash to customer` : 'Gave cash to customer';
+      const hint = $('#cashGivenKeptHint');
+      if(kept > 0){
+        hint.textContent = `${fmt(kept)} kept as service fee/charge`;
+        hint.style.display = 'block';
+      } else {
+        hint.style.display = 'none';
+      }
+    } else {
+      $('#remainingHandlingCustomerLabel').textContent = `Gave ${fmt(remaining)} cash to customer`;
+      $('#remainingHandlingBalanceLabel').textContent = `${fmt(remaining)} kept as service fee/charge`;
     }
   }
 
@@ -1084,8 +1139,7 @@
       const showRemainingToggle = remaining > 0;
       $('#remainingHandlingGroup').style.display = showRemainingToggle ? 'block' : 'none';
       if(showRemainingToggle){
-        $('#remainingHandlingCustomerLabel').textContent = `${fmt(remaining)} cash to customer`;
-        $('#remainingHandlingBalanceLabel').textContent = `${fmt(remaining)} kept as service fee/charge`;
+        updateRemainingHandlingUI(remaining);
       }
     } else {
       const manualBase = override ? 0 : null;
@@ -1237,18 +1291,26 @@
     if($('#remainingHandlingCustomerCheck').checked){
       $('#remainingHandlingBalanceCheck').checked = false;
       state.remainingHandling = 'customer';
+      const remaining = computeCurrentRemaining();
+      $('#cashGivenAmount').value = remaining > 0 ? Number(remaining).toLocaleString('en-US') : '';
     } else {
       state.remainingHandling = null;
+      $('#cashGivenAmount').value = '';
     }
+    refreshAuto();
   });
   $('#remainingHandlingBalanceCheck').addEventListener('change', ()=>{
     if($('#remainingHandlingBalanceCheck').checked){
       $('#remainingHandlingCustomerCheck').checked = false;
       state.remainingHandling = 'balance';
+      $('#cashGivenAmount').value = '';
     } else {
       state.remainingHandling = null;
     }
+    refreshAuto();
   });
+  attachCommaFormatting($('#cashGivenAmount'));
+  $('#cashGivenAmount').addEventListener('input', refreshAuto);
 
   wireSegment('providerSeg','provider');
   wireSegment('typeSeg','type');
@@ -1335,32 +1397,41 @@
     }
     const { base, vat, stamp, autosave, total } = bd;
 
-    if($('#customerFee').value.trim() === ''){
-      setStatus('Enter the fee you charged the customer', 'deepgreen');
-      return;
+    const errors = [];
+    const amountMissing = $('#amount').value.trim() === '';
+    if(amountMissing){
+      const label = isCombo ? 'Enter amount withdrawn.' : 'Enter amount withdrawn/sent.';
+      errors.push({ msg: label, cls: 'error' });
+    } else if($('#customerFee').value.trim() === ''){
+      errors.push({ msg: 'Enter the fee you charged the customer.', cls: 'deepgreen' });
     }
-    if(isCombo && (!legs || legs.length === 0)){
-      setStatus('Enter at least one transfer amount');
-      return;
+    if(!amountMissing && isCombo && (!legs || legs.length === 0)){
+      errors.push({ msg: 'Enter at least one transfer amount.', cls: 'error' });
     }
-    if(isCombo){
+    if(!amountMissing && isCombo && legs && legs.length > 0){
       const legsSumCheck = legs.reduce((a,l)=>a+l.amount, 0);
       const leftoverCheck = (amount + cashAmount) - legsSumCheck;
       if(leftoverCheck < 0){
         const overAmt = fmt(Math.abs(leftoverCheck));
-        setStatus(`Transfers exceed available funds for this transaction by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, 'error');
-        return;
+        errors.push({ msg: `Transfers exceed available funds for this transaction by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, cls: 'error' });
+      } else if(leftoverCheck > 0 && !state.remainingHandling){
+        errors.push({ msg: `Select if ${fmt(leftoverCheck)} was given as cash to customer or kept as service fee/charge.`, cls: 'error' });
       }
-      if(leftoverCheck > 0 && !state.remainingHandling){
-        setStatus('Select whether the remaining balance is cash to customer or kept as service fee/charge', 'error');
-        return;
-      }
+    }
+    if(errors.length > 0){
+      setStatusLines(errors);
+      return;
     }
 
     const netProfit = customerFee - total;
     const allLegsSameBank = isCombo && legs.length > 0 && legs.every(l => l.sameBank);
     const legsSum = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
     const leftover = isCombo ? (amount + cashAmount) - legsSum : 0;
+    let cashGivenAmount = null;
+    if(isCombo && leftover > 0 && state.remainingHandling === 'customer'){
+      const rawGiven = $('#cashGivenAmount').value.trim();
+      cashGivenAmount = rawGiven === '' ? leftover : Math.min(Math.max(numVal('#cashGivenAmount'), 0), leftover);
+    }
 
     const tx = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
@@ -1372,6 +1443,7 @@
       transferSameBank: isCombo ? legs.map(l=>!!l.sameBank) : null,
       cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
       remainingHandling: (isCombo && leftover > 0) ? state.remainingHandling : null,
+      cashGivenAmount,
       baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
       netProfit, manualFee: isCombo ? allLegsSameBank : wasOverridden
     };
@@ -1415,10 +1487,12 @@
   $('#autosaveFlat').addEventListener('change', async ()=>{ settings.autosaveFlat = numVal('#autosaveFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampOnWithdrawal').addEventListener('change', async ()=>{ settings.stampOnWithdrawal = $('#stampOnWithdrawal').checked; await saveSettings(); refreshAuto(); render(); });
 
+  const DELETE_LOCK_MINUTES = 230; // 3 hours 50 minutes
   const SETTINGS_PASSWORD = '2030';
   const SETTINGS_IDLE_MS = 30 * 60 * 1000;
   let settingsUnlocked = false;
   let settingsIdleTimer = null;
+  let unlockedTxIds = new Set();
 
   function showSettingsContent(){
     $('#settingsPasswordBox').style.display = 'none';
@@ -1440,6 +1514,7 @@
     if(!isSettingsPanelOpen()) return;
     settingsIdleTimer = setTimeout(()=>{
       settingsUnlocked = false; // re-lock, not just collapse — a fresh password is required next time
+      unlockedTxIds.clear(); // any per-transaction delete overrides re-lock along with settings
       hideSettingsPanels();
       render();
     }, SETTINGS_IDLE_MS);
@@ -1538,6 +1613,7 @@
 
   $('#lockNowBtn').addEventListener('click', ()=>{
     settingsUnlocked = false;
+    unlockedTxIds.clear();
     hideSettingsPanels();
     render();
   });
@@ -1636,16 +1712,35 @@
       const pool = t.amount + cash;
       const leftover = pool - sentTotal;
       const cashPart = cash > 0 ? ` + ${f(cash)} cash brought in` : '';
-      const leftoverLabel = t.remainingHandling === 'balance' ? 'kept as service fee/charge' : 'cash to customer';
-      const leftoverPart = leftover > 0 ? ` + ${f(leftover)} ${leftoverLabel}` : '';
+      const leftoverPart = (() => {
+        if(leftover <= 0) return '';
+        let given = 0;
+        if(t.remainingHandling === 'customer') given = (t.cashGivenAmount != null) ? t.cashGivenAmount : leftover;
+        const kept = +(leftover - given).toFixed(2);
+        const phrases = [];
+        if(given > 0) phrases.push(`gave ${f(given)} cash to customer`);
+        if(kept > 0) phrases.push(`${f(kept)} kept as service fee/charge`);
+        return phrases.length ? ' + ' + phrases.join(' + ') : '';
+      })();
+      const sameBankTag = (i) => (Array.isArray(t.transferSameBank) && t.transferSameBank[i]) ? ' same bank transfer' : '';
       if(t.transferAmounts.length === 1){
-        return `withdrew ${f(t.amount)}${cashPart} + sent ${f(t.transferAmounts[0])}${leftoverPart}`;
+        return `withdrew ${f(t.amount)}${cashPart} + sent ${f(t.transferAmounts[0])}${sameBankTag(0)}${leftoverPart}`;
       }
-      const list = t.transferAmounts.map(a => f(a)).join(' + ');
+      const list = t.transferAmounts.map((a, i) => f(a) + sameBankTag(i)).join(' + ');
       return `withdrew ${f(t.amount)}${cashPart} + sent ${list} (${t.transferAmounts.length} transfers)${leftoverPart}`;
     }
     // backward compatibility with pre-multi-transfer records
     return `withdrew ${f(t.amount)} + sent ${f(t.transferAmount != null ? t.transferAmount : t.amount)}`;
+  }
+
+  function hasLeftoverHandling(t){
+    // Mirrors the leftover check inside comboAmountLine, used to decide whether the
+    // ". +" connector (leftover phrase present) or the plain " ·" connector applies
+    // before "charged" in both the on-screen log and the PDF export.
+    if(t.type !== 'WithdrawTransfer' || !Array.isArray(t.transferAmounts) || t.transferAmounts.length === 0) return false;
+    const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
+    const pool = t.amount + (t.cashAmount || 0);
+    return (pool - sentTotal) > 0;
   }
 
   function dateSeparatorLabel(dateObj){
@@ -1715,10 +1810,14 @@
   function getTodayLogEntries(){
     // Clear is always scoped to today only, regardless of any period filter set elsewhere
     // in the app (e.g. Performance Overview) — it should never reach into previous days.
+    // It also respects the same delete-lock window as individual entries, so it can't be
+    // used to bulk-bypass that protection. Unlike individual delete, Clear has no password
+    // override — locked entries stay locked no matter what.
     return transactions.filter(t=>{
       const todayOk = isInPeriod(t.date, 'today');
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      return todayOk && provOk;
+      const unlocked = (Date.now() - new Date(t.date).getTime()) / 60000 <= DELETE_LOCK_MINUTES;
+      return todayOk && provOk && unlocked;
     });
   }
 
@@ -1831,9 +1930,10 @@
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
         const typeClass = isSameBankTitle ? providerColorClass : '';
         const minutesSinceLogged = (Date.now() - new Date(t.date).getTime()) / 60000;
-        const deleteControl = minutesSinceLogged <= 15
+        const isDeletable = minutesSinceLogged <= DELETE_LOCK_MINUTES || unlockedTxIds.has(t.id);
+        const deleteControl = isDeletable
           ? `<button class="del" data-id="${t.id}">delete</button>`
-          : `<span class="del-locked" title="Entries can only be deleted within 15 minutes of being logged">locked</span>`;
+          : `<button class="del-locked" data-id="${t.id}" title="Enter the settings password to unlock deleting this entry">locked</button>`;
         item.innerHTML = `
           <div class="log-icon ${iconClass}">${iconSvg}</div>
           <div class="log-left">
@@ -1841,7 +1941,7 @@
             <div class="type ${typeClass}">${typeLabel(t)}</div>
             ${sameBankSubLabel(t) ? `<div class="samebank-sublabel ${providerColorClass}">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
-            <div class="amountline">${comboAmountLine(t, null, true)} · charged <span class="fig">${fmt(t.customerFee)}</span></div>
+            <div class="amountline">${comboAmountLine(t, null, true)}${hasLeftoverHandling(t) ? '. +' : ' +'} charged <span class="fig">${fmt(t.customerFee)}</span></div>
           </div>
           <div class="log-right">
             ${profitBlock}
@@ -1852,6 +1952,18 @@
       });
       logList.querySelectorAll('.del').forEach(btn=>{
         btn.addEventListener('click', ()=> deleteTx(btn.dataset.id));
+      });
+      logList.querySelectorAll('.del-locked').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const entered = prompt('Enter the settings password to unlock deleting this entry:');
+          if(entered === null) return; // cancelled
+          if(entered === SETTINGS_PASSWORD){
+            unlockedTxIds.add(btn.dataset.id);
+            render();
+          } else {
+            setStatus('Incorrect password — entry stays locked.', 'error');
+          }
+        });
       });
     }
   }
@@ -2014,7 +2126,8 @@
       // Line 2: time, amount, and what was charged to the customer
       doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(110);
       const amountPart = comboAmountLine(t, fmtPdf);
-      doc.text(`${timeStr} · ${amountPart} · charged ${fmtPdf(t.customerFee)}`, marginX, y);
+      const chargedConnector = hasLeftoverHandling(t) ? '. +' : ' +';
+      doc.text(`${timeStr} · ${amountPart}${chargedConnector} charged ${fmtPdf(t.customerFee)}`, marginX, y);
       y += 12;
 
       // Line 3: the fee breakdown
@@ -2065,7 +2178,7 @@
       lastKnownDate = nowDate;
       $('#todayLabel').textContent = new Date().toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
     }
-    // Re-render periodically so the 15-minute delete lock on log entries takes effect
+    // Re-render periodically so the delete lock on log entries takes effect
     // even if the user hasn't interacted with the app since logging a transaction.
     render();
   }, 30000);
