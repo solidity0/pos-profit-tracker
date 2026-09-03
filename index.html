@@ -400,8 +400,9 @@
           <span id="remainingHandlingCustomerLabel">Gave ₦0 cash to customer</span>
         </label>
         <div class="field" id="cashGivenAmountWrap" style="display:none; margin: 6px 0 10px;">
-          <label>Amount actually given to customer (₦)</label>
-          <input type="text" id="cashGivenAmount" inputmode="numeric" autocomplete="off" />
+          <div style="text-align:center; font-size:11px; font-weight:700; color: var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">OR</div>
+          <label>Enter the actual amount given to customer (₦)</label>
+          <input type="text" id="cashGivenAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" />
           <div class="hint" id="cashGivenKeptHint" style="text-align:center; margin-top:6px; display:none;"></div>
         </div>
         <label class="samebank-toggle" id="remainingHandlingBalanceRow" style="justify-content:center; gap:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
@@ -1136,6 +1137,18 @@
       } else {
         val.textContent = fmt(remaining);
       }
+      // If "gave cash to customer" is checked and the entered amount exceeds what's actually
+      // left in the pool, that's an impossible split — flip the Remaining box into the same
+      // "over" state used elsewhere, showing exactly how far over it is.
+      if(remaining > 0 && $('#remainingHandlingCustomerCheck').checked){
+        const rawGivenCheck = ($('#cashGivenAmount').value || '').replace(/,/g,'');
+        const givenCheck = parseFloat(rawGivenCheck);
+        if(!isNaN(givenCheck) && givenCheck > remaining){
+          val.textContent = '-' + fmt(givenCheck - remaining) + ' over';
+          box.classList.remove('exact');
+          box.classList.add('over');
+        }
+      }
       const showRemainingToggle = remaining > 0;
       $('#remainingHandlingGroup').style.display = showRemainingToggle ? 'block' : 'none';
       if(showRemainingToggle){
@@ -1292,7 +1305,8 @@
       $('#remainingHandlingBalanceCheck').checked = false;
       state.remainingHandling = 'customer';
       const remaining = computeCurrentRemaining();
-      $('#cashGivenAmount').value = remaining > 0 ? Number(remaining).toLocaleString('en-US') : '';
+      $('#cashGivenAmount').value = '';
+      $('#cashGivenAmount').placeholder = remaining > 0 ? 'e.g. ' + Number(remaining).toLocaleString('en-US') : 'e.g. 1,000';
     } else {
       state.remainingHandling = null;
       $('#cashGivenAmount').value = '';
@@ -1399,10 +1413,29 @@
 
     const errors = [];
     const amountMissing = $('#amount').value.trim() === '';
+
+    // Pre-scan the leg/leftover checks first so we know whether a "fix the amount" error
+    // will already fire below — if so, skip the "enter the fee" reminder entirely rather
+    // than stacking an unrelated nudge on top of a blocking error.
+    let skipFeeReminder = false;
+    if(!amountMissing && isCombo && legs && legs.length > 0){
+      const legsSumPre = legs.reduce((a,l)=>a+l.amount, 0);
+      const leftoverPre = (amount + cashAmount) - legsSumPre;
+      if(leftoverPre < 0){
+        skipFeeReminder = true;
+      } else if(leftoverPre > 0 && !state.remainingHandling){
+        skipFeeReminder = true;
+      } else if(leftoverPre > 0 && state.remainingHandling === 'customer'){
+        const rawGivenPre = $('#cashGivenAmount').value.trim().replace(/,/g,'');
+        const givenPre = parseFloat(rawGivenPre);
+        if(!isNaN(givenPre) && givenPre > leftoverPre) skipFeeReminder = true;
+      }
+    }
+
     if(amountMissing){
       const label = isCombo ? 'Enter amount withdrawn.' : 'Enter amount withdrawn/sent.';
       errors.push({ msg: label, cls: 'error' });
-    } else if($('#customerFee').value.trim() === ''){
+    } else if($('#customerFee').value.trim() === '' && !skipFeeReminder){
       errors.push({ msg: 'Enter the fee you charged the customer.', cls: 'deepgreen' });
     }
     if(!amountMissing && isCombo && (!legs || legs.length === 0)){
@@ -1416,6 +1449,12 @@
         errors.push({ msg: `Transfers exceed available funds for this transaction by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, cls: 'error' });
       } else if(leftoverCheck > 0 && !state.remainingHandling){
         errors.push({ msg: `Select if ${fmt(leftoverCheck)} was given as cash to customer or kept as service fee/charge.`, cls: 'error' });
+      } else if(leftoverCheck > 0 && state.remainingHandling === 'customer'){
+        const rawGivenCheck = $('#cashGivenAmount').value.trim().replace(/,/g,'');
+        const givenCheck = parseFloat(rawGivenCheck);
+        if(!isNaN(givenCheck) && givenCheck > leftoverCheck){
+          errors.push({ msg: `Amount given to customer exceeds the ${fmt(leftoverCheck)} remaining by ${fmt(givenCheck - leftoverCheck)}. Rectify amount with the customer before adding or carrying out transaction.`, cls: 'error' });
+        }
       }
     }
     if(errors.length > 0){
