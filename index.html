@@ -2215,17 +2215,33 @@
     doc.text('Transaction Log', marginX, y);
     y += 20;
 
-    const rowHeight = 40;
+    const maxTextWidth = pageW - marginX * 2;
     filtered.forEach((t, idx)=>{
-      if(y > pageH - rowHeight - 20){
-        doc.addPage();
-        y = 50;
-      }
       const d = new Date(t.date);
       const timeStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
       const providerText = providerDisplay(t.provider);
       const restOfTypeStr = ' · ' + typeLabel(t);
       const rowProviderColor = providerColor(t.provider);
+
+      // Pre-compute wrapped text for lines 2 & 3 so overlong entries (many transfer legs,
+      // long fee breakdowns) wrap onto extra lines instead of running off the page edge.
+      const amountPart = comboAmountLine(t, fmtPdf);
+      const chargedConnector = hasLeftoverHandling(t) ? '. +' : ' +';
+      const line2Text = `${timeStr} · ${amountPart}${chargedConnector} charged ${fmtPdf(t.customerFee)}`;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      const line2Lines = doc.splitTextToSize(line2Text, maxTextWidth);
+
+      let feeLine = t.manualFee ? `fee ${fmtPdf(t.baseFee)} (manual)` : `fee ${fmtPdf(t.baseFee)}`;
+      feeLine += ` + VAT ${fmtPdf(t.vatAmt)} + stamp ${fmtPdf(t.stampAmt)}`;
+      if(t.autosaveAmt) feeLine += ` + autosave ${fmtPdf(t.autosaveAmt)}`;
+      doc.setFontSize(8.5);
+      const line3Lines = doc.splitTextToSize(feeLine, maxTextWidth);
+
+      const estRowHeight = 13 + (line2Lines.length * 11) + (line3Lines.length * 10) + 20;
+      if(y > pageH - estRowHeight){
+        doc.addPage();
+        y = 50;
+      }
 
       // Line 1: provider (brand color) + type (black) on the left, net profit bold on the right
       doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
@@ -2238,20 +2254,19 @@
       doc.text(fmtPdf(t.netProfit), pageW - marginX, y, { align: 'right' });
       y += 13;
 
-      // Line 2: time, amount, and what was charged to the customer
+      // Line 2: time, amount, and what was charged to the customer (wrapped)
       doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(110);
-      const amountPart = comboAmountLine(t, fmtPdf);
-      const chargedConnector = hasLeftoverHandling(t) ? '. +' : ' +';
-      doc.text(`${timeStr} · ${amountPart}${chargedConnector} charged ${fmtPdf(t.customerFee)}`, marginX, y);
-      y += 12;
+      line2Lines.forEach(line=>{
+        doc.text(line, marginX, y);
+        y += 11;
+      });
 
-      // Line 3: the fee breakdown
+      // Line 3: the fee breakdown (wrapped)
       doc.setFontSize(8.5); doc.setTextColor(140);
-      let feeLine = t.manualFee ? `fee ${fmtPdf(t.baseFee)} (manual)` : `fee ${fmtPdf(t.baseFee)}`;
-      feeLine += ` + VAT ${fmtPdf(t.vatAmt)} + stamp ${fmtPdf(t.stampAmt)}`;
-      if(t.autosaveAmt) feeLine += ` + autosave ${fmtPdf(t.autosaveAmt)}`;
-      doc.text(feeLine, marginX, y);
-      y += 10;
+      line3Lines.forEach(line=>{
+        doc.text(line, marginX, y);
+        y += 10;
+      });
 
       if(idx < filtered.length - 1){
         doc.setDrawColor(235);
