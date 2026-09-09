@@ -141,6 +141,51 @@
     #settingsContent .row2, #settingsContent .row3{ grid-template-columns: 1fr; }
   }
 
+  /* Desktop-only layout: 4 columns side by side next to the Ledger entry card —
+     Transaction Log + Volume Analysis share one column (log on top), Educational &
+     Safety Tips + Performance Overview share another (tips on top), both stacked
+     vertically via CSS order (DOM order stays untouched, so mobile is unaffected).
+     Scoped entirely to min-width: 1024px so the phone/mobile layout above is untouched. */
+  @media (min-width: 1024px){
+    .wrap{ max-width: 100%; width: 100%; padding: 28px 32px 8px; }
+    .dashboard-row{
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+    }
+    .dashboard-row > .card{
+      flex: 1 1 320px;
+      min-width: 320px;
+      max-width: 510px;
+      margin-bottom: 0;
+    }
+    .dashboard-row > #entryCard{
+      flex: 1.1 1 340px;
+      max-width: 510px;
+    }
+    .dashboard-row > .stack-col{
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 320px;
+      min-width: 320px;
+      max-width: 510px;
+    }
+    .dashboard-row > .stack-col > .card{
+      margin-bottom: 18px;
+      width: 100%;
+      box-sizing: border-box;
+      align-self: stretch;
+    }
+    /* Visual reorder only — DOM order is unchanged, so mobile stacking is unaffected. */
+    #txLogCard{ order: 1; margin-bottom: 18px; }
+    #volumeCard{ order: 2; margin-bottom: 0; }
+    #safetyCard{ order: 1; margin-bottom: 18px; }
+    #perfCard{ order: 2; margin-bottom: 0; }
+  }
+
+
   .autofee{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom: 10px; }
   .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:600; text-align:center; }
   .autofee .toggle{ font-size: 11px; color: var(--text); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
@@ -199,6 +244,8 @@
   .summary-content{ margin-top: 14px; }
   .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--theme); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Inter', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .provider-filter button.active{ border-color: var(--accent); color: #ffffff; background: var(--accent); }
+  #providerFilter button[data-val="All"].active{ border-color: #000000; color: #ffffff; background: #000000; }
+  [data-theme="night"] #providerFilter button[data-val="All"].active{ border-color: #ffffff; color: #000000; background: #ffffff; }
   #providerFilter button[data-val="Moniepoint"]{ border-color: var(--mp); color: var(--mp-soft); }
   #providerFilter button[data-val="Opay"]{ border-color: var(--op); color: var(--op-soft); }
   #providerFilter button[data-val="Moniepoint"].active{ border-color: var(--mp); color: #ffffff; background: var(--mp); }
@@ -340,6 +387,7 @@
     </div>
   </header>
 
+  <div class="dashboard-row">
   <div class="card" id="entryCard" data-provider="Moniepoint">
     <h2><span class="provider-avatar letter" id="providerAvatar">M</span>Log a Transaction</h2>
 
@@ -366,7 +414,7 @@
 
     <div class="row2" id="amountFeeRow">
       <div class="field" id="amountFieldWrap">
-        <label id="amountLabel">Amount withdrawn/sent (₦)</label>
+        <label id="amountLabel">Amount Withdrawn (₦)</label>
         <input type="text" id="amount" inputmode="numeric" autocomplete="off" placeholder="e.g. 20,000" />
       </div>
       <div class="field" id="customerFeeFieldWrap">
@@ -430,7 +478,20 @@
     <div class="status" id="status"></div>
   </div>
 
-  <div class="card">
+  <div class="stack-col">
+  <div class="card has-clear" id="txLogCard">
+    <button class="log-toggle" id="logToggle">
+      <span class="log-caret" id="logCaret">▶</span>
+      <span>Transaction Log</span>
+    </button>
+    <div id="logContent" class="scroll-panel" style="display:none;">
+      <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
+      <div id="logList"></div>
+      <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
+    </div>
+  </div>
+
+  <div class="card" id="volumeCard">
     <button class="log-toggle" id="volumeToggle">
       <span class="log-caret" id="volumeCaret">▶</span>
       <span>Volume Analysis</span>
@@ -459,20 +520,11 @@
       </div>
     </div>
   </div>
-
-  <div class="card has-clear">
-    <button class="log-toggle" id="logToggle">
-      <span class="log-caret" id="logCaret">▶</span>
-      <span>Transaction Log</span>
-    </button>
-    <div id="logContent" class="scroll-panel" style="display:none;">
-      <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
-      <div id="logList"></div>
-      <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
-    </div>
   </div>
 
-  <div class="card">
+
+  <div class="stack-col">
+  <div class="card" id="perfCard">
     <button class="summary-toggle" id="summaryToggle">
       <span class="summary-caret" id="summaryCaret">▶</span>
       <span>Performance Overview</span>
@@ -516,15 +568,19 @@
         <span class="val" id="netProfit">₦0</span>
       </div>
       <div class="txcount" id="txCount">0 transactions</div>
-      <button class="pdfbtn" id="pdfBtn">
+      <button class="pdfbtn" id="downloadPdfBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
-        Download / Share PDF
+        Download PDF
+      </button>
+      <button class="pdfbtn" id="sharePdfBtn" style="margin-top:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
+        Share PDF
       </button>
       <div class="status" id="pdfStatus"></div>
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="safetyCard">
     <button class="log-toggle" id="safetyToggle">
       <span class="log-caret" id="safetyCaret">▶</span>
       <span>Educational &amp; Safety Tips</span>
@@ -537,6 +593,8 @@
       </div>
     </div>
   </div>
+  </div>
+
 
   <div class="card">
     <div class="settings-gate">
@@ -635,6 +693,8 @@
       </div>
       </div>
     </div>
+  </div>
+
   </div>
 
 </div>
@@ -1049,6 +1109,7 @@
     $('#cashGivenAmount').value = '';
     $('#cashGivenAmountWrap').style.display = 'none';
     $('#cashGivenKeptHint').style.display = 'none';
+    customerFeeAutoValue = null;
   }
 
   function updateLayoutForType(isCombo){
@@ -1075,8 +1136,23 @@
     return (amount + cash) - sum;
   }
 
+  // Tracks the last value we auto-filled into the customer-fee field, so we only
+  // keep syncing it while the user hasn't typed their own value over it — once they
+  // edit it manually, it stays editable and further recalculations leave it alone.
+  let customerFeeAutoValue = null;
+  function autoFillCustomerFee(amount){
+    const formatted = amount > 0 ? Number(amount).toLocaleString('en-US') : '';
+    const field = $('#customerFee');
+    const current = (field.value || '').trim();
+    if(current === '' || current === customerFeeAutoValue){
+      field.value = formatted;
+    }
+    customerFeeAutoValue = formatted;
+  }
+
   function updateRemainingHandlingUI(remaining){
     const customerChecked = $('#remainingHandlingCustomerCheck').checked;
+    const balanceChecked = $('#remainingHandlingBalanceCheck').checked;
     $('#cashGivenAmountWrap').style.display = customerChecked ? 'block' : 'none';
     $('#remainingHandlingBalanceRow').style.display = customerChecked ? 'none' : 'flex';
 
@@ -1089,12 +1165,17 @@
       if(kept > 0){
         hint.textContent = `${fmt(kept)} kept as service fee/charge`;
         hint.style.display = 'block';
+        autoFillCustomerFee(kept);
       } else {
         hint.style.display = 'none';
+        autoFillCustomerFee(0);
       }
     } else {
       $('#remainingHandlingCustomerLabel').textContent = `Gave ${fmt(remaining)} cash to customer`;
       $('#remainingHandlingBalanceLabel').textContent = `${fmt(remaining)} kept as service fee/charge`;
+      if(balanceChecked){
+        autoFillCustomerFee(remaining);
+      }
     }
   }
 
@@ -1104,7 +1185,7 @@
     const isWithdrawal = state.type === 'Withdrawal';
     $('#billerSeg').style.display = isBill ? 'flex' : 'none';
     $('#comboHint').style.display = isCombo ? 'block' : 'none';
-    $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : 'Amount withdrawn/sent (₦)');
+    $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : (isWithdrawal ? 'Amount Withdrawn (₦)' : 'Amount Sent (₦)'));
     updateLayoutForType(isCombo);
 
     $('#overrideFeeRow').style.display = isBill ? 'none' : 'flex';
@@ -2007,16 +2088,10 @@
     }
   }
 
-  async function generatePdf(){
-    const pdfBtn = $('#pdfBtn');
-    const pdfStatus = $('#pdfStatus');
+  function buildPdfDoc(){
     if(typeof window.jspdf === 'undefined'){
-      pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
-      return;
+      return null;
     }
-    pdfBtn.disabled = true;
-    const originalBtnLabel = pdfBtn.textContent;
-    pdfBtn.textContent = 'Building…';
 
     const MP_RGB = [59,124,255];
     const OP_RGB = [23,196,160];
@@ -2185,30 +2260,76 @@
     });
 
     const fileName = `ledger-${periodLabel.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}-${now.toISOString().slice(0,10)}.pdf`;
-    const blob = doc.output('blob');
-
-    let shared = false;
-    try{
-      if(navigator.canShare && navigator.share){
-        const file = new File([blob], fileName, { type: 'application/pdf' });
-        if(navigator.canShare({ files: [file] })){
-          await navigator.share({ files: [file], title: 'Ledger Daily Report', text: `${periodLabel} report — Net profit ${fmt(sumNet)}` });
-          shared = true;
-        }
-      }
-    }catch(e){ /* user cancelled or share unsupported — fall through to download */ }
-
-    if(!shared){
-      doc.save(fileName);
-      pdfStatus.textContent = 'PDF downloaded — share it from your files.';
-      setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
-    }
-
-    pdfBtn.disabled = false;
-    pdfBtn.textContent = originalBtnLabel;
+    return { doc, fileName, periodLabel, sumNet };
   }
 
-  $('#pdfBtn').addEventListener('click', generatePdf);
+  async function downloadPdf(){
+    const pdfBtn = $('#downloadPdfBtn');
+    const pdfStatus = $('#pdfStatus');
+    if(typeof window.jspdf === 'undefined'){
+      pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
+      return;
+    }
+    pdfBtn.disabled = true;
+    const originalBtnLabel = pdfBtn.textContent;
+    pdfBtn.textContent = 'Building…';
+    try{
+      const built = buildPdfDoc();
+      if(!built){
+        pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
+        return;
+      }
+      built.doc.save(built.fileName);
+      pdfStatus.textContent = 'PDF downloaded.';
+      setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
+    } finally {
+      pdfBtn.disabled = false;
+      pdfBtn.textContent = originalBtnLabel;
+    }
+  }
+
+  async function sharePdf(){
+    const pdfBtn = $('#sharePdfBtn');
+    const pdfStatus = $('#pdfStatus');
+    if(typeof window.jspdf === 'undefined'){
+      pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
+      return;
+    }
+    pdfBtn.disabled = true;
+    const originalBtnLabel = pdfBtn.textContent;
+    pdfBtn.textContent = 'Building…';
+    try{
+      const built = buildPdfDoc();
+      if(!built){
+        pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
+        return;
+      }
+      const { doc, fileName, periodLabel, sumNet } = built;
+      const blob = doc.output('blob');
+      let shared = false;
+      try{
+        if(navigator.canShare && navigator.share){
+          const file = new File([blob], fileName, { type: 'application/pdf' });
+          if(navigator.canShare({ files: [file] })){
+            await navigator.share({ files: [file], title: 'Ledger Daily Report', text: `${periodLabel} report — Net profit ${fmt(sumNet)}` });
+            shared = true;
+          }
+        }
+      }catch(e){ /* user cancelled or share unsupported — fall through to download */ }
+
+      if(!shared){
+        doc.save(fileName);
+        pdfStatus.textContent = 'Sharing isn\'t available on this device — PDF downloaded instead.';
+        setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
+      }
+    } finally {
+      pdfBtn.disabled = false;
+      pdfBtn.textContent = originalBtnLabel;
+    }
+  }
+
+  $('#downloadPdfBtn').addEventListener('click', downloadPdf);
+  $('#sharePdfBtn').addEventListener('click', sharePdf);
 
   let lastKnownDate = new Date().toDateString();
   setInterval(()=>{
