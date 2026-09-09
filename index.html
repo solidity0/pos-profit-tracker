@@ -2220,7 +2220,6 @@
       const d = new Date(t.date);
       const timeStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
       const providerText = providerDisplay(t.provider);
-      const restOfTypeStr = ' · ' + typeLabel(t);
       const rowProviderColor = providerColor(t.provider);
 
       // Pre-compute wrapped text for lines 2 & 3 so overlong entries (many transfer legs,
@@ -2237,21 +2236,23 @@
       doc.setFontSize(8.5);
       const line3Lines = doc.splitTextToSize(feeLine, maxTextWidth);
 
-      const estRowHeight = 13 + (line2Lines.length * 11) + (line3Lines.length * 10) + 20;
+      const estRowHeight = 13 + 12 + (line2Lines.length * 11) + (line3Lines.length * 10) + 20;
       if(y > pageH - estRowHeight){
         doc.addPage();
         y = 50;
       }
 
-      // Line 1: provider (brand color) + type (black) on the left, net profit bold on the right
+      // Line 1: provider (brand color) on the left, net profit bold on the right
       doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
       doc.setTextColor(rowProviderColor[0], rowProviderColor[1], rowProviderColor[2]);
       doc.text(providerText, marginX, y);
-      const providerWidth = doc.getTextWidth(providerText);
-      doc.setTextColor(30);
-      doc.text(restOfTypeStr, marginX + providerWidth, y);
       doc.setTextColor(t.netProfit < 0 ? 200 : 20, t.netProfit < 0 ? 40 : 120, t.netProfit < 0 ? 40 : 60);
       doc.text(fmtPdf(t.netProfit), pageW - marginX, y, { align: 'right' });
+      y += 12;
+
+      // Line 1.5: transaction type, directly under the provider name
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(30);
+      doc.text(typeLabel(t), marginX, y);
       y += 13;
 
       // Line 2: time, amount, and what was charged to the customer (wrapped)
