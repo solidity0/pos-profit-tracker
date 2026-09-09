@@ -128,7 +128,7 @@
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
   .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 5px; font-weight:600; text-align:center; }
-  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
+  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; text-align: center; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
   .field input:focus{ border-color: var(--theme); }
@@ -321,7 +321,7 @@
   .lock-now-btn{ display:flex; align-items:center; justify-content:center; gap:7px; width:100%; background: var(--loss); color:#1A0E0E; border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; padding:11px; border-radius: var(--radius-sm); cursor:pointer; margin-bottom: 14px; }
   .lock-now-btn svg{ width:15px; height:15px; }
   .settings .field{ margin-top: 12px; }
-  .settings h3{ font-size: 11px; color: var(--theme-soft); text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 4px; font-weight:700; }
+  .settings h3{ font-size: 11px; color: var(--theme-soft); text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 4px; font-weight:700; text-align: center; }
   .settings h3.mp-heading{ color: var(--mp-soft); }
   .settings h3.op-heading{ color: var(--op-soft); font-family: 'Inter', sans-serif; }
   .fee-table-wrap{ margin-top: 12px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; }
@@ -630,15 +630,8 @@
       <div class="field"><label>Auto-save per transaction (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="autosaveFlat" /></div>
       <div class="switchrow"><label>Track auto-save automatically</label><input type="checkbox" id="autosaveEnabled" checked /></div>
       <div class="hint">Currently set to exact 0.5%, confirmed against your real ₦100 (₦0.50) transaction. Note: your ₦8,100 (₦45) and ₦10,200 (₦55) transactions don't fit this exactly — those showed rounding up to the nearest ₦5, which doesn't match the ₦100 case. The exact rule for larger amounts isn't fully confirmed yet — use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
-      <div class="fee-table-wrap">
-        <button class="fee-table-title" id="mpFeeTableToggle" type="button">
-          <span>Total deducted, by amount</span>
-          <span class="fee-table-caret" id="mpFeeTableCaret">▶</span>
-        </button>
-        <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
-      </div>
 
-      <h3 class="op-heading">OPay rates <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(flat ₦100+ confirmed by you; % rate and rounding still unverified)</span></h3>
+      <h3 class="op-heading">OPay rates</h3>
       <div class="row2">
         <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="op_pct" step="0.01" /></div>
         <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_flat" /></div>
@@ -670,12 +663,20 @@
       <div class="field"><label>Machine charge on betting top-ups (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="bettingFee" /></div>
       <div class="hint">Betting top-ups default to ₦0 machine fee, same as other bill payments. Edit if your terminal actually charges something for it.</div>
 
-      <h3>Service Fee Table <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
+      <div class="fee-table-wrap">
+        <button class="fee-table-title" id="mpFeeTableToggle" type="button">
+          <span>Total deducted, by amount</span>
+          <span class="fee-table-caret" id="mpFeeTableCaret">▶</span>
+        </button>
+        <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
+      </div>
+
+      <h3>Service Fee Table <span style="display:block; font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
       <div class="hint">Set the fee you charge customers at each amount tier. Edit any box — this also shows as a quick reference in Educational &amp; Safety Tips.</div>
       <div class="row2" id="serviceFeeInputs"></div>
       <div class="field"><label>Above ₦20,000 — fee per ₦10,000 (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="serviceFeeAboveInput" /></div>
 
-      <h3>Withdraw+Transfer Service Fees <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers, by amount range)</span></h3>
+      <h3>Withdraw+Transfer Service Fees <span style="display:block; font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers, by amount range)</span></h3>
       <div class="row2" id="comboFeeInputs"></div>
 
       <h3>Educational &amp; Safety Tips</h3>
