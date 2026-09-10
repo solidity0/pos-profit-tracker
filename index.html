@@ -128,6 +128,17 @@
   .biller-row button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .field{ margin-bottom: 14px; }
   .field label{ display:flex; flex-direction:column; justify-content:flex-end; min-height: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 5px; font-weight:600; text-align:center; }
+  /* Container query (not viewport-based) so the "Amount / Withdrawn (₦)" label switches
+     to one line based on the actual rendered width of its own box — this stays correct
+     regardless of device, browser window size, or a narrow split preview pane, none of
+     which reliably correlate with the page's overall viewport width. */
+  #amountFieldWrap{ container-type: inline-size; container-name: amtfield; }
+  .amount-label-mobile{ display:inline; }
+  .amount-label-desktop{ display:none; }
+  @container amtfield (min-width: 190px){
+    .amount-label-mobile{ display:none; }
+    .amount-label-desktop{ display:inline; }
+  }
   .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; text-align: center; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
@@ -414,7 +425,7 @@
 
     <div class="row2" id="amountFeeRow">
       <div class="field" id="amountFieldWrap">
-        <label id="amountLabel">Amount Withdrawn (₦)</label>
+        <label id="amountLabel"><span class="amount-label-mobile">Amount<br>Withdrawn (₦)</span><span class="amount-label-desktop">Amount Withdrawn (₦)</span></label>
         <input type="text" id="amount" inputmode="numeric" autocomplete="off" placeholder="e.g. 20,000" />
       </div>
       <div class="field" id="customerFeeFieldWrap">
@@ -1110,7 +1121,6 @@
     $('#cashGivenAmount').value = '';
     $('#cashGivenAmountWrap').style.display = 'none';
     $('#cashGivenKeptHint').style.display = 'none';
-    customerFeeAutoValue = null;
   }
 
   function updateLayoutForType(isCombo){
@@ -1137,20 +1147,6 @@
     return (amount + cash) - sum;
   }
 
-  // Tracks the last value we auto-filled into the customer-fee field, so we only
-  // keep syncing it while the user hasn't typed their own value over it — once they
-  // edit it manually, it stays editable and further recalculations leave it alone.
-  let customerFeeAutoValue = null;
-  function autoFillCustomerFee(amount){
-    const formatted = amount > 0 ? Number(amount).toLocaleString('en-US') : '';
-    const field = $('#customerFee');
-    const current = (field.value || '').trim();
-    if(current === '' || current === customerFeeAutoValue){
-      field.value = formatted;
-    }
-    customerFeeAutoValue = formatted;
-  }
-
   function updateRemainingHandlingUI(remaining){
     const customerChecked = $('#remainingHandlingCustomerCheck').checked;
     const balanceChecked = $('#remainingHandlingBalanceCheck').checked;
@@ -1166,17 +1162,12 @@
       if(kept > 0){
         hint.textContent = `${fmt(kept)} kept as service fee/charge`;
         hint.style.display = 'block';
-        autoFillCustomerFee(kept);
       } else {
         hint.style.display = 'none';
-        autoFillCustomerFee(0);
       }
     } else {
       $('#remainingHandlingCustomerLabel').textContent = `Gave ${fmt(remaining)} cash to customer`;
       $('#remainingHandlingBalanceLabel').textContent = `${fmt(remaining)} kept as service fee/charge`;
-      if(balanceChecked){
-        autoFillCustomerFee(remaining);
-      }
     }
   }
 
@@ -1186,7 +1177,8 @@
     const isWithdrawal = state.type === 'Withdrawal';
     $('#billerSeg').style.display = isBill ? 'flex' : 'none';
     $('#comboHint').style.display = isCombo ? 'block' : 'none';
-    $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : (isWithdrawal ? 'Amount Withdrawn (₦)' : 'Amount Sent (₦)'));
+    const withdrawnLabel = '<span class="amount-label-mobile">Amount<br>Withdrawn (₦)</span><span class="amount-label-desktop">Amount Withdrawn (₦)</span>';
+    $('#amountLabel').innerHTML = isBill ? 'Bill amount paid (₦)' : (isCombo ? withdrawnLabel : (isWithdrawal ? withdrawnLabel : 'Amount Sent (₦)'));
     updateLayoutForType(isCombo);
 
     $('#overrideFeeRow').style.display = isBill ? 'none' : 'flex';
