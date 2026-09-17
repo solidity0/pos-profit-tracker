@@ -274,6 +274,16 @@
   .netline .val{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size: 26px; color: var(--profit); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   .netline .val.neg{ color: var(--loss); }
   .txcount{ font-size: 10.5px; color: var(--muted-2); text-align:center; margin-top: 12px; letter-spacing: 0.05em; font-weight:500; }
+  .calc-preview{ text-align:right; padding: 0 6px; margin-bottom: 4px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; overflow-x:auto; white-space:nowrap; min-height: 19px; }
+  .calc-display{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 16px 14px; margin-bottom: 12px; text-align:right; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 26px; font-variant-numeric: tabular-nums; color: var(--text); overflow-x:auto; white-space:nowrap; }
+  .calc-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+  .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: 999px; aspect-ratio: 1; padding: 0; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 17px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; }
+  .calc-btn:active{ transform: scale(0.94); }
+  .calc-btn.calc-op{ background: var(--surface-3); color: var(--text); }
+  .calc-btn.calc-op[data-calc="/"], .calc-btn.calc-op[data-calc="*"], .calc-btn.calc-op[data-calc="-"], .calc-btn.calc-op[data-calc="+"]{ background: var(--theme); color: var(--theme-text); }
+  .calc-btn.calc-eq{ background: var(--theme); color: var(--theme-text); }
+  .calc-btn.calc-zero{ grid-column: span 2; aspect-ratio: auto; border-radius: 999px; text-align:left; padding-left: 24px; }
+  .log-left .costline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:500; font-variant-numeric: tabular-nums; }
   .pdfbtn{ display:flex; align-items:center; justify-content:center; gap:7px; width:100%; margin-top: 16px; padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--line-soft); background: var(--surface-2); color: var(--text); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; cursor:pointer; transition: border-color 0.15s, background 0.15s; }
   .pdfbtn:hover{ border-color: var(--theme); }
   .pdfbtn svg{ width:15px; height:15px; flex-shrink:0; }
@@ -494,6 +504,13 @@
             <span id="remainingHandlingBalanceLabel">Kept as service fee/charge</span>
           </label>
         </div>
+
+        <div class="field" id="runningTotalWrap2" style="display:none; margin-top:14px; margin-bottom:0;">
+          <label>Remaining (₦)</label>
+          <div class="running-total" id="runningTotalBox2">
+            <span class="val" id="runningTotalVal2">₦0</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -502,12 +519,6 @@
     <div class="field">
       <div class="autofee" id="overrideFeeRow">
         <label class="toggle"><input type="checkbox" id="overrideFee" /><span id="overrideFeeLabel">override fee (same bank transfer)</span></label>
-      </div>
-      <div class="field" id="runningTotalWrap2" style="display:none; margin-bottom:14px;">
-        <label>Remaining (₦)</label>
-        <div class="running-total" id="runningTotalBox2">
-          <span class="val" id="runningTotalVal2">₦0</span>
-        </div>
       </div>
       <label class="autobox-label">Total deducted from your balance (auto)</label>
       <div class="autobox deduct">
@@ -519,6 +530,38 @@
     <button class="addbtn" id="addBtn">Add Transaction</button>
     <div class="hint">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
+  </div>
+
+  <div class="card" id="calcCard">
+    <button class="log-toggle" id="calcToggle">
+      <span class="log-caret" id="calcCaret">▶</span>
+      <span>Calculator</span>
+    </button>
+    <div id="calcBody" style="display:none; margin-top:14px;">
+      <div class="calc-preview" id="calcPreview">&nbsp;</div>
+      <div class="calc-display" id="calcDisplay">0</div>
+      <div class="calc-grid">
+        <button class="calc-btn calc-op" data-calc="clear">AC</button>
+        <button class="calc-btn calc-op" data-calc="%">%</button>
+        <button class="calc-btn calc-op" data-calc="backspace">⌫</button>
+        <button class="calc-btn calc-op" data-calc="/">÷</button>
+        <button class="calc-btn" data-calc="7">7</button>
+        <button class="calc-btn" data-calc="8">8</button>
+        <button class="calc-btn" data-calc="9">9</button>
+        <button class="calc-btn calc-op" data-calc="*">×</button>
+        <button class="calc-btn" data-calc="4">4</button>
+        <button class="calc-btn" data-calc="5">5</button>
+        <button class="calc-btn" data-calc="6">6</button>
+        <button class="calc-btn calc-op" data-calc="-">−</button>
+        <button class="calc-btn" data-calc="1">1</button>
+        <button class="calc-btn" data-calc="2">2</button>
+        <button class="calc-btn" data-calc="3">3</button>
+        <button class="calc-btn calc-op" data-calc="+">+</button>
+        <button class="calc-btn calc-zero" data-calc="0">0</button>
+        <button class="calc-btn" data-calc=".">.</button>
+        <button class="calc-btn calc-eq" data-calc="=">=</button>
+      </div>
+    </div>
   </div>
 
   <div class="stack-col">
@@ -1211,7 +1254,6 @@
     $('#cashGivenAmountWrap').style.display = 'none';
     $('#billPaymentAmountWrap').style.display = 'none';
     $('#customerFeeFieldWrap').style.display = '';
-    customerFeeAutoValue = null;
     selectedCombosBillers.clear();
     $('#comboBillerSeg').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
     $('#comboBillerAmounts').innerHTML = '';
@@ -1284,27 +1326,6 @@
     };
   }
 
-  // Syncs the "Fee you charged customer" box from the "kept as service fee/charge" amount
-  // — since checking that box IS the person declaring the remaining as their fee, unlike
-  // the old leftover auto-fill (removed for bill/cash) which silently assumed "leftover =
-  // fee" without the person actually saying so. Stays editable: once the person types their
-  // own value into the fee box, further recalculation leaves it alone rather than
-  // overwriting it.
-  let customerFeeAutoValue = null;
-  function syncCustomerFeeFromKept(keptChecked, keptAmount){
-    if(!keptChecked || !(keptAmount > 0)){
-      customerFeeAutoValue = null;
-      return;
-    }
-    const formatted = Number(keptAmount).toLocaleString('en-US');
-    const field = $('#customerFee');
-    const current = (field.value || '').trim();
-    if(current === '' || current === customerFeeAutoValue){
-      field.value = formatted;
-    }
-    customerFeeAutoValue = formatted;
-  }
-
   // Writes the same text/state to both "Remaining" boxes — the one above the checkboxes
   // and the duplicate lower down near the total, so the person doesn't have to scroll
   // back up while filling in bill/cash/kept amounts.
@@ -1322,13 +1343,11 @@
 
     // Once bill payment + cash given already cover the whole remaining on their own,
     // "kept as service fee" has nothing left to add — hide that option entirely (and
-    // uncheck it if it was sitting there checked-but-empty) so the main Service Fee field
-    // takes over for declaring profit, instead of leaving a now-pointless option on screen.
+    // uncheck it if it was sitting there checked-but-empty), since it wouldn't do anything.
     const nonKeptAllocated = +(bill + given).toFixed(2);
     const keptNoLongerNeeded = nonKeptAllocated >= remaining && remaining > 0;
     if(keptNoLongerNeeded && keptChecked){
       $('#remainingHandlingBalanceCheck').checked = false;
-      customerFeeAutoValue = null;
     }
     $('#keptFeeCategoryBox').style.display = keptNoLongerNeeded ? 'none' : '';
     const keptStillChecked = $('#remainingHandlingBalanceCheck').checked;
@@ -1341,11 +1360,9 @@
     $('#remainingHandlingCustomerLabel').textContent = custChecked && given > 0 ? `Gave ${fmt(given)} cash to customer` : 'Gave cash to customer';
     $('#remainingHandlingBalanceLabel').textContent = keptStillChecked && keptAmount > 0 ? `Kept ${fmt(keptAmount)} as service fee/charge` : 'Kept as service fee/charge';
 
-    syncCustomerFeeFromKept(keptStillChecked, keptAmount);
-    // The "Kept as service fee/charge" box already declares the fee (synced above), so
-    // showing the main Service Fee field at the same time just repeats the same number
-    // in two places. Hide it while kept-as-fee is checked; it reappears the moment that's
-    // unchecked (or auto-hidden above), since nothing else would be declaring the fee.
+    // Hide the main Service Fee field while "Kept as service fee/charge" is checked, since
+    // that box is standing in for it — it reappears the moment that's unchecked (or
+    // auto-hidden above). No value syncing between them, just visibility.
     $('#customerFeeFieldWrap').style.display = keptStillChecked ? 'none' : '';
 
     // Drive the same "Remaining" box shown above the checkboxes — it now reflects what's
@@ -1868,6 +1885,160 @@
     caret.classList.toggle('open', !isOpen);
   });
 
+  $('#calcToggle').addEventListener('click', ()=>{
+    const body = $('#calcBody');
+    const caret = $('#calcCaret');
+    const isOpen = body.style.display === 'block';
+    body.style.display = isOpen ? 'none' : 'block';
+    caret.classList.toggle('open', !isOpen);
+  });
+
+  // Four-function calculator that shows the full expression as it's typed (e.g.
+  // "10,000 ÷ 3"), plus a small live-updating result preview above it — no need to press
+  // "=" to see the running answer, matching how the iOS calculator behaves. Still a plain
+  // state machine (no eval()), so it's safe regardless of what gets typed. `display` stays
+  // a clean, comma-free numeric string internally; commas are added only at render time.
+  const CALC_OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+  let calcState = { display: '0', prevValue: null, operator: null, waitingForOperand: false, justEvaluated: false };
+  function calcFormatNumber(str){
+    if(str === 'Error') return str;
+    const neg = str.startsWith('-');
+    const body = neg ? str.slice(1) : str;
+    const [intPart, decPart] = body.split('.');
+    if(intPart.replace('.','').length > 12){
+      const n = parseFloat(str);
+      return isNaN(n) ? 'Error' : n.toExponential(4);
+    }
+    const formattedInt = intPart === '' ? '0' : Number(intPart).toLocaleString('en-US');
+    const result = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
+    return (neg ? '-' : '') + result;
+  }
+  function calcRenderDisplay(){
+    const disp = $('#calcDisplay');
+    const preview = $('#calcPreview');
+
+    if(calcState.display === 'Error'){
+      disp.textContent = 'Error';
+      preview.innerHTML = '&nbsp;';
+      return;
+    }
+
+    const opSymbol = calcState.operator ? CALC_OP_SYMBOL[calcState.operator] : '';
+    if(calcState.operator && calcState.waitingForOperand){
+      // Operator just pressed — second operand hasn't started yet.
+      disp.textContent = `${calcFormatNumber(String(calcState.prevValue))} ${opSymbol}`;
+      preview.innerHTML = '&nbsp;';
+    } else if(calcState.operator){
+      // Mid-expression — show both operands live, and a running preview of the answer.
+      disp.textContent = `${calcFormatNumber(String(calcState.prevValue))} ${opSymbol} ${calcFormatNumber(calcState.display)}`;
+      const liveResult = calcCompute(calcState.prevValue, parseFloat(calcState.display) || 0, calcState.operator);
+      preview.textContent = (liveResult === null || !isFinite(liveResult)) ? '' : calcFormatNumber(String(+liveResult.toFixed(8)));
+      if(preview.textContent === '') preview.innerHTML = '&nbsp;';
+    } else {
+      // Just a single number — first entry, or the result sitting after "=".
+      disp.textContent = calcFormatNumber(calcState.display);
+      preview.innerHTML = '&nbsp;';
+    }
+  }
+  function calcClear(){
+    calcState = { display: '0', prevValue: null, operator: null, waitingForOperand: false, justEvaluated: false };
+    calcRenderDisplay();
+  }
+  function calcBackspace(){
+    if(calcState.waitingForOperand) return;
+    calcState.display = calcState.display.length > 1 ? calcState.display.slice(0, -1) : '0';
+    if(calcState.display === '-') calcState.display = '0';
+    calcRenderDisplay();
+  }
+  function calcInputDigit(digit){
+    if(calcState.justEvaluated){
+      calcState.prevValue = null;
+      calcState.operator = null;
+      calcState.justEvaluated = false;
+      calcState.display = digit;
+      calcState.waitingForOperand = false;
+    } else if(calcState.waitingForOperand){
+      calcState.display = digit;
+      calcState.waitingForOperand = false;
+    } else {
+      calcState.display = calcState.display === '0' ? digit : calcState.display + digit;
+    }
+    calcRenderDisplay();
+  }
+  function calcInputDecimal(){
+    if(calcState.justEvaluated){
+      calcState.prevValue = null;
+      calcState.operator = null;
+      calcState.justEvaluated = false;
+      calcState.display = '0.';
+      calcState.waitingForOperand = false;
+    } else if(calcState.waitingForOperand){
+      calcState.display = '0.';
+      calcState.waitingForOperand = false;
+    } else if(calcState.display.indexOf('.') === -1){
+      calcState.display += '.';
+    }
+    calcRenderDisplay();
+  }
+  function calcInputPercent(){
+    const n = parseFloat(calcState.display);
+    if(!isNaN(n)) calcState.display = String(n / 100);
+    calcState.justEvaluated = false;
+    calcRenderDisplay();
+  }
+  function calcCompute(a, b, op){
+    switch(op){
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return b === 0 ? null : a / b;
+      default: return b;
+    }
+  }
+  function calcPerformOperation(nextOperator){
+    // Pressing an operator again before typing a new digit (e.g. changed your mind from
+    // ÷ to ×) just swaps the pending operator — it does NOT re-run the calculation using
+    // the same still-displayed operand a second time.
+    if(calcState.waitingForOperand && calcState.operator && nextOperator !== '='){
+      calcState.operator = nextOperator;
+      calcRenderDisplay();
+      return;
+    }
+    const inputValue = parseFloat(calcState.display);
+    if(calcState.prevValue == null){
+      calcState.prevValue = inputValue;
+    } else if(calcState.operator){
+      const result = calcCompute(calcState.prevValue, inputValue, calcState.operator);
+      if(result === null){
+        calcState.display = 'Error';
+        calcState.prevValue = null;
+        calcState.operator = null;
+        calcState.waitingForOperand = true;
+        calcState.justEvaluated = true;
+        calcRenderDisplay();
+        return;
+      }
+      calcState.display = String(+result.toFixed(8));
+      calcState.prevValue = result;
+    }
+    calcState.waitingForOperand = true;
+    calcState.justEvaluated = (nextOperator === '=');
+    calcState.operator = nextOperator === '=' ? null : nextOperator;
+    calcRenderDisplay();
+  }
+  $('#calcCard').querySelectorAll('.calc-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const val = btn.dataset.calc;
+      if(calcState.display === 'Error' && val !== 'clear'){ calcClear(); }
+      if(val === 'clear') calcClear();
+      else if(val === 'backspace') calcBackspace();
+      else if(val === '.') calcInputDecimal();
+      else if(val === '%') calcInputPercent();
+      else if(val === '+' || val === '-' || val === '*' || val === '/' || val === '=') calcPerformOperation(val);
+      else calcInputDigit(val);
+    });
+  });
+
   $('#addTipBtn').addEventListener('click', async ()=>{
     settings.safetyTips.push('');
     await saveSettings();
@@ -2194,6 +2365,7 @@
     const logList = $('#logList');
     const logFiltered = getFilteredForLog();
     logList.innerHTML = '';
+
     if(logFiltered.length === 0){
       $('#emptyState').style.display = 'block';
       clearBtn.style.display = 'none';
@@ -2253,7 +2425,7 @@
             <div class="type ${typeClass}">${typeLabel(t)}</div>
             ${sameBankSubLabel(t) ? `<div class="samebank-sublabel ${providerColorClass}">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
-            <div class="amountline">${comboAmountLine(t, null, true)}${hasLeftoverHandling(t) ? '.' : ''} <span style="white-space:nowrap;">= charged <span class="fig">${fmt(t.customerFee)}</span></span></div>
+            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;"><span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> <span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
           </div>
           <div class="log-right">
             ${profitBlock}
@@ -2415,11 +2587,24 @@
 
       // Pre-compute wrapped text for lines 2 & 3 so overlong entries (many transfer legs,
       // long fee breakdowns) wrap onto extra lines instead of running off the page edge.
+      // The "cost ... -> charged ..." segment is built and measured separately and only
+      // appended to the last wrapped line if it actually fits — otherwise it starts its
+      // own line — so it stays together as one unit instead of splitting mid-phrase
+      // (jsPDF has no CSS-style `nowrap`, so this has to be done by hand).
       const amountPart = comboAmountLine(t, fmtPdf);
       const chargedConnector = hasLeftoverHandling(t) ? '.' : '';
-      const line2Text = `${timeStr} · ${amountPart}${chargedConnector} =\u00A0charged\u00A0${fmtPdf(t.customerFee).replace(/ /g, '\u00A0')}`;
+      const descPart = `${timeStr} · ${amountPart}${chargedConnector}`;
+      const costChargedPart = `cost -${fmtPdf(t.providerFee)}. -> charged ${fmtPdf(t.customerFee)}.`;
       doc.setFont('helvetica','normal'); doc.setFontSize(9);
-      const line2Lines = doc.splitTextToSize(line2Text, maxTextWidth);
+      const descLines = doc.splitTextToSize(descPart, maxTextWidth);
+      const lastDescLine = descLines[descLines.length - 1];
+      const combinedLastLine = lastDescLine + ' ' + costChargedPart;
+      let line2Lines;
+      if(doc.getTextWidth(combinedLastLine) <= maxTextWidth){
+        line2Lines = descLines.slice(0, -1).concat([combinedLastLine]);
+      } else {
+        line2Lines = descLines.concat(doc.splitTextToSize(costChargedPart, maxTextWidth));
+      }
 
       let feeLine = t.manualFee ? `fee ${fmtPdf(t.baseFee)} (manual)` : `fee ${fmtPdf(t.baseFee)}`;
       feeLine += ` + VAT ${fmtPdf(t.vatAmt)} + stamp ${fmtPdf(t.stampAmt)}`;
