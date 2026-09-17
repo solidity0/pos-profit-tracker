@@ -12,6 +12,7 @@
   :root{
     --radius: 18px;
     --radius-sm: 12px;
+    --app-zoom: 1;
     --profit: #34D399;
     --deepgreen: #16A34A; --deepgreen-tint: rgba(22,163,74,0.13);
     --loss: #FF3B30;
@@ -74,7 +75,10 @@
   }
   h1,h2,h3, .display{ font-family: 'Space Grotesk', sans-serif; }
   .num{ font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
-  .wrap{ max-width: 560px; margin: 0 auto; padding: 28px 18px 8px; }
+  .wrap{ max-width: 560px; margin: 0 auto; padding: 28px 18px 8px; zoom: var(--app-zoom); }
+  .text-size-toggle{ min-width:30px; height:30px; padding:0 8px; border-radius:9px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; transition: background 0.15s, border-color 0.15s; }
+  .text-size-toggle:hover{ border-color: var(--theme); color: var(--theme-soft); }
+  .text-size-toggle[aria-pressed="true"]{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
 
   header.top{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
   header.top .brand{ display:flex; align-items:center; gap:10px; }
@@ -132,14 +136,7 @@
      to one line based on the actual rendered width of its own box — this stays correct
      regardless of device, browser window size, or a narrow split preview pane, none of
      which reliably correlate with the page's overall viewport width. */
-  #amountFieldWrap{ container-type: inline-size; container-name: amtfield; }
-  .amount-label-mobile{ display:inline; }
-  .amount-label-desktop{ display:none; }
-  @container amtfield (min-width: 170px){
-    .amount-label-mobile{ display:none; }
-    .amount-label-desktop{ display:inline; }
-  }
-  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: 16px; font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; text-align: center; }
+  .field input:not([type="checkbox"]){ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-variant-numeric: tabular-nums; font-size: calc(16px / var(--app-zoom, 1)); font-weight:500; padding: 12px 13px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; box-sizing: border-box; text-align: center; }
   .field input[type="checkbox"]{ width:19px; height:19px; margin:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .field input::placeholder{ color: var(--muted-2); }
   .field input:focus{ border-color: var(--theme); }
@@ -214,6 +211,11 @@
   #transferAmountsGrid .field{ position:relative; margin-bottom:0; }
   #transferAmountsGrid .field input{ text-align:center; }
   .samebank-toggle{ display:flex; align-items:center; justify-content:center; gap:5px; margin-top:7px; font-size:10px; color:var(--muted); cursor:pointer; user-select:none; font-weight:500; }
+  .leg-category-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; }
+  .breathing-field:focus-within label{ animation: breatheLabel 1.1s ease-in-out infinite; }
+  @keyframes breatheLabel{ 0%, 100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.55; transform:scale(1.04); } }
+  .leg-category-box:last-child{ margin-bottom: 0; }
+  #keptFeeCategoryBox{ border-color: var(--deepgreen); background: var(--deepgreen-tint); }
   .samebank-toggle input{ width:auto; margin:0; accent-color: var(--theme); }
   #transferAmountsGrid .remove-x{ position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--surface); border:1.5px solid var(--line); color:var(--loss); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; font-weight:700; z-index:1; }
   #runningTotalRow{ align-items:stretch; }
@@ -323,7 +325,7 @@
   #settingsCaret{ display:inline-block; font-size: 9px; transition: transform 0.15s; }
   .settings-toggle.open #settingsCaret{ transform: rotate(90deg); }
   .settings-password{ display:flex; gap:8px; align-items:center; margin-top: 10px; flex-wrap:wrap; }
-  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
+  .settings-password input{ flex:1; min-width:120px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: calc(16px / var(--app-zoom, 1)); padding: 10px 12px; border-radius: var(--radius-sm); outline:none; }
   .settings-password input:focus{ border-color: var(--theme); }
   .settings-password button{ background: var(--theme); color: var(--theme-text); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; padding: 10px 16px; border-radius: var(--radius-sm); cursor:pointer; white-space:nowrap; }
   .settings-password .status{ width:100%; margin-top:2px; text-align:left; color: var(--loss); }
@@ -347,7 +349,7 @@
   .trend-label.out{ color: var(--loss); }
   .trend-amt{ font-size: 17px; font-weight: 700; font-family:'Space Grotesk',sans-serif; }
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
-  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: 16px; line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
+  .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: calc(16px / var(--app-zoom, 1)); line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
   .tip-row textarea:focus{ border-color: var(--theme); }
   .tip-row .tip-remove{ flex-shrink:0; background: var(--surface-2); border: 1.5px solid var(--line); color: var(--loss); width:32px; height:32px; border-radius: var(--radius-sm); cursor:pointer; font-size:15px; line-height:1; font-family:'Inter',sans-serif; }
   .tip-row .tip-remove:hover{ border-color: var(--loss); }
@@ -394,6 +396,7 @@
     </div>
     <div class="top-right">
       <div class="today" id="todayLabel"></div>
+      <button class="text-size-toggle" id="textSizeToggle" aria-label="Toggle compact view" aria-pressed="false">Aa</button>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
     </div>
   </header>
@@ -425,11 +428,11 @@
 
     <div class="row2" id="amountFeeRow">
       <div class="field" id="amountFieldWrap">
-        <label id="amountLabel"><span class="amount-label-mobile">Amount<br>Withdrawn (₦)</span><span class="amount-label-desktop">Amount Withdrawn (₦)</span></label>
+        <label id="amountLabel">AMT Withdrawn (₦)</label>
         <input type="text" id="amount" inputmode="numeric" autocomplete="off" placeholder="e.g. 20,000" />
       </div>
       <div class="field" id="customerFeeFieldWrap">
-        <label>Fee you charged customer (₦)</label>
+        <label>Service Fee (₦)</label>
         <input type="text" id="customerFee" inputmode="numeric" autocomplete="off" placeholder="e.g. 200" style="text-align:center;" />
       </div>
     </div>
@@ -454,20 +457,43 @@
       </div>
 
       <div id="remainingHandlingGroup" style="display:none; margin-top:2px; margin-bottom:14px;">
-        <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
-          <input type="checkbox" id="remainingHandlingCustomerCheck" style="width:17px; height:17px; flex-shrink:0;" />
-          <span id="remainingHandlingCustomerLabel">Gave ₦0 cash to customer</span>
-        </label>
-        <div class="field" id="cashGivenAmountWrap" style="display:none; margin: 6px 0 10px;">
-          <div style="text-align:center; font-size:11px; font-weight:700; color: var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">OR</div>
-          <label>Enter the actual amount given to customer (₦)</label>
-          <input type="text" id="cashGivenAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" />
-          <div class="hint" id="cashGivenKeptHint" style="text-align:center; margin-top:6px; display:none;"></div>
+        <div class="hint" style="text-align:center; margin-bottom:10px;">Select how the remaining amount was used and enter the actual amount for each. The amounts must add up to the Remaining amount above.</div>
+
+        <div class="leg-category-box">
+          <label class="samebank-toggle" id="remainingHandlingBillRow" style="justify-content:center; gap:8px; margin-bottom:0; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+            <input type="checkbox" id="remainingHandlingBillCheck" style="width:17px; height:17px; flex-shrink:0;" />
+            <span id="remainingHandlingBillLabel">Paid a bill</span>
+          </label>
+          <div id="billPaymentAmountWrap" style="display:none; margin: 10px 0 0;">
+            <div class="hint" style="text-align:center; margin-bottom:8px;">Select the bills you paid and enter the actual amount for each.</div>
+            <div class="biller-row" id="comboBillerSeg" style="margin-bottom:10px;">
+              <button data-val="Electricity">Electricity</button>
+              <button data-val="DSTV">DSTV</button>
+              <button data-val="GOTV">GOTV</button>
+              <button data-val="StarTimes">StarTimes</button>
+              <button data-val="Betting">Betting</button>
+            </div>
+            <div id="comboBillerAmounts"></div>
+          </div>
         </div>
-        <label class="samebank-toggle" id="remainingHandlingBalanceRow" style="justify-content:center; gap:8px; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
-          <input type="checkbox" id="remainingHandlingBalanceCheck" style="width:17px; height:17px; flex-shrink:0;" />
-          <span id="remainingHandlingBalanceLabel">₦0 kept as service fee/charge</span>
-        </label>
+
+        <div class="leg-category-box">
+          <label class="samebank-toggle" id="remainingHandlingCustomerRow" style="justify-content:center; gap:8px; margin-bottom:0; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+            <input type="checkbox" id="remainingHandlingCustomerCheck" style="width:17px; height:17px; flex-shrink:0;" />
+            <span id="remainingHandlingCustomerLabel">Gave cash to customer</span>
+          </label>
+          <div class="field breathing-field" id="cashGivenAmountWrap" style="display:none; margin: 10px 0 0;">
+            <label style="min-height:auto; display:block;">Enter the actual amount given to customer (₦)</label>
+            <input type="text" id="cashGivenAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" />
+          </div>
+        </div>
+
+        <div class="leg-category-box" id="keptFeeCategoryBox">
+          <label class="samebank-toggle" id="remainingHandlingBalanceRow" style="justify-content:center; gap:8px; margin-bottom:0; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+            <input type="checkbox" id="remainingHandlingBalanceCheck" style="width:17px; height:17px; flex-shrink:0;" />
+            <span id="remainingHandlingBalanceLabel">Kept as service fee/charge</span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -476,6 +502,12 @@
     <div class="field">
       <div class="autofee" id="overrideFeeRow">
         <label class="toggle"><input type="checkbox" id="overrideFee" /><span id="overrideFeeLabel">override fee (same bank transfer)</span></label>
+      </div>
+      <div class="field" id="runningTotalWrap2" style="display:none; margin-bottom:14px;">
+        <label>Remaining (₦)</label>
+        <div class="running-total" id="runningTotalBox2">
+          <span class="val" id="runningTotalVal2">₦0</span>
+        </div>
       </div>
       <label class="autobox-label">Total deducted from your balance (auto)</label>
       <div class="autobox deduct">
@@ -760,7 +792,8 @@
     });
   }
 
-  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today', customStart: null, customEnd: null, remainingHandling: null };
+  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today', customStart: null, customEnd: null };
+  let selectedCombosBillers = new Set();
   let transactions = [];
   let settings = {
     vatEnabled: true,
@@ -822,6 +855,34 @@
     try{ await store.set('theme', next); }catch(e){}
   });
 
+  // App-controlled compact view: scales the whole layout via CSS `zoom` (which this
+  // page fully controls) instead of relying on the browser's own zoom/pinch feature.
+  // Some mobile browsers (notably Chrome on iOS) only visually magnify on pinch-zoom
+  // without actually reflowing the page, so labels like "Amount Withdrawn" can't react
+  // to it. This toggle reflows for real, the same way on every browser and device.
+  let appScale = 1;
+  function applyAppScale(scale){
+    appScale = scale;
+    document.documentElement.style.setProperty('--app-zoom', scale);
+    const btn = $('#textSizeToggle');
+    btn.setAttribute('aria-pressed', scale < 1 ? 'true' : 'false');
+  }
+  async function loadAppScale(){
+    let scale = 1;
+    try{
+      const s = await store.get('appScale');
+      if(s && s.value){ const n = parseFloat(s.value); if(!isNaN(n) && n > 0) scale = n; }
+    }catch(e){}
+    applyAppScale(scale);
+  }
+  loadAppScale();
+
+  $('#textSizeToggle').addEventListener('click', async ()=>{
+    const next = appScale < 1 ? 1 : 0.85;
+    applyAppScale(next);
+    try{ await store.set('appScale', String(next)); }catch(e){}
+  });
+
   function setStatus(msg, cls){
     const el = $('#status');
     el.textContent = msg;
@@ -851,13 +912,18 @@
     return r.flat;
   }
 
-  function computeComboBreakdown(provider, withdrawAmount, transferLegs){
-    // Withdraw+Split-Transfer: one withdrawal leg + N transfer legs.
-    // The withdrawal fee is ALWAYS computed normally — same-bank/override never touches it,
-    // since a cash withdrawal always has a real machine fee regardless of where transfers go.
-    // Each transfer leg has its own sameBank flag: true = free same-bank transfer (fee+VAT
-    // drop to 0 for that leg only), false = normal transfer fee+VAT. Stamp duty and autosave
-    // still apply per leg either way (EMTL and autosave apply regardless of who waives the fee).
+  function computeComboBreakdown(provider, withdrawAmount, transferLegs, billLegs){
+    // Withdraw+Split-Transfer: one withdrawal leg + N transfer legs, plus zero or more
+    // bill-payment legs (paid out of the leftover — a customer can pay several billers
+    // in the same visit, e.g. Electricity + GOTV). The withdrawal fee is ALWAYS computed
+    // normally — same-bank/override never touches it, since a cash withdrawal always has
+    // a real machine fee regardless of where transfers go. Each transfer leg has its own
+    // sameBank flag: true = free same-bank transfer (fee+VAT drop to 0 for that leg only),
+    // false = normal transfer fee+VAT. Stamp duty and autosave still apply per leg either
+    // way (EMTL and autosave apply regardless of who waives the fee). Each bill-payment leg
+    // follows the same rules as the standalone Bill type: just its own machine charge
+    // (billFee/bettingFee) — no VAT, no stamp duty, no autosave for that portion — and each
+    // biller paid is its own separate terminal transaction, so its fee is added per biller.
     const legs = (transferLegs || []).filter(l => l.amount > 0);
     const withdrawalBase = computeBaseFee(provider, 'Withdrawal', withdrawAmount);
     let transferBaseTotal = 0, vat = 0, stamp = 0;
@@ -867,14 +933,19 @@
       if(!leg.sameBank && settings.vatEnabled) vat += tBase * ((settings.rates[provider].vatRate||0)/100);
       if(settings.stampEnabled && leg.amount >= settings.stampThreshold) stamp += settings.stampFlat;
     });
-    const base = +(withdrawalBase + transferBaseTotal).toFixed(2);
+    const bills = (billLegs || []).filter(b => b.amount > 0);
+    let billFeeAmt = 0;
+    bills.forEach(b=>{
+      billFeeAmt += (b.biller === 'Betting' ? settings.bettingFee : settings.billFee) || 0;
+    });
+    const base = +(withdrawalBase + transferBaseTotal + billFeeAmt).toFixed(2);
     vat = +vat.toFixed(2);
     stamp = +stamp.toFixed(2);
     const legsCount = (withdrawAmount > 0 ? 1 : 0) + legs.length;
     const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled) ? settings.autosaveFlat : 0;
     const autosave = +(autosaveLeg * legsCount).toFixed(2);
     const total = +(base + vat + stamp + autosave).toFixed(2);
-    return { base, vat, stamp, autosave, total, withdrawalBase, transferBaseTotal, transferAmounts: legs.map(l=>l.amount), transferSameBank: legs.map(l=>!!l.sameBank), legsCount };
+    return { base, vat, stamp, autosave, total, withdrawalBase, transferBaseTotal, billFeeAmt, billPayments: bills, transferAmounts: legs.map(l=>l.amount), transferSameBank: legs.map(l=>!!l.sameBank), legsCount };
   }
 
   function computeBreakdown(provider, type, amount, manualBase, transferAmt){
@@ -1109,18 +1180,41 @@
     $('#runningTotalWrap').style.gridColumn = '1 / -1';
   }
 
+  function renderComboBillerAmounts(){
+    const container = $('#comboBillerAmounts');
+    const existingValues = {};
+    container.querySelectorAll('input').forEach(inp => { existingValues[inp.dataset.biller] = inp.value; });
+    container.innerHTML = '';
+    selectedCombosBillers.forEach(biller=>{
+      const wrap = document.createElement('div');
+      wrap.className = 'field breathing-field';
+      wrap.style.margin = '10px 0 0';
+      wrap.innerHTML = `<label style="min-height:auto; display:block;">Enter the ${biller} amount paid (₦)</label><input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" class="combo-biller-amount" data-biller="${biller}" />`;
+      container.appendChild(wrap);
+      const inp = wrap.querySelector('input');
+      if(existingValues[biller]) inp.value = existingValues[biller];
+      attachCommaFormatting(inp);
+      inp.addEventListener('input', refreshAuto);
+    });
+  }
+
   function resetTransferBoxes(){
     $('#transferAmountsGrid').innerHTML = '';
     transferBoxCount = 0;
     addTransferBox(false);
     addTransferBox(false);
     hideCashField();
-    state.remainingHandling = null;
     $('#remainingHandlingCustomerCheck').checked = false;
+    $('#remainingHandlingBillCheck').checked = false;
     $('#remainingHandlingBalanceCheck').checked = false;
     $('#cashGivenAmount').value = '';
     $('#cashGivenAmountWrap').style.display = 'none';
-    $('#cashGivenKeptHint').style.display = 'none';
+    $('#billPaymentAmountWrap').style.display = 'none';
+    $('#customerFeeFieldWrap').style.display = '';
+    customerFeeAutoValue = null;
+    selectedCombosBillers.clear();
+    $('#comboBillerSeg').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    $('#comboBillerAmounts').innerHTML = '';
   }
 
   function updateLayoutForType(isCombo){
@@ -1136,6 +1230,7 @@
       amountWrap.classList.remove('withdrawn-field');
       $('#amountFeeRow').style.gridTemplateColumns = '';
       if(feeWrap.parentElement !== $('#amountFeeRow')) $('#amountFeeRow').appendChild(feeWrap);
+      feeWrap.style.display = '';
     }
   }
 
@@ -1147,27 +1242,124 @@
     return (amount + cash) - sum;
   }
 
-  function updateRemainingHandlingUI(remaining){
-    const customerChecked = $('#remainingHandlingCustomerCheck').checked;
-    const balanceChecked = $('#remainingHandlingBalanceCheck').checked;
-    $('#cashGivenAmountWrap').style.display = customerChecked ? 'block' : 'none';
-    $('#remainingHandlingBalanceRow').style.display = customerChecked ? 'none' : 'flex';
+  // Reads the leftover-handling checkboxes + their amount fields. Any combination can be
+  // ticked at once, splitting the remaining across bill payment(s) / cash given / kept-as-
+  // fee. The bill leg can itself be split across several billers (e.g. Electricity + GOTV),
+  // each with its own amount box, and both of those require an amount to be typed in
+  // explicitly — a ticked box with a blank amount contributes ₦0, never auto-fills. "Kept
+  // as service fee/charge" works differently on purpose: it has no amount box of its own —
+  // ticking it just claims whatever's still left after bill + cash given, since that's
+  // definitionally what "kept" means once the other two are accounted for.
+  function getRemainingLegAmounts(remaining){
+    const billChecked = $('#remainingHandlingBillCheck').checked;
+    const custChecked = $('#remainingHandlingCustomerCheck').checked;
+    const keptChecked = $('#remainingHandlingBalanceCheck').checked;
 
-    if(customerChecked){
-      const rawGiven = ($('#cashGivenAmount').value || '').replace(/,/g,'');
-      const given = rawGiven === '' ? remaining : Math.min(Math.max(parseFloat(rawGiven) || 0, 0), remaining);
-      const kept = +(remaining - given).toFixed(2);
-      $('#remainingHandlingCustomerLabel').textContent = given > 0 ? `Gave ${fmt(given)} cash to customer` : 'Gave cash to customer';
-      const hint = $('#cashGivenKeptHint');
-      if(kept > 0){
-        hint.textContent = `${fmt(kept)} kept as service fee/charge`;
-        hint.style.display = 'block';
-      } else {
-        hint.style.display = 'none';
-      }
+    let billPayments = [];
+    if(billChecked){
+      const billerInputs = Array.from($('#comboBillerAmounts').querySelectorAll('.combo-biller-amount'));
+      billPayments = billerInputs.map(inp=>{
+        const raw = (inp.value || '').replace(/,/g,'');
+        const n = parseFloat(raw);
+        const amt = (raw === '' || isNaN(n)) ? 0 : Math.max(n, 0);
+        return { biller: inp.dataset.biller, amount: amt };
+      });
+    }
+    const billTotal = billPayments.reduce((a,b)=>a+b.amount, 0);
+
+    function amtFor(checked, inputId){
+      if(!checked) return 0;
+      const raw = ($(inputId).value || '').replace(/,/g,'');
+      if(raw === '') return 0;
+      const n = parseFloat(raw);
+      return isNaN(n) ? 0 : Math.max(n, 0);
+    }
+    const given = amtFor(custChecked, '#cashGivenAmount');
+    const kept = keptChecked ? +Math.max(remaining - billTotal - given, 0).toFixed(2) : 0;
+    return {
+      billChecked, custChecked, keptChecked,
+      bill: billTotal, billPayments,
+      given,
+      kept
+    };
+  }
+
+  // Syncs the "Fee you charged customer" box from the "kept as service fee/charge" amount
+  // — since checking that box IS the person declaring the remaining as their fee, unlike
+  // the old leftover auto-fill (removed for bill/cash) which silently assumed "leftover =
+  // fee" without the person actually saying so. Stays editable: once the person types their
+  // own value into the fee box, further recalculation leaves it alone rather than
+  // overwriting it.
+  let customerFeeAutoValue = null;
+  function syncCustomerFeeFromKept(keptChecked, keptAmount){
+    if(!keptChecked || !(keptAmount > 0)){
+      customerFeeAutoValue = null;
+      return;
+    }
+    const formatted = Number(keptAmount).toLocaleString('en-US');
+    const field = $('#customerFee');
+    const current = (field.value || '').trim();
+    if(current === '' || current === customerFeeAutoValue){
+      field.value = formatted;
+    }
+    customerFeeAutoValue = formatted;
+  }
+
+  // Writes the same text/state to both "Remaining" boxes — the one above the checkboxes
+  // and the duplicate lower down near the total, so the person doesn't have to scroll
+  // back up while filling in bill/cash/kept amounts.
+  function setRunningTotal(text, cls){
+    [['#runningTotalBox','#runningTotalVal'], ['#runningTotalBox2','#runningTotalVal2']].forEach(([boxSel, valSel])=>{
+      const box = $(boxSel), val = $(valSel);
+      box.classList.remove('over','exact');
+      if(cls) box.classList.add(cls);
+      val.textContent = text;
+    });
+  }
+
+  function updateRemainingHandlingUI(remaining){
+    const { billChecked, custChecked, keptChecked, bill, given, kept } = getRemainingLegAmounts(remaining);
+
+    // Once bill payment + cash given already cover the whole remaining on their own,
+    // "kept as service fee" has nothing left to add — hide that option entirely (and
+    // uncheck it if it was sitting there checked-but-empty) so the main Service Fee field
+    // takes over for declaring profit, instead of leaving a now-pointless option on screen.
+    const nonKeptAllocated = +(bill + given).toFixed(2);
+    const keptNoLongerNeeded = nonKeptAllocated >= remaining && remaining > 0;
+    if(keptNoLongerNeeded && keptChecked){
+      $('#remainingHandlingBalanceCheck').checked = false;
+      customerFeeAutoValue = null;
+    }
+    $('#keptFeeCategoryBox').style.display = keptNoLongerNeeded ? 'none' : '';
+    const keptStillChecked = $('#remainingHandlingBalanceCheck').checked;
+    const keptAmount = keptStillChecked ? kept : 0;
+
+    $('#billPaymentAmountWrap').style.display = billChecked ? 'block' : 'none';
+    $('#cashGivenAmountWrap').style.display = custChecked ? 'block' : 'none';
+
+    $('#remainingHandlingBillLabel').textContent = billChecked && bill > 0 ? `Paid ${fmt(bill)} bill` : 'Paid a bill';
+    $('#remainingHandlingCustomerLabel').textContent = custChecked && given > 0 ? `Gave ${fmt(given)} cash to customer` : 'Gave cash to customer';
+    $('#remainingHandlingBalanceLabel').textContent = keptStillChecked && keptAmount > 0 ? `Kept ${fmt(keptAmount)} as service fee/charge` : 'Kept as service fee/charge';
+
+    syncCustomerFeeFromKept(keptStillChecked, keptAmount);
+    // The "Kept as service fee/charge" box already declares the fee (synced above), so
+    // showing the main Service Fee field at the same time just repeats the same number
+    // in two places. Hide it while kept-as-fee is checked; it reappears the moment that's
+    // unchecked (or auto-hidden above), since nothing else would be declaring the fee.
+    $('#customerFeeFieldWrap').style.display = keptStillChecked ? 'none' : '';
+
+    // Drive the same "Remaining" box shown above the checkboxes — it now reflects what's
+    // still unallocated after whatever's been split into bill/cash/kept, instead of a
+    // second, separate indicator. Ticking nothing yet leaves it showing the full amount;
+    // it counts down to ₦0 as the three amounts add up to it.
+    const allocated = bill + given + keptAmount;
+    const unallocated = +(remaining - allocated).toFixed(2);
+    if(unallocated < 0){
+      setRunningTotal('-' + fmt(Math.abs(unallocated)) + ' over', 'over');
+    } else if(unallocated === 0 && (billChecked || custChecked || keptChecked)){
+      setRunningTotal('₦0 — fully allocated', 'exact');
     } else {
-      $('#remainingHandlingCustomerLabel').textContent = `Gave ${fmt(remaining)} cash to customer`;
-      $('#remainingHandlingBalanceLabel').textContent = `${fmt(remaining)} kept as service fee/charge`;
+      setRunningTotal(fmt(unallocated));
     }
   }
 
@@ -1177,8 +1369,7 @@
     const isWithdrawal = state.type === 'Withdrawal';
     $('#billerSeg').style.display = isBill ? 'flex' : 'none';
     $('#comboHint').style.display = isCombo ? 'block' : 'none';
-    const withdrawnLabel = '<span class="amount-label-mobile">Amount<br>Withdrawn (₦)</span><span class="amount-label-desktop">Amount Withdrawn (₦)</span>';
-    $('#amountLabel').innerHTML = isBill ? 'Bill amount paid (₦)' : (isCombo ? withdrawnLabel : (isWithdrawal ? withdrawnLabel : 'Amount Sent (₦)'));
+    $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : (isWithdrawal ? 'AMT Withdrawn (₦)' : 'Amount Sent (₦)'));
     updateLayoutForType(isCombo);
 
     $('#overrideFeeRow').style.display = isBill ? 'none' : 'flex';
@@ -1191,42 +1382,31 @@
     let bd;
     if(isCombo){
       const legs = getTransferLegs();
-      bd = computeComboBreakdown(state.provider, amount, legs);
-
       const cash = numVal('#cashAmount');
       const pool = amount + cash;
       const sum = legs.reduce((a,l)=>a+l.amount, 0);
       const remaining = pool - sum;
-      const box = $('#runningTotalBox');
-      const val = $('#runningTotalVal');
-      box.classList.remove('over','exact');
+
+      const legAmounts = getRemainingLegAmounts(Math.max(remaining, 0));
+      const billLegs = (remaining > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
+      bd = computeComboBreakdown(state.provider, amount, legs, billLegs);
+
       if(pool === 0 && sum === 0){
-        val.textContent = '₦0';
+        setRunningTotal('₦0');
       } else if(remaining < 0){
-        val.textContent = '-' + fmt(Math.abs(remaining)) + ' over';
-        box.classList.add('over');
+        setRunningTotal('-' + fmt(Math.abs(remaining)) + ' over', 'over');
       } else if(remaining === 0){
-        val.textContent = '₦0 — fully allocated';
-        box.classList.add('exact');
+        setRunningTotal('₦0 — fully allocated', 'exact');
       } else {
-        val.textContent = fmt(remaining);
-      }
-      // If "gave cash to customer" is checked and the entered amount exceeds what's actually
-      // left in the pool, that's an impossible split — flip the Remaining box into the same
-      // "over" state used elsewhere, showing exactly how far over it is.
-      if(remaining > 0 && $('#remainingHandlingCustomerCheck').checked){
-        const rawGivenCheck = ($('#cashGivenAmount').value || '').replace(/,/g,'');
-        const givenCheck = parseFloat(rawGivenCheck);
-        if(!isNaN(givenCheck) && givenCheck > remaining){
-          val.textContent = '-' + fmt(givenCheck - remaining) + ' over';
-          box.classList.remove('exact');
-          box.classList.add('over');
-        }
+        setRunningTotal(fmt(remaining));
       }
       const showRemainingToggle = remaining > 0;
       $('#remainingHandlingGroup').style.display = showRemainingToggle ? 'block' : 'none';
+      $('#runningTotalWrap2').style.display = showRemainingToggle ? 'block' : 'none';
       if(showRemainingToggle){
         updateRemainingHandlingUI(remaining);
+      } else {
+        $('#customerFeeFieldWrap').style.display = '';
       }
     } else {
       const manualBase = override ? 0 : null;
@@ -1237,7 +1417,9 @@
     let breakdownText;
     if(bd.transferAmounts !== undefined){
       const n = bd.transferAmounts.length;
-      breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)} + ${n} transfer fee${n===1?'':'s'} ${fmt(bd.transferBaseTotal)} · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
+      breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)} + ${n} transfer fee${n===1?'':'s'} ${fmt(bd.transferBaseTotal)}`;
+      if(bd.billFeeAmt > 0) breakdownText += ` + bill fee ${fmt(bd.billFeeAmt)}`;
+      breakdownText += ` · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
     } else if(bd.withdrawalBase !== undefined){
       breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)} + transfer fee ${fmt(bd.transferBase)} · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
     } else {
@@ -1375,34 +1557,38 @@
   });
   $('#cashAmount').addEventListener('input', refreshAuto);
   $('#remainingHandlingCustomerCheck').addEventListener('change', ()=>{
-    if($('#remainingHandlingCustomerCheck').checked){
-      $('#remainingHandlingBalanceCheck').checked = false;
-      state.remainingHandling = 'customer';
-      const remaining = computeCurrentRemaining();
-      $('#cashGivenAmount').value = '';
-      $('#cashGivenAmount').placeholder = remaining > 0 ? 'e.g. ' + Number(remaining).toLocaleString('en-US') : 'e.g. 1,000';
-    } else {
-      state.remainingHandling = null;
-      $('#cashGivenAmount').value = '';
+    $('#cashGivenAmount').value = '';
+    refreshAuto();
+  });
+  $('#remainingHandlingBillCheck').addEventListener('change', ()=>{
+    if(!$('#remainingHandlingBillCheck').checked){
+      selectedCombosBillers.clear();
+      $('#comboBillerSeg').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      $('#comboBillerAmounts').innerHTML = '';
     }
     refreshAuto();
   });
-  $('#remainingHandlingBalanceCheck').addEventListener('change', ()=>{
-    if($('#remainingHandlingBalanceCheck').checked){
-      $('#remainingHandlingCustomerCheck').checked = false;
-      state.remainingHandling = 'balance';
-      $('#cashGivenAmount').value = '';
-    } else {
-      state.remainingHandling = null;
-    }
-    refreshAuto();
-  });
+  $('#remainingHandlingBalanceCheck').addEventListener('change', refreshAuto);
   attachCommaFormatting($('#cashGivenAmount'));
   $('#cashGivenAmount').addEventListener('input', refreshAuto);
 
   wireSegment('providerSeg','provider');
   wireSegment('typeSeg','type');
   wireSegment('billerSeg','biller');
+  $('#comboBillerSeg').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const val = btn.dataset.val;
+      if(selectedCombosBillers.has(val)){
+        selectedCombosBillers.delete(val);
+        btn.classList.remove('active');
+      } else {
+        selectedCombosBillers.add(val);
+        btn.classList.add('active');
+      }
+      renderComboBillerAmounts();
+      refreshAuto();
+    });
+  });
   applyProviderTheme(state.provider);
 
   $('#amount').addEventListener('input', refreshAuto);
@@ -1475,10 +1661,15 @@
     const isCombo = state.type === 'WithdrawTransfer';
     const legs = isCombo ? getTransferLegs().filter(l => l.amount > 0) : null;
     const cashAmount = isCombo ? numVal('#cashAmount') : 0;
+    const legsSumForBill = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
+    const leftoverForBill = isCombo ? (amount + cashAmount) - legsSumForBill : 0;
+
+    const legAmounts = isCombo ? getRemainingLegAmounts(Math.max(leftoverForBill, 0)) : null;
+    const billLegs = (isCombo && leftoverForBill > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
 
     let bd;
     if(isCombo){
-      bd = computeComboBreakdown(state.provider, amount, legs);
+      bd = computeComboBreakdown(state.provider, amount, legs, billLegs);
     } else {
       const manualBase = wasOverridden ? 0 : null;
       bd = computeBreakdown(state.provider, state.type, amount, manualBase);
@@ -1495,14 +1686,14 @@
     if(!amountMissing && isCombo && legs && legs.length > 0){
       const legsSumPre = legs.reduce((a,l)=>a+l.amount, 0);
       const leftoverPre = (amount + cashAmount) - legsSumPre;
+      const anyHandlingChecked = legAmounts.billChecked || legAmounts.custChecked || legAmounts.keptChecked;
       if(leftoverPre < 0){
         skipFeeReminder = true;
-      } else if(leftoverPre > 0 && !state.remainingHandling){
+      } else if(leftoverPre > 0 && !anyHandlingChecked){
         skipFeeReminder = true;
-      } else if(leftoverPre > 0 && state.remainingHandling === 'customer'){
-        const rawGivenPre = $('#cashGivenAmount').value.trim().replace(/,/g,'');
-        const givenPre = parseFloat(rawGivenPre);
-        if(!isNaN(givenPre) && givenPre > leftoverPre) skipFeeReminder = true;
+      } else if(leftoverPre > 0 && anyHandlingChecked){
+        const allocated = legAmounts.bill + legAmounts.given + legAmounts.kept;
+        if(+(leftoverPre - allocated).toFixed(2) !== 0) skipFeeReminder = true;
       }
     }
 
@@ -1521,13 +1712,16 @@
       if(leftoverCheck < 0){
         const overAmt = fmt(Math.abs(leftoverCheck));
         errors.push({ msg: `Transfers exceed available funds for this transaction by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, cls: 'error' });
-      } else if(leftoverCheck > 0 && !state.remainingHandling){
-        errors.push({ msg: `Select if ${fmt(leftoverCheck)} was given as cash to customer or kept as service fee/charge.`, cls: 'error' });
-      } else if(leftoverCheck > 0 && state.remainingHandling === 'customer'){
-        const rawGivenCheck = $('#cashGivenAmount').value.trim().replace(/,/g,'');
-        const givenCheck = parseFloat(rawGivenCheck);
-        if(!isNaN(givenCheck) && givenCheck > leftoverCheck){
-          errors.push({ msg: `Amount given to customer exceeds the ${fmt(leftoverCheck)} remaining by ${fmt(givenCheck - leftoverCheck)}. Rectify amount with the customer before adding or carrying out transaction.`, cls: 'error' });
+      } else if(leftoverCheck > 0){
+        const anyHandlingChecked = legAmounts.billChecked || legAmounts.custChecked || legAmounts.keptChecked;
+        const allocated = legAmounts.bill + legAmounts.given + legAmounts.kept;
+        const unallocated = +(leftoverCheck - allocated).toFixed(2);
+        if(!anyHandlingChecked){
+          errors.push({ msg: `Select if ${fmt(leftoverCheck)} was given as cash to customer, paid as a bill payment, or kept as service fee/charge.`, cls: 'error' });
+        } else if(unallocated < 0){
+          errors.push({ msg: `The amounts entered exceed the ${fmt(leftoverCheck)} remaining by ${fmt(Math.abs(unallocated))}. Rectify the amounts before adding or carrying out transaction.`, cls: 'error' });
+        } else if(unallocated > 0){
+          errors.push({ msg: `${fmt(unallocated)} is still unallocated. kindly allocate it.`, cls: 'error' });
         }
       }
     }
@@ -1540,11 +1734,9 @@
     const allLegsSameBank = isCombo && legs.length > 0 && legs.every(l => l.sameBank);
     const legsSum = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
     const leftover = isCombo ? (amount + cashAmount) - legsSum : 0;
-    let cashGivenAmount = null;
-    if(isCombo && leftover > 0 && state.remainingHandling === 'customer'){
-      const rawGiven = $('#cashGivenAmount').value.trim();
-      cashGivenAmount = rawGiven === '' ? leftover : Math.min(Math.max(numVal('#cashGivenAmount'), 0), leftover);
-    }
+    const cashGivenAmount = (isCombo && leftover > 0 && legAmounts.custChecked) ? legAmounts.given : null;
+    const billPayments = (isCombo && leftover > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
+    const keptFeeAmount = (isCombo && leftover > 0 && legAmounts.keptChecked) ? legAmounts.kept : null;
 
     const tx = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
@@ -1555,8 +1747,10 @@
       transferAmounts: isCombo ? legs.map(l=>l.amount) : null,
       transferSameBank: isCombo ? legs.map(l=>!!l.sameBank) : null,
       cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
-      remainingHandling: (isCombo && leftover > 0) ? state.remainingHandling : null,
       cashGivenAmount,
+      billPayments,
+      keptFeeAmount,
+      billFeeAmt: bd.billFeeAmt || 0,
       baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
       netProfit, manualFee: isCombo ? allLegsSameBank : wasOverridden
     };
@@ -1827,11 +2021,16 @@
       const cashPart = cash > 0 ? ` + ${f(cash)} cash brought in` : '';
       const leftoverPart = (() => {
         if(leftover <= 0) return '';
-        let given = 0;
-        if(t.remainingHandling === 'customer') given = (t.cashGivenAmount != null) ? t.cashGivenAmount : leftover;
-        const kept = +(leftover - given).toFixed(2);
+        const given = t.cashGivenAmount || 0;
+        const billPayments = Array.isArray(t.billPayments) ? t.billPayments : [];
+        const paidBillTotal = billPayments.reduce((a,b)=>a+(b.amount||0), 0);
+        const keptExplicit = t.keptFeeAmount || 0;
+        const kept = keptExplicit > 0 ? keptExplicit : +(leftover - given - paidBillTotal).toFixed(2);
         const phrases = [];
         if(given > 0) phrases.push(`gave ${f(given)} cash to customer`);
+        billPayments.forEach(b=>{
+          if(b.amount > 0) phrases.push(`paid ${f(b.amount)} ${b.biller || 'bill'} payment`);
+        });
         if(kept > 0) phrases.push(`${f(kept)} kept as service fee/charge`);
         return phrases.length ? ' + ' + phrases.join(' + ') : '';
       })();
@@ -2054,7 +2253,7 @@
             <div class="type ${typeClass}">${typeLabel(t)}</div>
             ${sameBankSubLabel(t) ? `<div class="samebank-sublabel ${providerColorClass}">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
-            <div class="amountline">${comboAmountLine(t, null, true)}${hasLeftoverHandling(t) ? '. +' : ' +'} charged <span class="fig">${fmt(t.customerFee)}</span></div>
+            <div class="amountline">${comboAmountLine(t, null, true)}${hasLeftoverHandling(t) ? '.' : ''} <span style="white-space:nowrap;">= charged <span class="fig">${fmt(t.customerFee)}</span></span></div>
           </div>
           <div class="log-right">
             ${profitBlock}
@@ -2217,8 +2416,8 @@
       // Pre-compute wrapped text for lines 2 & 3 so overlong entries (many transfer legs,
       // long fee breakdowns) wrap onto extra lines instead of running off the page edge.
       const amountPart = comboAmountLine(t, fmtPdf);
-      const chargedConnector = hasLeftoverHandling(t) ? '. +' : ' +';
-      const line2Text = `${timeStr} · ${amountPart}${chargedConnector} charged ${fmtPdf(t.customerFee)}`;
+      const chargedConnector = hasLeftoverHandling(t) ? '.' : '';
+      const line2Text = `${timeStr} · ${amountPart}${chargedConnector} =\u00A0charged\u00A0${fmtPdf(t.customerFee).replace(/ /g, '\u00A0')}`;
       doc.setFont('helvetica','normal'); doc.setFontSize(9);
       const line2Lines = doc.splitTextToSize(line2Text, maxTextWidth);
 
