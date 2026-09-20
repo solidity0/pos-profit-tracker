@@ -278,14 +278,13 @@
   .calc-history-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:700; }
   .calc-history-clear{ font-size: 10px; color: var(--muted); text-decoration: underline; cursor:pointer; background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-weight:600; text-transform:none; letter-spacing:normal; }
   .calc-history{ max-height: 80px; overflow-y:auto; -webkit-overflow-scrolling: touch; }
-  .calc-history-item{ font-size: 12px; color: var(--muted-strong); padding: 4px 2px; font-variant-numeric: tabular-nums; }
-  .calc-history-line{ border-bottom: 1px dashed var(--line); padding-bottom: 3px; }
-  .calc-history-item:last-child .calc-history-line{ border-bottom:none; }
+  .calc-history-item{ font-size: 12px; color: var(--muted-strong); padding: 8px 2px; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-soft); }
+  .calc-history-item:last-child{ border-bottom:none; }
   .calc-history-item .calc-history-eq{ color: var(--text); font-weight:700; }
   .calc-history-item-clear{ background:none; border:none; color: var(--muted); font-size: 10px; text-decoration: underline; cursor:pointer; padding:0; margin-left:8px; font-family:'Inter',sans-serif; font-weight:600; vertical-align:middle; white-space:nowrap; }
   .calc-history-item-clear:hover{ color: var(--loss); }
   .calc-preview{ text-align:right; padding: 0 6px; margin-bottom: 4px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; overflow-x:auto; white-space:nowrap; min-height: 19px; }
-  .calc-display{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 14px 14px; margin-bottom: 10px; text-align:right; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 26px; font-variant-numeric: tabular-nums; color: var(--text); white-space: normal; overflow-wrap: break-word; word-break: break-word; line-height: 1.3; max-height: 96px; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+  .calc-display{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 14px 14px; margin-bottom: 10px; text-align:right; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 26px; font-variant-numeric: tabular-nums; color: var(--text); white-space: normal; overflow-wrap: break-word; word-break: break-word; line-height: 1.3; max-height: 176px; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
   .calc-display::-webkit-scrollbar{ display:none; width:0; height:0; }
   .calc-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
   .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); aspect-ratio: 1.02; padding: 0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 32px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
@@ -1931,6 +1930,13 @@
   // shows the live running answer, computed left-to-right with no operator precedence
   // (matching an ordinary four-function calculator).
   let calcState = { tokens: [], display: '0', waitingForOperand: false, justEvaluated: false };
+  let calcSaveTimer = null;
+  function scheduleCalcStateSave(){
+    clearTimeout(calcSaveTimer);
+    calcSaveTimer = setTimeout(async ()=>{
+      try{ await store.set('calcState', JSON.stringify(calcState)); }catch(e){}
+    }, 250);
+  }
   function calcFormatNumber(str){
     if(str === 'Error') return str;
     const neg = str.startsWith('-');
@@ -1971,6 +1977,7 @@
     return acc;
   }
   function calcRenderDisplay(){
+    scheduleCalcStateSave();
     const disp = $('#calcDisplay');
     const preview = $('#calcPreview');
     if(calcState.display === 'Error'){
@@ -2069,7 +2076,11 @@
     calcRenderDisplay();
   }
   let calcHistory = [];
+  async function saveCalcHistoryData(){
+    try{ await store.set('calcHistory', JSON.stringify(calcHistory)); }catch(e){}
+  }
   function renderCalcHistory(){
+    saveCalcHistoryData();
     const wrap = $('#calcHistoryWrap');
     const list = $('#calcHistoryList');
     if(calcHistory.length === 0){
@@ -2841,7 +2852,29 @@
     render();
   }, 30000);
 
+  async function loadCalcState(){
+    try{
+      const s = await store.get('calcState');
+      if(s && s.value){
+        const parsed = JSON.parse(s.value);
+        if(parsed && Array.isArray(parsed.tokens) && typeof parsed.display === 'string'){
+          calcState = parsed;
+        }
+      }
+    }catch(e){}
+    try{
+      const h = await store.get('calcHistory');
+      if(h && h.value){
+        const parsed = JSON.parse(h.value);
+        if(Array.isArray(parsed)) calcHistory = parsed;
+      }
+    }catch(e){}
+    calcRenderDisplay();
+    renderCalcHistory();
+  }
+
   loadData();
+  loadCalcState();
 })();
 </script>
 </body>
