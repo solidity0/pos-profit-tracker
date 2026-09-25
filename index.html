@@ -732,7 +732,7 @@
       <div class="field"><label>VAT rate (%)</label><input type="number" id="mp_vatRate" step="0.1" /></div>
       <div class="field"><label>Auto-save per transaction (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="autosaveFlat" /></div>
       <div class="switchrow"><label>Track auto-save automatically</label><input type="checkbox" id="autosaveEnabled" checked /></div>
-      <div class="hint">Currently set to exact 0.5%, confirmed against your real ₦100 (₦0.50) transaction. Note: your ₦8,100 (₦45) and ₦10,200 (₦55) transactions don't fit this exactly — those showed rounding up to the nearest ₦5, which doesn't match the ₦100 case. The exact rule for larger amounts isn't fully confirmed yet — use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
+      <div class="hint">Currently set to exact 0.5%. Use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
 
       <h3 class="op-heading">OPay rates</h3>
       <div class="row2">
@@ -746,17 +746,15 @@
       <div class="field"><label>VAT rate (%)</label><input type="number" id="op_vatRate" step="0.1" /></div>
 
       <h3>VAT on machine fee</h3>
-      <div class="switchrow"><label>Apply automatically</label><input type="checkbox" id="vatEnabled" checked /></div>
-      <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free. Rate is set per-provider above.</div>
+      <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free. Rate is set per-provider above — set a provider's VAT rate to 0 to turn it off.</div>
 
       <h3>Stamp Duty (EMTL)</h3>
-      <div class="switchrow"><label>Apply automatically</label><input type="checkbox" id="stampEnabled" checked /></div>
       <div class="row2">
         <div class="field"><label>Flat charge (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampFlat" /></div>
         <div class="field"><label>Applies at/above amount (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampThreshold" /></div>
       </div>
       <div class="switchrow"><label>Also apply to Withdrawals</label><input type="checkbox" id="stampOnWithdrawal" /></div>
-      <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too.</div>
+      <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too. Set the flat charge to 0 to turn stamp duty off entirely.</div>
 
       <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes)</h3>
       <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
@@ -768,7 +766,7 @@
 
       <div class="fee-table-wrap">
         <button class="fee-table-title" id="mpFeeTableToggle" type="button">
-          <span>Total deducted, by amount</span>
+          <span>Moniepoint: Total deducted, by amount</span>
           <span class="fee-table-caret" id="mpFeeTableCaret">▶</span>
         </button>
         <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
@@ -856,8 +854,7 @@
   let selectedCombosBillers = new Set();
   let transactions = [];
   let settings = {
-    vatEnabled: true,
-    stampEnabled: true, stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
+    stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
     billFee: 0, bettingFee: 0,
     autosaveEnabled: true, autosaveFlat: 40,
     rates: {
@@ -990,8 +987,8 @@
     legs.forEach(leg=>{
       const tBase = leg.sameBank ? 0 : computeBaseFee(provider, 'Transfer', leg.amount);
       transferBaseTotal += tBase;
-      if(!leg.sameBank && settings.vatEnabled) vat += tBase * ((settings.rates[provider].vatRate||0)/100);
-      if(settings.stampEnabled && leg.amount >= settings.stampThreshold) stamp += settings.stampFlat;
+      if(!leg.sameBank) vat += tBase * ((settings.rates[provider].vatRate||0)/100);
+      if(leg.amount >= settings.stampThreshold) stamp += settings.stampFlat;
     });
     const bills = (billLegs || []).filter(b => b.amount > 0);
     let billFeeAmt = 0;
@@ -1019,9 +1016,9 @@
       const base = +(withdrawalBase + transferBase).toFixed(2);
       // VAT only applies to the transfer-type fee, not the withdrawal fee (confirmed: a plain
       // withdrawal shows no VAT line at all, while a plain transfer's fee gets 7.5% VAT).
-      const vat = settings.vatEnabled ? +(transferBase * ((settings.rates[provider].vatRate||0)/100)).toFixed(2) : 0;
+      const vat = +(transferBase * ((settings.rates[provider].vatRate||0)/100)).toFixed(2);
       let stamp = 0;
-      if(settings.stampEnabled && tAmt >= settings.stampThreshold) stamp = settings.stampFlat;
+      if(tAmt >= settings.stampThreshold) stamp = settings.stampFlat;
       const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled && (amount > 0 || tAmt > 0)) ? settings.autosaveFlat : 0;
       const autosave = +(autosaveLeg * 2).toFixed(2);
       const total = +(base + vat + stamp + autosave).toFixed(2);
@@ -1029,9 +1026,9 @@
     }
     const base = (manualBase !== null && manualBase !== undefined) ? manualBase : computeBaseFee(provider, type, amount);
     const isTransferLike = (type === 'Transfer' || type === 'WithdrawTransfer');
-    const vat = (settings.vatEnabled && isTransferLike) ? +(base * ((settings.rates[provider].vatRate||0)/100)).toFixed(2) : 0;
+    const vat = isTransferLike ? +(base * ((settings.rates[provider].vatRate||0)/100)).toFixed(2) : 0;
     let stamp = 0;
-    if(settings.stampEnabled && amount >= settings.stampThreshold){
+    if(amount >= settings.stampThreshold){
       if(isTransferLike || (type === 'Withdrawal' && settings.stampOnWithdrawal)) stamp = settings.stampFlat;
     }
     const autosave = (provider === 'Moniepoint' && settings.autosaveEnabled && amount > 0 && type !== 'Bill') ? settings.autosaveFlat : 0;
@@ -1483,6 +1480,15 @@
         };
         settings.customerFees = Object.assign({}, defaultCustomerFees, parsed.customerFees || {});
         settings.customerFeesCombo = Object.assign({}, defaultCombo, parsed.customerFeesCombo || {});
+        if(parsed.vatEnabled === false){
+          settings.rates.Moniepoint.vatRate = 0;
+          settings.rates.Opay.vatRate = 0;
+        }
+        if(parsed.stampEnabled === false){
+          settings.stampFlat = 0;
+        }
+        delete settings.vatEnabled;
+        delete settings.stampEnabled;
       }
     }catch(e){}
 
@@ -1497,8 +1503,6 @@
     setFmt('#op_threshold', settings.rates.Opay.threshold);
     setFmt('#op_transfer', settings.rates.Opay.transfer);
     $('#op_vatRate').value = settings.rates.Opay.vatRate;
-    $('#vatEnabled').checked = !!settings.vatEnabled;
-    $('#stampEnabled').checked = !!settings.stampEnabled;
     setFmt('#stampFlat', settings.stampFlat);
     setFmt('#stampThreshold', settings.stampThreshold);
     setFmt('#billFee', settings.billFee);
@@ -1688,6 +1692,16 @@
     });
   });
 
+  $('#entryCard').addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    const tag = (e.target.tagName || '').toUpperCase();
+    if(tag !== 'INPUT') return;
+    e.preventDefault();
+    e.target.blur();
+    const submitIds = new Set(['amount', 'customerFee']);
+    if(submitIds.has(e.target.id)) $('#addBtn').click();
+  });
+
   $('#addBtn').addEventListener('click', async ()=>{
     const amount = numVal('#amount');
     const customerFee = numVal('#customerFee');
@@ -1823,8 +1837,6 @@
   wireRateField('#op_transfer','Opay','transfer');
   wireRateField('#op_vatRate','Opay','vatRate');
 
-  $('#vatEnabled').addEventListener('change', async ()=>{ settings.vatEnabled = $('#vatEnabled').checked; await saveSettings(); refreshAuto(); render(); });
-  $('#stampEnabled').addEventListener('change', async ()=>{ settings.stampEnabled = $('#stampEnabled').checked; await saveSettings(); refreshAuto(); render(); });
   $('#stampFlat').addEventListener('change', async ()=>{ settings.stampFlat = numVal('#stampFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampThreshold').addEventListener('change', async ()=>{ settings.stampThreshold = numVal('#stampThreshold'); await saveSettings(); refreshAuto(); render(); });
   $('#billFee').addEventListener('change', async ()=>{ settings.billFee = numVal('#billFee'); await saveSettings(); refreshAuto(); render(); });
@@ -2088,7 +2100,7 @@
       return;
     }
     wrap.style.display = 'block';
-    list.innerHTML = calcHistory.map(h=>`<div class="calc-history-item"><span class="calc-history-line">${h.expr} <span class="calc-history-eq">= ${h.result}</span></span><button class="calc-history-item-clear" type="button" data-id="${h.id}">Clear</button></div>`).join('');
+    list.innerHTML = calcHistory.map(h=>`<div class="calc-history-item">${h.expr} <span class="calc-history-eq">= ${h.result}</span><button class="calc-history-item-clear" type="button" data-id="${h.id}">Remove</button></div>`).join('');
     list.querySelectorAll('.calc-history-item-clear').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         calcHistory = calcHistory.filter(h => h.id !== btn.dataset.id);
@@ -2129,6 +2141,7 @@
           expr: seq.map(calcFormatToken).join(' '),
           result: calcFormatNumber(String(+result.toFixed(8)))
         });
+        if(calcHistory.length > 100) calcHistory = calcHistory.slice(calcHistory.length - 100);
         renderCalcHistory();
       }
       calcState.tokens = [];
@@ -2857,7 +2870,7 @@
       const s = await store.get('calcState');
       if(s && s.value){
         const parsed = JSON.parse(s.value);
-        if(parsed && Array.isArray(parsed.tokens) && typeof parsed.display === 'string'){
+        if(parsed && Array.isArray(parsed.tokens) && typeof parsed.display === 'string' && parsed.display !== 'Error'){
           calcState = parsed;
         }
       }
