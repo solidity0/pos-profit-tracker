@@ -277,6 +277,7 @@
   .txcount{ font-size: 10.5px; color: var(--muted-2); text-align:center; margin-top: 12px; letter-spacing: 0.05em; font-weight:500; }
   .calc-history-wrap{ margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1.5px solid var(--line-soft); }
   .calc-history-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:700; }
+  .calc-history-toggle{ display:flex; align-items:center; gap:6px; background:none; border:none; padding:4px 0; cursor:pointer; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; }
   .calc-history-clear{ font-size: 10px; color: var(--muted); text-decoration: underline; cursor:pointer; background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-weight:600; text-transform:none; letter-spacing:normal; }
   .calc-history{ max-height: 260px; overflow-y:auto; -webkit-overflow-scrolling: touch; }
   .calc-history-item{ font-size: 12px; color: var(--muted-strong); padding: 8px 2px; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-soft); }
@@ -555,10 +556,10 @@
     <div id="calcBody" style="display:none; margin-top:14px;">
       <div class="calc-history-wrap" id="calcHistoryWrap" style="display:none;">
         <div class="calc-history-header">
-          <span>History</span>
-          <button class="calc-history-clear" id="calcHistoryClear" type="button">Clear</button>
+          <button class="calc-history-toggle" id="calcHistoryToggle" type="button"><span class="log-caret" id="calcHistoryCaret">▶</span><span>History</span><span id="calcHistoryCount"></span></button>
+          <button class="calc-history-clear" id="calcHistoryClear" type="button" style="display:none;">Clear</button>
         </div>
-        <div class="calc-history" id="calcHistoryList"></div>
+        <div class="calc-history" id="calcHistoryList" style="display:none;"></div>
       </div>
       <div class="calc-preview" id="calcPreview">&nbsp;</div>
       <div class="calc-display" id="calcDisplay">0</div>
@@ -2151,8 +2152,18 @@
         renderCalcHistory();
       });
     });
+    $('#calcHistoryCount').textContent = `· ${calcHistory.length}`;
     list.scrollTop = list.scrollHeight;
   }
+  // History starts collapsed so the display and keypad get the room; tap to open it.
+  $('#calcHistoryToggle').addEventListener('click', ()=>{
+    const list = $('#calcHistoryList');
+    const open = list.style.display === 'none';
+    list.style.display = open ? 'block' : 'none';
+    $('#calcHistoryClear').style.display = open ? '' : 'none';
+    $('#calcHistoryCaret').classList.toggle('open', open);
+    if(open) list.scrollTop = list.scrollHeight;
+  });
   $('#calcHistoryClear').addEventListener('click', ()=>{
     calcHistory = [];
     renderCalcHistory();
