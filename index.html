@@ -1933,6 +1933,9 @@
   // state machine (no eval()), so it's safe regardless of what gets typed. `display` stays
   // a clean, comma-free numeric string internally; commas are added only at render time.
   const CALC_OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+  // Digits beyond ~15 can't be represented exactly by a JS number, so typing is capped
+  // there; anything longer (only possible as a result) falls back to exponent notation.
+  const CALC_MAX_DIGITS = 15;
   // Full-expression calculator: `tokens` holds every completed number and operator typed
   // so far (e.g. ['45','+','34','+']) and `display` holds the number currently being
   // typed. Earlier versions collapsed everything down to a running total the moment a
@@ -1954,13 +1957,23 @@
     const neg = str.startsWith('-');
     const body = neg ? str.slice(1) : str;
     const [intPart, decPart] = body.split('.');
-    if(intPart.replace('.','').length > 12){
+    if(intPart.length > CALC_MAX_DIGITS){
       const n = parseFloat(str);
       return isNaN(n) ? 'Error' : n.toExponential(4);
     }
     const formattedInt = intPart === '' ? '0' : Number(intPart).toLocaleString('en-US');
     const result = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
     return (neg ? '-' : '') + result;
+  }
+  // Turns a computed number into the internal display string, rounded to 8 decimal
+  // places to hide float noise (0.1 + 0.2, 1.1 %). Built from toFixed() directly rather
+  // than String(Number) so tiny values stay "0.0000001" instead of "1e-7", which the
+  // formatter and backspace can't handle.
+  function calcNumberToString(n){
+    if(Math.abs(n) >= 1e21) return String(n);
+    let str = n.toFixed(8);
+    if(str.indexOf('.') !== -1) str = str.replace(/0+$/, '').replace(/\.$/, '');
+    return str === '-0' ? '0' : str;
   }
   function calcFormatToken(tok){
     return CALC_OP_SYMBOL[tok] ? CALC_OP_SYMBOL[tok] : calcFormatNumber(tok);
@@ -2006,7 +2019,7 @@
       disp.textContent = tokenStr ? `${tokenStr} ${currentPart}` : currentPart;
       if(calcState.tokens.length > 0){
         const liveResult = calcEvaluateSequence(calcState.tokens.concat([calcState.display]));
-        const previewText = (liveResult === null || !isFinite(liveResult)) ? '' : calcFormatNumber(String(+liveResult.toFixed(8)));
+        const previewText = (liveResult === null || !isFinite(liveResult)) ? '' : calcFormatNumber(calcNumberToString(liveResult));
         if(previewText === ''){ preview.innerHTML = '&nbsp;'; } else { preview.textContent = previewText; }
       } else {
         preview.innerHTML = '&nbsp;';
@@ -2050,7 +2063,7 @@
     } else {
       calcState.display = '0';
     }
-    if(calcState.display === '-') calcState.display = '0';
+    if(calcState.display === '-' || calcState.display === '-0') calcState.display = '0';
     calcRenderDisplay();
   }
   function calcInputDigit(digit){
@@ -2062,7 +2075,7 @@
     } else if(calcState.waitingForOperand){
       calcState.display = digit;
       calcState.waitingForOperand = false;
-    } else {
+    } else if(calcState.display.replace(/[-.]/g, '').length < CALC_MAX_DIGITS){
       calcState.display = calcState.display === '0' ? digit : calcState.display + digit;
     }
     calcRenderDisplay();
@@ -2082,8 +2095,21 @@
     calcRenderDisplay();
   }
   function calcInputPercent(){
+    // iOS-style percent: after + or − it's a percentage of the running total
+    // (50 + 10 % → 50 + 5 = 55, handy for adding a fee or charge); otherwise it's just
+    // n ÷ 100 (50 × 10 % → 50 × 0.1 = 5). Pressing % right after an operator
+    // ("50 + %") uses the previous number as the operand, and makes it visible.
     const n = parseFloat(calcState.display);
-    if(!isNaN(n)) calcState.display = String(n / 100);
+    if(isNaN(n)) return;
+    const tokens = calcState.tokens;
+    const pendingOp = tokens.length > 0 ? tokens[tokens.length - 1] : null;
+    let value = n / 100;
+    if(pendingOp === '+' || pendingOp === '-'){
+      const base = calcEvaluateSequence(tokens.slice(0, -1));
+      if(base !== null) value = base * n / 100;
+    }
+    calcState.display = calcNumberToString(value);
+    calcState.waitingForOperand = false;
     calcState.justEvaluated = false;
     calcRenderDisplay();
   }
@@ -2139,13 +2165,13 @@
         calcHistory.push({
           id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
           expr: seq.map(calcFormatToken).join(' '),
-          result: calcFormatNumber(String(+result.toFixed(8)))
+          result: calcFormatNumber(calcNumberToString(result))
         });
         if(calcHistory.length > 100) calcHistory = calcHistory.slice(calcHistory.length - 100);
         renderCalcHistory();
       }
       calcState.tokens = [];
-      calcState.display = String(+result.toFixed(8));
+      calcState.display = calcNumberToString(result);
       calcState.waitingForOperand = true;
       calcState.justEvaluated = true;
     } else {
