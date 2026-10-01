@@ -99,6 +99,7 @@
   .log-toggle:hover{ color: var(--theme-soft); }
   .log-caret{ font-size: 10px; transition: transform 0.15s; }
   .log-caret.open{ transform: rotate(90deg); }
+  .log-more{ display:block; width:100%; margin-top:10px; padding:11px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); color: var(--text); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; }
   #logContent{ margin-top: 14px; }
 
   .segmented{ display:flex; background: var(--surface-2); border-radius: 999px; padding: 4px; margin-bottom: 12px; }
@@ -814,8 +815,11 @@
 <script>
 (function(){
   const $ = (sel) => document.querySelector(sel);
-  const fmt = (n) => '₦' + (Math.round(n * 100) / 100).toLocaleString('en-NG', {maximumFractionDigits: 2});
-  const fmtPdf = (n) => 'NGN ' + (Math.round(n * 100) / 100).toLocaleString('en-NG', {maximumFractionDigits: 2});
+  // One shared formatter: toLocaleString() with options builds a new formatter on every
+  // call, which adds up fast when rendering thousands of log rows on a phone.
+  const nairaNumberFormat = new Intl.NumberFormat('en-NG', {maximumFractionDigits: 2});
+  const fmt = (n) => '₦' + nairaNumberFormat.format(Math.round(n * 100) / 100);
+  const fmtPdf = (n) => 'NGN ' + nairaNumberFormat.format(Math.round(n * 100) / 100);
   const numVal = (sel) => { const v = ($(sel).value || '').replace(/,/g,''); return parseFloat(v) || 0; };
 
   // Storage layer: uses Claude's artifact storage API when available (in-preview),
@@ -1911,6 +1915,7 @@
     const isOpen = content.style.display === 'block';
     content.style.display = isOpen ? 'none' : 'block';
     caret.classList.toggle('open', !isOpen);
+    if(!isOpen && logNeedsRender) renderLog();
   });
 
   $('#safetyToggle').addEventListener('click', ()=>{
@@ -2557,9 +2562,30 @@
     $('#sumAutosaveRow').style.display = sumAutosave > 0 ? 'flex' : 'none';
     $('#sumAutosave').innerHTML = settingsUnlocked ? '−' + fmt(sumAutosave) : LOCK_HTML;
 
+    // The log is the expensive part (one DOM row per transaction), so only build it while
+    // it's open; opening it later rebuilds it from the latest data.
+    if($('#logContent').style.display === 'block') renderLog();
+    else logNeedsRender = true;
+  }
+
+  // Rows shown in the Transaction Log before "Show more" — keeps All Time fast even with
+  // thousands of transactions.
+  const LOG_PAGE_SIZE = 100;
+  let logLimit = LOG_PAGE_SIZE;
+  let logNeedsRender = true;
+  let lastLogFilterKey = null;
+  const logDateFormat = new Intl.DateTimeFormat('en-NG', {day:'numeric', month:'short', year:'numeric'});
+  const logTimeFormat = new Intl.DateTimeFormat('en-NG', {hour:'numeric', minute:'2-digit', hour12:true});
+
+  function renderLog(){
+    logNeedsRender = false;
     const clearBtn = $('#clearLogBtn');
     const logList = $('#logList');
-    const logFiltered = getFilteredForLog();
+    const allLogFiltered = getFilteredForLog();
+    // Changing the period/provider filter starts the list over at the first page.
+    const filterKey = `${state.period}|${state.providerFilter}|${state.customStart}|${state.customEnd}`;
+    if(filterKey !== lastLogFilterKey){ lastLogFilterKey = filterKey; logLimit = LOG_PAGE_SIZE; }
+    const logFiltered = allLogFiltered.slice(0, logLimit);
     logList.innerHTML = '';
 
     if(logFiltered.length === 0){
@@ -2598,7 +2624,7 @@
 
         const item = document.createElement('div');
         item.className = 'log-item';
-        const dateStr = d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) + ' · ' + d.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true});
+        const dateStr = logDateFormat.format(d) + ' · ' + logTimeFormat.format(d);
         const isCombo = t.type === 'WithdrawTransfer';
         const isCredit = t.type === 'Withdrawal';
         const iconClass = isCombo ? 'combo' : (isCredit ? 'in' : 'out');
@@ -2630,6 +2656,15 @@
         `;
         dayGroup.appendChild(item);
       });
+      const remaining = allLogFiltered.length - logFiltered.length;
+      if(remaining > 0){
+        const more = document.createElement('button');
+        more.className = 'log-more';
+        more.type = 'button';
+        more.textContent = `Show ${Math.min(remaining, LOG_PAGE_SIZE)} more (${remaining} older)`;
+        more.addEventListener('click', ()=>{ logLimit += LOG_PAGE_SIZE; renderLog(); });
+        logList.appendChild(more);
+      }
       logList.querySelectorAll('.del').forEach(btn=>{
         btn.addEventListener('click', ()=> deleteTx(btn.dataset.id));
       });
@@ -2639,7 +2674,7 @@
           if(entered === null) return; // cancelled
           if(entered === SETTINGS_PASSWORD){
             unlockedTxIds.add(btn.dataset.id);
-            render();
+            renderLog();
           } else {
             setStatus('Incorrect password — entry stays locked.', 'error');
           }
