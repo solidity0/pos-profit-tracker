@@ -1900,6 +1900,7 @@
   function openLogDropdown(){
     $('#logContent').style.display = 'block';
     $('#logCaret').classList.add('open');
+    if(logNeedsRender) renderLog();
   }
   $('#summaryToggle').addEventListener('click', ()=>{
     const content = $('#summaryContent');
