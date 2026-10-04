@@ -284,8 +284,13 @@
   .calc-history-latest .calc-history-eq{ color: var(--text); font-weight:700; white-space:nowrap; }
   .calc-history-clear{ font-size: 10px; color: var(--muted); text-decoration: underline; cursor:pointer; background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-weight:600; text-transform:none; letter-spacing:normal; }
   .calc-history{ max-height: 260px; overflow-y:auto; -webkit-overflow-scrolling: touch; }
-  .calc-history-item{ font-size: 12px; color: var(--muted-strong); padding: 8px 2px; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-soft); }
+  .calc-history-item{ font-size: 12px; color: var(--muted-strong); padding: 8px 2px; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-soft); cursor:pointer; }
+  .calc-history-item:active{ background: var(--surface-3); }
   .calc-history-item:last-child{ border-bottom:none; }
+  .calc-chip{ display:inline-block; background:none; border:1.5px solid transparent; border-radius: 6px; padding: 2px 6px; margin: 1px 0; font: inherit; color: inherit; cursor:pointer; -webkit-tap-highlight-color: transparent; }
+  .calc-chip:active{ background: var(--surface-3); }
+  .calc-chip.selected{ border-color: var(--theme); border-bottom-color: var(--theme); background: var(--theme-tint); color: var(--theme-soft); }
+  .calc-chip-op{ color: var(--muted); padding: 0 2px; }
   .calc-history-date{ position: sticky; top: 0; background: var(--surface); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:700; padding: 8px 2px 2px; }
   .calc-history-day:first-child .calc-history-date{ padding-top: 2px; }
   .calc-history-day:not(:last-child){ border-bottom: 1px solid var(--line-soft); }
@@ -1822,7 +1827,7 @@
       netProfit, manualFee: isCombo ? allLegsSameBank : wasOverridden
     };
     transactions.unshift(tx);
-    await saveTransactions();
+    saveTransactions();
 
     $('#amount').value = '';
     resetTransferBoxes();
@@ -2017,22 +2022,126 @@
     }
     return acc;
   }
+  // Loads a past calculation back onto the board as a row of tappable number "chips" —
+  // operators stay fixed, but tapping any number lets the keypad overwrite just that
+  // figure. This is deliberately scoped to editing numbers only (not restructuring the
+  // expression), which is all a reused calculation typically needs.
+  function loadHistoryEntryForEdit(h){
+    if(!h.tokens || h.tokens.length === 0) return;
+    calcState = {
+      tokens: [], display: '0', waitingForOperand: false, justEvaluated: false,
+      editTokens: h.tokens.slice(), editIndex: null, editFresh: false
+    };
+    calcRenderDisplay();
+  }
+  function buildChipRow(tokens, selectedIndex){
+    return tokens.map((tok, i)=>{
+      if(CALC_OP_SYMBOL[tok]) return `<span class="calc-chip-op">${CALC_OP_SYMBOL[tok]}</span>`;
+      const selected = selectedIndex === i ? ' selected' : '';
+      return `<button type="button" class="calc-chip${selected}" data-idx="${i}">${calcFormatNumber(tok)}</button>`;
+    }).join(' ');
+  }
+  function renderEditChips(){
+    const disp = $('#calcDisplay');
+    const preview = $('#calcPreview');
+    const tokens = calcState.editTokens;
+    disp.innerHTML = buildChipRow(tokens, calcState.editIndex);
+    disp.querySelectorAll('.calc-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        calcState.editIndex = parseInt(chip.dataset.idx, 10);
+        calcState.editFresh = true;
+        calcRenderDisplay();
+      });
+    });
+    const liveResult = calcEvaluateSequence(tokens);
+    const previewText = (liveResult === null || !isFinite(liveResult)) ? '' : calcFormatNumber(calcNumberToString(liveResult));
+    if(previewText === ''){ preview.innerHTML = '&nbsp;'; } else { preview.textContent = previewText; }
+    disp.scrollTop = disp.scrollHeight;
+  }
+  // Routes a keypad press while a history entry is loaded for editing. Only the
+  // currently-selected number chip is mutated; operators commit the edit and either
+  // show the result (=) or chain into a fresh expression (+ − × ÷), matching how a result
+  // normally feeds into the next calculation.
+  function handleEditModeKey(val){
+    if(val === 'clear'){ calcClear(); return; }
+    const tokens = calcState.editTokens;
+    const i = calcState.editIndex;
+    if(val === '='){ commitEditAndChain(); return; }
+    if(val === '+' || val === '-' || val === '*' || val === '/'){
+      // Keep building on the loaded expression rather than collapsing it down to the
+      // total — exit chip mode into the normal token list (with any edits already made
+      // preserved) and append the pressed operator, same as continuing any calculation.
+      calcState = { tokens: tokens.slice(), display: '0', waitingForOperand: true, justEvaluated: false };
+      calcState.tokens.push(val);
+      calcRenderDisplay();
+      return;
+    }
+    if(i === null) return;
+    if(val === 'backspace'){
+      let cur = tokens[i].length > 1 ? tokens[i].slice(0, -1) : '0';
+      if(cur === '-') cur = '0';
+      tokens[i] = cur;
+      calcState.editFresh = false;
+    } else if(val === '.'){
+      if(calcState.editFresh){ tokens[i] = '0.'; calcState.editFresh = false; }
+      else if(tokens[i].indexOf('.') === -1) tokens[i] += '.';
+    } else if(val === '%'){
+      const n = parseFloat(tokens[i]);
+      if(!isNaN(n)) tokens[i] = calcNumberToString(n / 100);
+      calcState.editFresh = false;
+    } else {
+      // digit
+      if(calcState.editFresh){
+        tokens[i] = val;
+        calcState.editFresh = false;
+      } else if(tokens[i].replace(/[-.]/g, '').length < CALC_MAX_DIGITS){
+        tokens[i] = tokens[i] === '0' ? val : tokens[i] + val;
+      }
+    }
+    calcRenderDisplay();
+  }
+  function commitEditAndChain(){
+    const tokens = calcState.editTokens;
+    const result = calcEvaluateSequence(tokens);
+    if(result === null){
+      calcState = { tokens: [], display: 'Error', waitingForOperand: true, justEvaluated: true };
+      calcRenderDisplay();
+      return;
+    }
+    if(tokens.length >= 3){
+      calcHistory.push({
+        id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+        ts: Date.now(),
+        tokens: tokens.slice(),
+        expr: tokens.map(calcFormatToken).join(' '),
+        result: calcFormatNumber(calcNumberToString(result))
+      });
+      if(calcHistory.length > 100) calcHistory = calcHistory.slice(calcHistory.length - 100);
+      renderCalcHistory();
+    }
+    calcState = { tokens: [], display: calcNumberToString(result), waitingForOperand: true, justEvaluated: true };
+    calcRenderDisplay();
+  }
   function calcRenderDisplay(){
     scheduleCalcStateSave();
     const disp = $('#calcDisplay');
     const preview = $('#calcPreview');
+    if(calcState.editTokens){
+      renderEditChips();
+      return;
+    }
     if(calcState.display === 'Error'){
       disp.textContent = 'Error';
       preview.innerHTML = '&nbsp;';
       return;
     }
-    const tokenStr = calcState.tokens.map(calcFormatToken).join(' ');
+    const tokenHtml = buildChipRow(calcState.tokens, calcState.liveEditIndex != null ? calcState.liveEditIndex : null);
     if(calcState.waitingForOperand){
-      disp.textContent = tokenStr || calcFormatNumber(calcState.display);
+      disp.innerHTML = tokenHtml || `<strong>${calcFormatNumber(calcState.display)}</strong>`;
       preview.innerHTML = '&nbsp;';
     } else {
       const currentPart = calcFormatNumber(calcState.display);
-      disp.textContent = tokenStr ? `${tokenStr} ${currentPart}` : currentPart;
+      disp.innerHTML = tokenHtml ? `${tokenHtml} <strong>${currentPart}</strong>` : `<strong>${currentPart}</strong>`;
       if(calcState.tokens.length > 0){
         const liveResult = calcEvaluateSequence(calcState.tokens.concat([calcState.display]));
         const previewText = (liveResult === null || !isFinite(liveResult)) ? '' : calcFormatNumber(calcNumberToString(liveResult));
@@ -2041,6 +2150,13 @@
         preview.innerHTML = '&nbsp;';
       }
     }
+    disp.querySelectorAll('.calc-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        calcState.liveEditIndex = parseInt(chip.dataset.idx, 10);
+        calcState.liveEditFresh = true;
+        calcRenderDisplay();
+      });
+    });
     disp.scrollTop = disp.scrollHeight;
   }
   function calcClear(){
@@ -2048,6 +2164,15 @@
     calcRenderDisplay();
   }
   function calcBackspace(){
+    if(calcState.liveEditIndex != null){
+      const i = calcState.liveEditIndex;
+      let cur = calcState.tokens[i].length > 1 ? calcState.tokens[i].slice(0, -1) : '0';
+      if(cur === '-') cur = '0';
+      calcState.tokens[i] = cur;
+      calcState.liveEditFresh = false;
+      calcRenderDisplay();
+      return;
+    }
     if(calcState.justEvaluated){
       // A result was just computed — let backspace edit it like any typed number instead
       // of silently doing nothing.
@@ -2083,6 +2208,17 @@
     calcRenderDisplay();
   }
   function calcInputDigit(digit){
+    if(calcState.liveEditIndex != null){
+      const i = calcState.liveEditIndex;
+      if(calcState.liveEditFresh){
+        calcState.tokens[i] = digit;
+        calcState.liveEditFresh = false;
+      } else if(calcState.tokens[i].replace(/[-.]/g, '').length < CALC_MAX_DIGITS){
+        calcState.tokens[i] = calcState.tokens[i] === '0' ? digit : calcState.tokens[i] + digit;
+      }
+      calcRenderDisplay();
+      return;
+    }
     if(calcState.justEvaluated){
       calcState.tokens = [];
       calcState.justEvaluated = false;
@@ -2097,6 +2233,17 @@
     calcRenderDisplay();
   }
   function calcInputDecimal(){
+    if(calcState.liveEditIndex != null){
+      const i = calcState.liveEditIndex;
+      if(calcState.liveEditFresh){
+        calcState.tokens[i] = '0.';
+        calcState.liveEditFresh = false;
+      } else if(calcState.tokens[i].indexOf('.') === -1){
+        calcState.tokens[i] += '.';
+      }
+      calcRenderDisplay();
+      return;
+    }
     if(calcState.justEvaluated){
       calcState.tokens = [];
       calcState.justEvaluated = false;
@@ -2111,6 +2258,14 @@
     calcRenderDisplay();
   }
   function calcInputPercent(){
+    if(calcState.liveEditIndex != null){
+      const i = calcState.liveEditIndex;
+      const n = parseFloat(calcState.tokens[i]);
+      if(!isNaN(n)) calcState.tokens[i] = calcNumberToString(n / 100);
+      calcState.liveEditFresh = false;
+      calcRenderDisplay();
+      return;
+    }
     // iOS-style percent: after + or − it's a percentage of the running total
     // (50 + 10 % → 50 + 5 = 55, handy for adding a fee or charge); otherwise it's just
     // n ÷ 100 (50 × 10 % → 50 × 0.1 = 5). Pressing % right after an operator
@@ -2150,16 +2305,23 @@
     calcHistory.forEach(h=>{
       const ts = h.ts || parseInt(h.id, 10);
       const day = isNaN(ts) ? '' : new Date(ts).toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
-      const item = `<div class="calc-history-item">${h.expr} <span class="calc-history-eq">= ${h.result}</span><button class="calc-history-item-clear" type="button" data-id="${h.id}">Remove</button></div>`;
+      const item = `<div class="calc-history-item" data-id="${h.id}">${h.expr} <span class="calc-history-eq">= ${h.result}</span><button class="calc-history-item-clear" type="button" data-id="${h.id}">Remove</button></div>`;
       const last = groups[groups.length - 1];
       if(last && last.day === day) last.items.push(item);
       else groups.push({ day, items: [item] });
     });
     list.innerHTML = groups.map(g=>`<div class="calc-history-day"><div class="calc-history-date">${g.day}</div>${g.items.join('')}</div>`).join('');
     list.querySelectorAll('.calc-history-item-clear').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
         calcHistory = calcHistory.filter(h => h.id !== btn.dataset.id);
         renderCalcHistory();
+      });
+    });
+    list.querySelectorAll('.calc-history-item').forEach(itemEl=>{
+      itemEl.addEventListener('click', ()=>{
+        const h = calcHistory.find(x => x.id === itemEl.dataset.id);
+        if(h) loadHistoryEntryForEdit(h);
       });
     });
     $('#calcHistoryCount').textContent = `· ${calcHistory.length}`;
@@ -2187,6 +2349,8 @@
   });
 
   function calcPerformOperation(nextOperator){
+    calcState.liveEditIndex = null;
+    calcState.liveEditFresh = false;
     // Pressing an operator again before typing a new digit (e.g. changed your mind from
     // ÷ to ×) just swaps the pending operator — it does NOT append a duplicate.
     if(calcState.waitingForOperand && calcState.tokens.length > 0 && nextOperator !== '='){
@@ -2211,6 +2375,7 @@
         calcHistory.push({
           id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
           ts: Date.now(),
+          tokens: seq.slice(),
           expr: seq.map(calcFormatToken).join(' '),
           result: calcFormatNumber(calcNumberToString(result))
         });
@@ -2231,6 +2396,7 @@
   $('#calcCard').querySelectorAll('.calc-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const val = btn.dataset.calc;
+      if(calcState.editTokens){ handleEditModeKey(val); return; }
       if(calcState.display === 'Error' && val !== 'clear'){ calcClear(); }
       if(val === 'clear') calcClear();
       else if(val === 'backspace') calcBackspace();
@@ -2331,9 +2497,9 @@
   });
 
   $('#resetBtn').addEventListener('click', ()=>{
-    armTapTwice($('#resetBtn'), 'Erase all data', 'Tap again to confirm', async ()=>{
+    armTapTwice($('#resetBtn'), 'Erase all data', 'Tap again to confirm', ()=>{
       transactions = [];
-      await saveTransactions();
+      saveTransactions();
       render();
     });
   });
@@ -2341,17 +2507,17 @@
   $('#clearLogBtn').addEventListener('click', ()=>{
     const visible = getTodayLogEntries();
     if(visible.length === 0){ setStatus('Nothing to clear'); return; }
-    armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, async ()=>{
+    armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, ()=>{
       const idsToRemove = new Set(visible.map(t=>t.id));
       transactions = transactions.filter(t => !idsToRemove.has(t.id));
-      await saveTransactions();
+      saveTransactions();
       render();
     });
   });
 
-  async function deleteTx(id){
+  function deleteTx(id){
     transactions = transactions.filter(t => t.id !== id);
-    await saveTransactions();
+    saveTransactions();
     render();
   }
 
