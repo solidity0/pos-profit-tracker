@@ -409,6 +409,7 @@
   .card.has-clear{ position:relative; }
   .clearbtn{ background:none; border: 1.5px solid var(--line); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
   .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
+  .clearbtn.sharebtn:hover{ border-color: var(--theme); color: var(--theme-soft); }
   .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
   .status.error{ color: var(--loss); font-weight:700; }
@@ -659,6 +660,8 @@
     </button>
     <div id="logContent" class="scroll-panel" style="display:none;">
       <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
+      <button class="clearbtn sharebtn" id="logSharePdfBtn" type="button" style="display:none;">Share PDF</button>
+      <div class="status" id="logPdfStatus"></div>
       <div id="logList"></div>
       <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
     </div>
@@ -2781,9 +2784,15 @@
   const logDateFormat = new Intl.DateTimeFormat('en-NG', {day:'numeric', month:'short', year:'numeric'});
   const logTimeFormat = new Intl.DateTimeFormat('en-NG', {hour:'numeric', minute:'2-digit', hour12:true});
 
+  // These two buttons get moved into the first date row on every render (and detached
+  // when the list is emptied), so hold on to them rather than looking them up each time.
+  const LOG_CLEAR_BTN = $('#clearLogBtn');
+  const LOG_SHARE_BTN = $('#logSharePdfBtn');
+
   function renderLog(){
     logNeedsRender = false;
-    const clearBtn = $('#clearLogBtn');
+    const clearBtn = LOG_CLEAR_BTN;
+    const shareBtn = LOG_SHARE_BTN;
     const logList = $('#logList');
     const allLogFiltered = getFilteredForLog();
     // Changing the period/provider filter starts the list over at the first page.
@@ -2795,6 +2804,7 @@
     if(logFiltered.length === 0){
       $('#emptyState').style.display = 'block';
       clearBtn.style.display = 'none';
+      shareBtn.style.display = 'none';
     } else {
       $('#emptyState').style.display = 'none';
       let lastDayKey = null;
@@ -2814,6 +2824,9 @@
             const sepRow = document.createElement('div');
             sepRow.className = 'log-date-sep-row';
             sepRow.appendChild(sep);
+            // Shares the same report as Performance Overview (current period and filters).
+            shareBtn.style.display = 'block';
+            sepRow.appendChild(shareBtn);
             clearBtn.style.display = 'block';
             sepRow.appendChild(clearBtn);
             logList.appendChild(sepRow);
@@ -3108,7 +3121,7 @@
       return;
     }
     pdfBtn.disabled = true;
-    const originalBtnLabel = pdfBtn.textContent;
+    const originalBtnLabel = pdfBtn.innerHTML;
     pdfBtn.textContent = 'Building…';
     try{
       const built = buildPdfDoc();
@@ -3121,19 +3134,17 @@
       setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
     } finally {
       pdfBtn.disabled = false;
-      pdfBtn.textContent = originalBtnLabel;
+      pdfBtn.innerHTML = originalBtnLabel;
     }
   }
 
-  async function sharePdf(){
-    const pdfBtn = $('#sharePdfBtn');
-    const pdfStatus = $('#pdfStatus');
+  async function sharePdf(pdfBtn = $('#sharePdfBtn'), pdfStatus = $('#pdfStatus')){
     if(typeof window.jspdf === 'undefined'){
       pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
       return;
     }
     pdfBtn.disabled = true;
-    const originalBtnLabel = pdfBtn.textContent;
+    const originalBtnLabel = pdfBtn.innerHTML;
     pdfBtn.textContent = 'Building…';
     try{
       const built = buildPdfDoc();
@@ -3161,12 +3172,13 @@
       }
     } finally {
       pdfBtn.disabled = false;
-      pdfBtn.textContent = originalBtnLabel;
+      pdfBtn.innerHTML = originalBtnLabel;
     }
   }
 
   $('#downloadPdfBtn').addEventListener('click', downloadPdf);
-  $('#sharePdfBtn').addEventListener('click', sharePdf);
+  $('#sharePdfBtn').addEventListener('click', ()=> sharePdf());
+  $('#logSharePdfBtn').addEventListener('click', ()=> sharePdf($('#logSharePdfBtn'), $('#logPdfStatus')));
 
   let lastKnownDate = new Date().toDateString();
   setInterval(()=>{
