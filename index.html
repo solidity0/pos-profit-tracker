@@ -2754,8 +2754,8 @@
 
     const LOCK_HTML = `${eyeOffSvg}<span class="lock-dots">••••</span>`;
     $('#sumCustomerFee').textContent = fmt(sumCustomer);
-    $('#sumBaseFee').innerHTML = settingsUnlocked ? '−' + fmt(sumBase) : LOCK_HTML;
-    // VAT and stamp duty are shown to everyone; the machine fee stays owner-only.
+    $('#sumBaseFee').textContent = '−' + fmt(sumBase);
+    // Fee, VAT and stamp duty totals are shown to everyone; only auto-save is owner-only.
     $('#sumVat').textContent = '−' + fmt(sumVat);
     $('#sumStamp').textContent = '−' + fmt(sumStamp);
     const netEl = $('#netProfit');
