@@ -12,9 +12,8 @@ service cloud.firestore {
     function isMember() { return isOwner() || isStaff(); }
 
     match /transactions/{txId} {
-      // Owner sees everything; staff see only what they logged.
-      allow read: if isOwner()
-        || (isStaff() && resource.data.loggedBy == request.auth.uid);
+      // The whole team sees the shop's transactions (the salesperson sends the daily report).
+      allow read: if isMember();
 
       // Anyone on the team can log, but only as themselves, stamped with the server's time.
       allow create: if isMember()
