@@ -1,31 +1,93 @@
 // Firestore security rules for the Ledger app.
 // Paste into Firebase console > Firestore Database > Rules, then Publish.
-// Salespeople are managed in the app (Settings -> Team): each one is a document in the
-// `staff` collection, and they have access while that document isn't marked inactive.
-// Only the owner can write that collection, so only the owner can grant access.
+//
+// Each business lives under businesses/{ownerUid}. Its owner is the person whose UID is the
+// business id; its salespeople are the documents in businesses/{ownerUid}/staff that aren't
+// marked inactive. users/{uid} tells a salesperson's login which business it belongs to.
+// No one can read or change another business's data.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
-    function isOwner()  { return signedIn() && request.auth.uid == '0xxeZTLlaAeTzTgpezc58hwDxXp2'; }
-    function staffDoc() { return /databases/$(database)/documents/staff/$(request.auth.uid); }
-    function isStaff()  { return signedIn() && exists(staffDoc()) && get(staffDoc()).data.get('active', true) == true; }
-    function isMember() { return isOwner() || isStaff(); }
+    function bizPath(b) { return /databases/$(database)/documents/businesses/$(b); }
+    function staffPath(b) { return /databases/$(database)/documents/businesses/$(b)/staff/$(request.auth.uid); }
+    function isOwnerOf(b) { return signedIn() && request.auth.uid == b; }
+    function isStaffOf(b) { return signedIn() && exists(staffPath(b)) && get(staffPath(b)).data.get('active', true) == true; }
+    function isMemberOf(b) { return isOwnerOf(b) || isStaffOf(b); }
+
+    match /businesses/{b} {
+      allow read: if isMemberOf(b);
+      // Anyone can create a business, but only as its owner, under their own UID.
+      allow create: if isOwnerOf(b) && request.resource.data.ownerUid == b;
+      allow update: if isOwnerOf(b) && request.resource.data.ownerUid == b;
+      allow delete: if false;
+
+      match /transactions/{txId} {
+        // The whole team sees the business's transactions (the salesperson sends the daily report).
+        allow read: if isMemberOf(b);
+
+        // The owner can write anything in their own business. A salesperson can log only
+        // as themselves, stamped with the server's time.
+        allow create: if isOwnerOf(b) || (isStaffOf(b)
+          && request.resource.data.loggedBy == request.auth.uid
+          && request.resource.data.deleted == false
+          && request.resource.data.createdAt == request.time);
+
+        // A salesperson can't erase anything: "delete" only marks their own entry as deleted,
+        // within 3h50m of logging. The owner still sees it, with who deleted it and when.
+        allow update: if isOwnerOf(b) || (isStaffOf(b)
+          && resource.data.loggedBy == request.auth.uid
+          && resource.data.deleted == false
+          && request.time < resource.data.createdAt + duration.value(230, 'm')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy'])
+          && request.resource.data.deleted == true
+          && request.resource.data.deletedBy == request.auth.uid
+          && request.resource.data.deletedAt == request.time);
+
+        allow delete: if isOwnerOf(b);
+      }
+
+      // Fee rates and tips: the team reads, only the owner changes.
+      match /settings/{doc} {
+        allow read: if isMemberOf(b);
+        allow write: if isOwnerOf(b);
+      }
+
+      // Team list (who has access, and their names): the team reads, only the owner changes.
+      match /staff/{uid} {
+        allow read: if isMemberOf(b);
+        allow write: if isOwnerOf(b);
+      }
+    }
+
+    // Which business a salesperson's login belongs to. Only that business's owner can set it,
+    // only for a business that exists, and never for a login that belongs to another business.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || resource.data.businessId == request.auth.uid);
+      allow create, update: if signedIn() && uid != request.auth.uid
+        && request.resource.data.businessId == request.auth.uid
+        && request.resource.data.role == 'staff'
+        && existsAfter(bizPath(request.auth.uid))
+        && (resource == null || resource.data.businessId == request.auth.uid);
+      allow delete: if signedIn() && resource.data.businessId == request.auth.uid;
+    }
+
+    // ---- Original single-business ledger (before businesses) ----
+    // Kept as a backup and so phones still on the old version keep working until they reload.
+    // The original owner copies it into their business the first time they sign in.
+    function isLegacyOwner()  { return signedIn() && request.auth.uid == '0xxeZTLlaAeTzTgpezc58hwDxXp2'; }
+    function legacyStaffDoc() { return /databases/$(database)/documents/staff/$(request.auth.uid); }
+    function isLegacyStaff()  { return signedIn() && exists(legacyStaffDoc()) && get(legacyStaffDoc()).data.get('active', true) == true; }
+    function isLegacyMember() { return isLegacyOwner() || isLegacyStaff(); }
 
     match /transactions/{txId} {
-      // The whole team sees the shop's transactions (the salesperson sends the daily report).
-      allow read: if isMember();
-
-      // Anyone on the team can log, but only as themselves, stamped with the server's time.
-      allow create: if isMember()
+      allow read: if isLegacyMember();
+      allow create: if isLegacyMember()
         && request.resource.data.loggedBy == request.auth.uid
         && request.resource.data.deleted == false
         && request.resource.data.createdAt == request.time;
-
-      // Staff can't erase anything: "delete" only marks their own entry as deleted,
-      // within 3h50m of logging. The owner still sees it, with who deleted it and when.
-      allow update: if isOwner() || (isStaff()
+      allow update: if isLegacyOwner() || (isLegacyStaff()
         && resource.data.loggedBy == request.auth.uid
         && resource.data.deleted == false
         && request.time < resource.data.createdAt + duration.value(230, 'm')
@@ -33,21 +95,17 @@ service cloud.firestore {
         && request.resource.data.deleted == true
         && request.resource.data.deletedBy == request.auth.uid
         && request.resource.data.deletedAt == request.time);
-
-      // Only the owner can permanently remove a record.
-      allow delete: if isOwner();
+      allow delete: if isLegacyOwner();
     }
-
-    // Fee rates and tips: everyone reads, only the owner changes.
     match /settings/{doc} {
-      allow read: if isMember();
-      allow write: if isOwner();
+      allow read: if isLegacyMember();
+      allow write: if isLegacyOwner();
     }
-
-    // Team list (who has access, and their names): everyone reads, only the owner changes.
     match /staff/{uid} {
-      allow read: if isMember();
-      allow write: if isOwner();
+      // A login can always check its own entry here (the app uses it to explain that the
+      // business is being moved); otherwise the old team can read it and the owner manages it.
+      allow read: if isLegacyMember() || (signedIn() && request.auth.uid == uid);
+      allow write: if isLegacyOwner();
     }
   }
 }
