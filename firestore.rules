@@ -5,6 +5,10 @@
 // business id; its salespeople are the documents in businesses/{ownerUid}/staff that aren't
 // marked inactive. users/{uid} tells a salesperson's login which business it belongs to.
 // No one can read or change another business's data.
+//
+// The platform admin (the UID in isAdmin) can list every business and suspend or restore
+// one. A suspended business's owner and salespeople lose all access to its data. The
+// admin can see business names, owners and teams, not their transactions.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,15 +16,29 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function bizPath(b) { return /databases/$(database)/documents/businesses/$(b); }
     function staffPath(b) { return /databases/$(database)/documents/businesses/$(b)/staff/$(request.auth.uid); }
+    function isAdmin() { return signedIn() && request.auth.uid == '0xxeZTLlaAeTzTgpezc58hwDxXp2'; }
     function isOwnerOf(b) { return signedIn() && request.auth.uid == b; }
     function isStaffOf(b) { return signedIn() && exists(staffPath(b)) && get(staffPath(b)).data.get('active', true) == true; }
-    function isMemberOf(b) { return isOwnerOf(b) || isStaffOf(b); }
+    // A business that hasn't been created yet counts as active (its owner fills it in first).
+    function bizActive(b) { return !exists(bizPath(b)) || get(bizPath(b)).data.get('suspended', false) == false; }
+    function isMemberOf(b) { return (isOwnerOf(b) || isStaffOf(b)) && bizActive(b); }
 
     match /businesses/{b} {
-      allow read: if isMemberOf(b);
-      // Anyone can create a business, but only as its owner, under their own UID.
-      allow create: if isOwnerOf(b) && request.resource.data.ownerUid == b;
-      allow update: if isOwnerOf(b) && request.resource.data.ownerUid == b;
+      // Its own team can always read the business document (so the app can tell them it's
+      // suspended); the admin can read and list them all.
+      allow read: if isOwnerOf(b) || isStaffOf(b) || isAdmin();
+      // Anyone can create a business, but only as its owner, under their own UID, having
+      // accepted the Terms of Use and Privacy Policy, and never pre-suspended or un-suspendable.
+      allow create: if isOwnerOf(b) && request.resource.data.ownerUid == b
+        && request.resource.data.termsAcceptedAt == request.time
+        && request.resource.data.termsVersion is string
+        && !('suspended' in request.resource.data);
+      // The owner edits their business (e.g. its name) but can't lift a suspension;
+      // the admin can only suspend or restore.
+      allow update: if (isOwnerOf(b) && bizActive(b)
+          && request.resource.data.ownerUid == b
+          && request.resource.data.get('suspended', false) == resource.data.get('suspended', false))
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt']));
       allow delete: if false;
 
       match /transactions/{txId} {
@@ -29,14 +47,14 @@ service cloud.firestore {
 
         // The owner can write anything in their own business. A salesperson can log only
         // as themselves, stamped with the server's time.
-        allow create: if isOwnerOf(b) || (isStaffOf(b)
+        allow create: if (isOwnerOf(b) && bizActive(b)) || (isMemberOf(b) && isStaffOf(b)
           && request.resource.data.loggedBy == request.auth.uid
           && request.resource.data.deleted == false
           && request.resource.data.createdAt == request.time);
 
         // A salesperson can't erase anything: "delete" only marks their own entry as deleted,
         // within 3h50m of logging. The owner still sees it, with who deleted it and when.
-        allow update: if isOwnerOf(b) || (isStaffOf(b)
+        allow update: if (isOwnerOf(b) && bizActive(b)) || (isMemberOf(b) && isStaffOf(b)
           && resource.data.loggedBy == request.auth.uid
           && resource.data.deleted == false
           && request.time < resource.data.createdAt + duration.value(230, 'm')
@@ -45,19 +63,20 @@ service cloud.firestore {
           && request.resource.data.deletedBy == request.auth.uid
           && request.resource.data.deletedAt == request.time);
 
-        allow delete: if isOwnerOf(b);
+        allow delete: if isOwnerOf(b) && bizActive(b);
       }
 
       // Fee rates and tips: the team reads, only the owner changes.
       match /settings/{doc} {
         allow read: if isMemberOf(b);
-        allow write: if isOwnerOf(b);
+        allow write: if isOwnerOf(b) && bizActive(b);
       }
 
       // Team list (who has access, and their names): the team reads, only the owner changes.
+      // The admin can read it to see who runs each business.
       match /staff/{uid} {
-        allow read: if isMemberOf(b);
-        allow write: if isOwnerOf(b);
+        allow read: if isMemberOf(b) || isAdmin();
+        allow write: if isOwnerOf(b) && bizActive(b);
       }
     }
 

@@ -430,6 +430,17 @@
   .auth-card{ width:100%; max-width: 360px; background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow-sm); text-align:center; }
   .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
   .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .terms-check{ display:flex; align-items:flex-start; gap:9px; text-align:left; font-size: 12px; color: var(--muted-strong); line-height:1.5; margin: 2px 0 12px; cursor:pointer; }
+  .terms-check span{ flex:1; min-width:0; }
+  .auth-card .terms-check input{ width:18px; height:18px; padding:0; margin: 2px 0 0; flex-shrink:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
+  .terms-check a, .legal-footer a{ color: var(--theme-soft); }
+  .legal-footer{ text-align:center; font-size: 11px; color: var(--muted); margin: 18px 0 6px; line-height: 1.7; }
+  .admin-biz{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 12px; }
+  .admin-biz.suspended{ border-color: var(--loss); }
+  .admin-biz .admin-name{ font-weight:700; color: var(--text); font-size: 13px; }
+  .admin-biz .admin-meta{ color: var(--muted); margin-top: 3px; overflow-wrap:anywhere; }
+  .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
+  .admin-biz.suspended .admin-status{ color: var(--loss); }
   .auth-divider{ border-top: 1.5px solid var(--line-soft); margin: 18px 0 14px; }
   .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
   /* Role buttons: Business Owner is blue (owner/admin), Salesperson is light neutral with
@@ -515,6 +526,7 @@
       <input type="text" id="signupOwnerName" placeholder="Your name" autocomplete="name" required />
       <input type="email" id="signupEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
       <input type="password" id="signupPassword" placeholder="Password (6+ characters)" autocomplete="new-password" required />
+      <label class="terms-check"><input type="checkbox" id="signupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <button class="addbtn" id="signupSubmit" type="submit">Create business account</button>
       <button class="calc-history-clear" id="showSignin" type="button" style="margin-top:12px; font-size:12px;">Already have an account? Sign in</button>
     </form>
@@ -522,12 +534,14 @@
       <div class="auth-msg" style="margin-bottom:12px;" id="setupIntro"></div>
       <input type="text" id="setupBizName" placeholder="Business name" autocomplete="organization" required />
       <input type="text" id="setupOwnerName" placeholder="Your name" autocomplete="name" required />
+      <label class="terms-check"><input type="checkbox" id="setupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <button class="addbtn" id="setupSubmit" type="submit">Create my business</button>
       <button class="calc-history-clear" id="setupSignOut" type="button" style="margin-top:12px; font-size:12px;">Sign out</button>
     </form>
     <div id="authBlocked" class="auth-msg" style="display:none;"></div>
     <button class="pdfbtn" id="authBlockedSignOut" type="button" style="display:none;">Sign out</button>
     <div class="status" id="authStatus"></div>
+    <div class="legal-footer">© <span class="copyright-year">2026</span> Ledger · All rights reserved<br><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
   </div>
 </div>
 <div class="wrap" id="appWrap" style="display:none;">
@@ -836,6 +850,14 @@
 
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
+      <div id="adminSection" style="display:none;">
+        <h3>Platform admin · all businesses</h3>
+        <div class="hint">Only you see this. Suspending a business shuts its owner and salespeople out straight away; restoring lets them back in. You see who signed up, not their transactions.</div>
+        <button class="pdfbtn" id="adminRefreshBtn" type="button">Load businesses</button>
+        <div class="status" id="adminStatus"></div>
+        <div id="adminList"></div>
+      </div>
+
       <h3>Business</h3>
       <div class="field"><label>Business name</label><input type="text" id="bizNameInput" autocomplete="off" placeholder="Business name" /></div>
 
@@ -948,6 +970,8 @@
   </div>
 
   </div>
+
+  <div class="legal-footer">© <span class="copyright-year">2026</span> Ledger · All rights reserved · <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
 
 </div>
 
@@ -3302,6 +3326,12 @@
   // LEGACY_OWNER_UID is the original single-business owner, whose data still sits in the
   // old top-level collections; it's moved into their business the first time they sign in.
   const LEGACY_OWNER_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
+  // The platform admin: can list every business and suspend or restore one. Must match
+  // isAdmin() in firestore.rules.
+  const PLATFORM_ADMIN_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
+  // Bump when terms.html / privacy.html change materially; stored with each acceptance.
+  const TERMS_VERSION = '2026-10-27';
+  const SUSPENDED_MSG = 'This business account has been suspended, so its ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
   // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
   // Older entries are fetched once per session, only when All Time or an older Custom range
   // is picked, which keeps daily reads well inside Firebase's free allowance.
@@ -3726,7 +3756,13 @@
     stopAccessListeners();
     showGate('loading', 'Checking access…');
     let decided = false;
-    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', user.uid), (snap)=>{
+    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', user.uid), { includeMetadataChanges: true }, (snap)=>{
+      if(snap.exists() && snap.data().suspended){
+        // The phone's saved copy may be out of date (e.g. just restored): when online, wait
+        // for Firebase's live answer before locking anyone out.
+        if(snap.metadata.fromCache && navigator.onLine) return;
+        decided = true; lockOut(SUSPENDED_MSG); return;
+      }
       if(snap.exists()){
         decided = true;
         bizId = user.uid;
@@ -3775,7 +3811,16 @@
       }
       if(!snap.exists() && snap.metadata.fromCache && !navigator.onLine){ showGate('loading', 'No internet connection — connect once to finish signing in.'); return; }
       lockOut(role === 'staff' ? REMOVED_MSG : notAddedMsg);
-    }, ()=> lockOut(role === 'staff' ? REMOVED_MSG : notAddedMsg)));
+    }, async ()=>{
+      // Denied: either they were removed, or the whole business was suspended.
+      let suspended = false;
+      try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); suspended = !!(biz.exists() && biz.data().suspended); }catch(e){}
+      lockOut(suspended ? SUSPENDED_MSG : (role === 'staff' ? REMOVED_MSG : notAddedMsg));
+    }));
+    // Live: if the business is suspended mid-shift, lock them out.
+    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', b), { includeMetadataChanges: true }, (snap)=>{
+      if(snap.exists() && snap.data().suspended && !(snap.metadata.fromCache && navigator.onLine)) lockOut(SUSPENDED_MSG);
+    }, ()=>{}));
   }
 
   function showSetup(isLegacy){
@@ -3790,6 +3835,7 @@
 
   // Creates businesses/{uid} last, so the app opens only once everything is in place.
   async function createBusiness(name, ownerName, statusEl, isLegacy){
+    // termsAcceptedAt must be the server time of this write (the rules check it).
     const uid = currentUser.uid;
     bizId = uid;
     const legacy = isLegacy ? await moveLegacyLedger(statusEl, false) : null;
@@ -3805,7 +3851,10 @@
       });
     }
     batch.set(fb.doc(fb.db, 'businesses', uid, 'staff', uid), { name: ownerName, email: currentUser.email || '' }, { merge: true });
-    batch.set(fb.doc(fb.db, 'businesses', uid), { name, ownerUid: uid, createdAt: fb.serverTimestamp() });
+    batch.set(fb.doc(fb.db, 'businesses', uid), {
+      name, ownerUid: uid, ownerEmail: currentUser.email || '', createdAt: fb.serverTimestamp(),
+      termsAcceptedAt: fb.serverTimestamp(), termsVersion: TERMS_VERSION
+    });
     await batch.commit();
   }
 
@@ -3860,6 +3909,7 @@
     renderLoggedByFilter();
     renderImportUI();
     renderLegacyUI();
+    renderAdminUI();
     startSettingsListener();
     startTeamListener();
     startTxListener();
@@ -3959,6 +4009,7 @@
     const password = $('#signupPassword').value;
     const st = $('#authStatus');
     if(!name || !ownerName || !email || !password){ st.className = 'status error'; st.textContent = 'Fill in all four boxes.'; return; }
+    if(!$('#signupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
     const btn = $('#signupSubmit');
     btn.disabled = true;
     st.className = 'status';
@@ -3990,6 +4041,7 @@
     const ownerName = $('#setupOwnerName').value.trim();
     const st = $('#authStatus');
     if(!name || !ownerName){ st.className = 'status error'; st.textContent = 'Enter your business name and your name.'; return; }
+    if(!$('#setupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
     const btn = $('#setupSubmit');
     btn.disabled = true;
     pendingSignup = { name, ownerName };
@@ -4005,6 +4057,58 @@
       if(!role) findBusiness(currentUser);
     }
   });
+
+  function renderAdminUI(){
+    $('#adminSection').style.display = (role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID) ? '' : 'none';
+  }
+  const adminDateFormat = new Intl.DateTimeFormat('en-NG', { day:'numeric', month:'short', year:'numeric' });
+  async function loadAdminList(){
+    const st = $('#adminStatus');
+    const list = $('#adminList');
+    st.className = 'status'; st.textContent = 'Loading…';
+    try{
+      const snap = await fb.getDocs(fb.collection(fb.db, 'businesses'));
+      const rows = await Promise.all(snap.docs.map(async d=>{
+        const data = d.data() || {};
+        let email = data.ownerEmail || '';
+        let ownerName = '';
+        try{
+          const o = await fb.getDoc(fb.doc(fb.db, 'businesses', d.id, 'staff', d.id));
+          if(o.exists()){ ownerName = o.data().name || ''; email = email || o.data().email || ''; }
+        }catch(e){}
+        const created = data.createdAt && data.createdAt.toDate ? adminDateFormat.format(data.createdAt.toDate()) : '—';
+        return { id: d.id, name: data.name || '(no name)', ownerName, email, created, suspended: !!data.suspended, createdMs: data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0 };
+      }));
+      rows.sort((a,b)=> b.createdMs - a.createdMs);
+      list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended ? ' suspended' : ''}">
+        <div class="admin-name">${escapeHtml(r.name)}${r.id === PLATFORM_ADMIN_UID ? ' (you)' : ''}</div>
+        <div class="admin-meta">${escapeHtml(r.ownerName || 'Owner')} · ${escapeHtml(r.email || 'no email')} · created ${r.created}</div>
+        <div class="admin-meta">Status: <span class="admin-status">${r.suspended ? 'Suspended' : 'Active'}</span></div>
+        ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${r.suspended
+          ? `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
+          : `<button type="button" class="admin-suspend danger" data-id="${r.id}">Suspend business</button>`}</div>`}
+      </div>`).join('');
+      st.textContent = `${rows.length} business${rows.length === 1 ? '' : 'es'}`;
+      list.querySelectorAll('.admin-suspend').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          armTapTwice(btn, 'Suspend business', 'Tap again to suspend', async ()=>{
+            try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: true, suspendedAt: fb.serverTimestamp() }); loadAdminList(); }
+            catch(err){ st.className = 'status error'; st.textContent = 'Could not suspend: ' + err.message; }
+          });
+        });
+      });
+      list.querySelectorAll('.admin-restore').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: false, suspendedAt: null }); loadAdminList(); }
+          catch(err){ st.className = 'status error'; st.textContent = 'Could not restore: ' + err.message; }
+        });
+      });
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = 'Could not load businesses: ' + err.message;
+    }
+  }
+  $('#adminRefreshBtn').addEventListener('click', ()=>{ $('#adminRefreshBtn').textContent = 'Refresh list'; loadAdminList(); });
 
   function renderLegacyUI(){
     $('#legacySection').style.display = (role === 'owner' && currentUser && currentUser.uid === LEGACY_OWNER_UID) ? '' : 'none';
