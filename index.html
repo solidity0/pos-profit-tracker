@@ -430,6 +430,18 @@
   .auth-card{ width:100%; max-width: 360px; background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow-sm); text-align:center; }
   .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
   .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .terms-check{ display:flex; align-items:flex-start; gap:9px; text-align:left; font-size: 12px; color: var(--muted-strong); line-height:1.5; margin: 2px 0 12px; cursor:pointer; }
+  .terms-check span{ flex:1; min-width:0; }
+  .auth-card .terms-check input{ width:18px; height:18px; padding:0; margin: 2px 0 0; flex-shrink:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
+  .terms-check a, .legal-footer a{ color: var(--theme-soft); }
+  .legal-footer{ text-align:center; font-size: 11px; color: var(--muted); margin: 18px 0 6px; line-height: 1.7; }
+  .admin-biz{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 12px; }
+  .admin-biz.suspended{ border-color: var(--loss); }
+  .admin-biz .admin-name{ font-weight:700; color: var(--text); font-size: 13px; }
+  .admin-biz .admin-meta{ color: var(--muted); margin-top: 3px; overflow-wrap:anywhere; }
+  .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
+  .admin-biz.suspended .admin-status{ color: var(--loss); }
+  .auth-divider{ border-top: 1.5px solid var(--line-soft); margin: 18px 0 14px; }
   .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
   /* Role buttons: Business Owner is blue (owner/admin), Salesperson is light neutral with
      a blue accent. Both stay fully coloured when unselected so neither looks disabled;
@@ -503,10 +515,33 @@
       <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
       <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
       <button class="calc-history-clear" id="authForgot" type="button" style="margin-top:12px; font-size:12px;">Forgot password?</button>
+      <div class="auth-divider"></div>
+      <div class="auth-msg">New business owner?</div>
+      <button class="pdfbtn" id="showSignup" type="button" style="margin-top:8px;">Create a business account</button>
+      <div class="hint" style="text-align:center; margin-top:8px;">Salespeople don't create accounts — your business owner adds you.</div>
+    </form>
+    <form id="signupForm" style="display:none;" autocomplete="on">
+      <div class="auth-msg" style="margin-bottom:12px;"><strong>Create a business account</strong><br>For business owners only. You'll get your own private ledger and can add your salespeople from Settings.</div>
+      <input type="text" id="signupBizName" placeholder="Business name" autocomplete="organization" required />
+      <input type="text" id="signupOwnerName" placeholder="Your name" autocomplete="name" required />
+      <input type="email" id="signupEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
+      <input type="password" id="signupPassword" placeholder="Password (6+ characters)" autocomplete="new-password" required />
+      <label class="terms-check"><input type="checkbox" id="signupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+      <button class="addbtn" id="signupSubmit" type="submit">Create business account</button>
+      <button class="calc-history-clear" id="showSignin" type="button" style="margin-top:12px; font-size:12px;">Already have an account? Sign in</button>
+    </form>
+    <form id="setupForm" style="display:none;">
+      <div class="auth-msg" style="margin-bottom:12px;" id="setupIntro"></div>
+      <input type="text" id="setupBizName" placeholder="Business name" autocomplete="organization" required />
+      <input type="text" id="setupOwnerName" placeholder="Your name" autocomplete="name" required />
+      <label class="terms-check"><input type="checkbox" id="setupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+      <button class="addbtn" id="setupSubmit" type="submit">Create my business</button>
+      <button class="calc-history-clear" id="setupSignOut" type="button" style="margin-top:12px; font-size:12px;">Sign out</button>
     </form>
     <div id="authBlocked" class="auth-msg" style="display:none;"></div>
     <button class="pdfbtn" id="authBlockedSignOut" type="button" style="display:none;">Sign out</button>
     <div class="status" id="authStatus"></div>
+    <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved<br><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
   </div>
 </div>
 <div class="wrap" id="appWrap" style="display:none;">
@@ -815,6 +850,17 @@
 
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
+      <div id="adminSection" style="display:none;">
+        <h3>Platform admin · all businesses</h3>
+        <div class="hint">Only you see this. Suspending a business shuts its owner and salespeople out straight away; restoring lets them back in. You see who signed up, not their transactions.</div>
+        <button class="pdfbtn" id="adminRefreshBtn" type="button">Load businesses</button>
+        <div class="status" id="adminStatus"></div>
+        <div id="adminList"></div>
+      </div>
+
+      <h3>Business</h3>
+      <div class="field"><label>Business name</label><input type="text" id="bizNameInput" autocomplete="off" placeholder="Business name" /></div>
+
       <h3>Team</h3>
       <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name. After removing someone you can delete them permanently, which takes them off this list for good.</div>
       <div id="teamInputs"></div>
@@ -831,6 +877,13 @@
           <div class="field" style="margin-top:8px;"><label>User UID</label><input type="text" id="newStaffUid" autocomplete="off" placeholder="e.g. LDtRV9smFf…" /></div>
           <button class="pdfbtn" id="addStaffByUidBtn" type="button" style="margin-top:0;">Add by UID</button>
         </details>
+      </div>
+
+      <div id="legacySection" style="display:none;">
+        <h3>Old ledger (before businesses)</h3>
+        <div class="hint">Your ledger from before the switch to separate businesses is kept untouched as a backup. If a phone was still on the old version and logged something there, this copies across anything missing. Nothing gets duplicated or overwritten.</div>
+        <button class="pdfbtn" id="legacyRecopyBtn" type="button">Copy missing entries from the old ledger</button>
+        <div class="status" id="legacyStatus"></div>
       </div>
 
       <div id="importSection" style="display:none;">
@@ -917,6 +970,8 @@
   </div>
 
   </div>
+
+  <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved · <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
 
 </div>
 
@@ -1665,7 +1720,7 @@
     // Only the owner's changes reach the shared settings; Firebase rejects anyone else's.
     // Not awaited: offline, the write waits in the queue and uploads on reconnect.
     if(fb && role === 'owner'){
-      fb.setDoc(fb.doc(fb.db, 'settings', 'shop'), { json, updatedAt: fb.serverTimestamp() })
+      fb.setDoc(bdoc('settings', 'shop'), { json, updatedAt: fb.serverTimestamp() })
         .catch(err => setStatus('Settings not saved online: ' + err.message, 'error'));
     }
   }
@@ -3265,21 +3320,31 @@
     appId: '1:185353398694:web:aa6f147856d3a5dba5c767'
   };
   const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/13.1.0/';
-  // Must match the owner UID in firestore.rules. Salespeople aren't listed here: they're the
-  // documents in the Firestore `staff` collection, which the owner manages from Settings → Team
-  // and which the rules check on every request.
-  const OWNER_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
+  // Every business lives under businesses/{owner's UID}: its transactions, settings and
+  // staff are subcollections there, and users/{uid} tells a salesperson's login which
+  // business they belong to. The rules keep each business's data to its own members.
+  // LEGACY_OWNER_UID is the original single-business owner, whose data still sits in the
+  // old top-level collections; it's moved into their business the first time they sign in.
+  const LEGACY_OWNER_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
+  // The platform admin: can list every business and suspend or restore one. Must match
+  // isAdmin() in firestore.rules.
+  const PLATFORM_ADMIN_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
+  // Bump when terms.html / privacy.html change materially; stored with each acceptance.
+  const TERMS_VERSION = '2026-10-27';
+  const SUSPENDED_MSG = 'This business account has been suspended, so its ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
   // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
   // Older entries are fetched once per session, only when All Time or an older Custom range
   // is picked, which keeps daily reads well inside Firebase's free allowance.
   const RECENT_DAYS = 35;
 
   let fb = null;
+  let bizId = null;   // the signed-in person's business (= its owner's UID)
+  let bizName = '';
+  let pendingSignup = null; // { bizName, ownerName } while a new owner's account is being created
   let currentUser = null;
   let role = null; // 'owner' | 'staff'
   let teamNames = {};
   let teamMembers = {}; // uid -> { name, email, active }
-  let accessUnsub = null;
   let recentTx = [];
   let olderTx = [];
   let olderState = 'idle'; // 'idle' | 'loading' | 'loaded'
@@ -3287,11 +3352,13 @@
   let pendingUploads = 0;
 
   function dayKey(d){ return toDateInputValue(d); }
+  function bcol(name){ return fb.collection(fb.db, 'businesses', bizId, name); }
+  function bdoc(name, id){ return fb.doc(fb.db, 'businesses', bizId, name, id); }
   function staffUids(){
-    return Object.keys(teamMembers).filter(uid => uid !== OWNER_UID)
+    return Object.keys(teamMembers).filter(uid => uid !== bizId)
       .sort((a,b) => nameFor(a).localeCompare(nameFor(b)));
   }
-  function nameFor(uid, savedName){ return teamNames[uid] || savedName || (uid === OWNER_UID ? 'Owner' : 'Salesperson'); }
+  function nameFor(uid, savedName){ return teamNames[uid] || savedName || (uid === bizId ? 'Owner' : 'Salesperson'); }
   function recentSinceISO(){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - RECENT_DAYS);
     return d.toISOString();
@@ -3329,7 +3396,7 @@
 
   function startTxListener(){
     if(txUnsub){ txUnsub(); txUnsub = null; }
-    const col = fb.collection(fb.db, 'transactions');
+    const col = bcol('transactions');
     // Owner and salesperson both see the whole shop's transactions (the salesperson
     // sends the daily report); what they can change differs, and the rules enforce that.
     const q = fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
@@ -3345,7 +3412,7 @@
   async function loadOlderTransactions(){
     olderState = 'loading';
     try{
-      const q = fb.query(fb.collection(fb.db, 'transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
+      const q = fb.query(bcol('transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
       const snap = await fb.getDocs(q);
       olderTx = snap.docs.map(docToTx);
       olderState = 'loaded';
@@ -3358,7 +3425,7 @@
   }
 
   function startSettingsListener(){
-    settingsUnsub = fb.onSnapshot(fb.doc(fb.db, 'settings', 'shop'), (snap)=>{
+    settingsUnsub = fb.onSnapshot(bdoc('settings', 'shop'), (snap)=>{
       if(snap.metadata.hasPendingWrites) return; // our own edit echoing back
       if(!snap.exists()){
         // First run: publish the owner's current rates so the salesperson's phone uses them.
@@ -3377,7 +3444,7 @@
   }
 
   function startTeamListener(){
-    teamUnsub = fb.onSnapshot(fb.collection(fb.db, 'staff'), (snap)=>{
+    teamUnsub = fb.onSnapshot(bcol('staff'), (snap)=>{
       teamNames = {}; teamMembers = {};
       snap.forEach(d=>{
         const data = d.data() || {};
@@ -3393,8 +3460,8 @@
   }
 
   function stopListeners(){
-    [txUnsub, settingsUnsub, teamUnsub, accessUnsub].forEach(u => { if(u) u(); });
-    txUnsub = settingsUnsub = teamUnsub = accessUnsub = null;
+    [txUnsub, settingsUnsub, teamUnsub].forEach(u => { if(u) u(); });
+    txUnsub = settingsUnsub = teamUnsub = null;
   }
 
   function cloudAddTx(tx){
@@ -3407,21 +3474,21 @@
     });
     // Not awaited: offline, this resolves only once uploaded. The live listener shows the
     // entry straight away either way.
-    fb.setDoc(fb.doc(fb.db, 'transactions', tx.id), payload)
+    fb.setDoc(bdoc('transactions', tx.id), payload)
       .catch(err => setStatus('Not saved: ' + err.message, 'error'));
   }
 
   // "Delete" never erases: it marks the entry deleted, so the owner can still see it.
   function cloudSoftDelete(ids){
     const batch = fb.writeBatch(fb.db);
-    ids.forEach(id => batch.update(fb.doc(fb.db, 'transactions', id), {
+    ids.forEach(id => batch.update(bdoc('transactions', id), {
       deleted: true, deletedAt: fb.serverTimestamp(), deletedBy: currentUser.uid
     }));
     batch.commit().catch(err => setStatus('Could not delete: ' + err.message, 'error'));
     markLocal(ids, { deleted: true, deletedBy: currentUser.uid, deletedAtMs: Date.now() });
   }
   function cloudRestore(id){
-    fb.updateDoc(fb.doc(fb.db, 'transactions', id), { deleted: false, deletedAt: null, deletedBy: null })
+    fb.updateDoc(bdoc('transactions', id), { deleted: false, deletedAt: null, deletedBy: null })
       .catch(err => setStatus('Could not restore: ' + err.message, 'error'));
     markLocal([id], { deleted: false, deletedBy: null, deletedAtMs: null });
   }
@@ -3437,17 +3504,20 @@
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
     const roleLabel = role === 'owner' ? 'Owner' : 'Salesperson';
     const name = teamNames[currentUser.uid];
-    $('#whoLabel').textContent = name ? `${name} · ${roleLabel}` : roleLabel;
+    const who = name ? `${name} · ${roleLabel}` : roleLabel;
+    $('#whoLabel').textContent = bizName ? `${bizName} · ${who}` : who;
+    const bizInput = $('#bizNameInput');
+    if(bizInput && document.activeElement !== bizInput) bizInput.value = bizName;
   }
 
   function renderTeamUI(){
     const el = $('#teamInputs');
     if(!el || role !== 'owner') return;
     if(el.querySelector('input:focus')) return; // don't wipe a name being typed
-    const members = [OWNER_UID].concat(staffUids());
+    const members = [bizId].concat(staffUids());
     el.innerHTML = members.map(uid=>{
       const m = teamMembers[uid] || { name: '', email: '', active: true };
-      const isOwnerRow = uid === OWNER_UID;
+      const isOwnerRow = uid === bizId;
       const meta = isOwnerRow ? '' : `<div class="team-meta">${escapeHtml(m.email || 'no email saved')}${m.active ? '' : ' · <span class="removed-tag">access removed</span>'}</div>
         <div class="team-actions">
           ${m.email ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
@@ -3459,14 +3529,14 @@
       inp.value = teamNames[inp.dataset.uid] || '';
       inp.addEventListener('change', ()=>{
         // merge, so renaming never touches someone's access or email
-        fb.setDoc(fb.doc(fb.db, 'staff', inp.dataset.uid), { name: inp.value.trim() }, { merge: true })
+        fb.setDoc(bdoc('staff', inp.dataset.uid), { name: inp.value.trim() }, { merge: true })
           .catch(err => setStatus('Name not saved: ' + err.message, 'error'));
       });
     });
     el.querySelectorAll('.team-remove').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         armTapTwice(btn, 'Remove access', 'Tap again to remove', ()=>{
-          fb.updateDoc(fb.doc(fb.db, 'staff', btn.dataset.uid), { active: false, removedAt: fb.serverTimestamp() })
+          fb.updateDoc(bdoc('staff', btn.dataset.uid), { active: false, removedAt: fb.serverTimestamp() })
             .catch(err => setStatus('Could not remove: ' + err.message, 'error'));
         });
       });
@@ -3474,14 +3544,17 @@
     el.querySelectorAll('.team-delete').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         armTapTwice(btn, 'Delete permanently', 'Tap again to delete', ()=>{
-          fb.deleteDoc(fb.doc(fb.db, 'staff', btn.dataset.uid))
-            .catch(err => setStatus('Could not delete: ' + err.message, 'error'));
+          // Removes them from this business and frees their login to be added elsewhere.
+          const batch = fb.writeBatch(fb.db);
+          batch.delete(bdoc('staff', btn.dataset.uid));
+          batch.delete(fb.doc(fb.db, 'users', btn.dataset.uid));
+          batch.commit().catch(err => setStatus('Could not delete: ' + err.message, 'error'));
         });
       });
     });
     el.querySelectorAll('.team-restore').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        fb.updateDoc(fb.doc(fb.db, 'staff', btn.dataset.uid), { active: true, removedAt: null })
+        fb.updateDoc(bdoc('staff', btn.dataset.uid), { active: true, removedAt: null })
           .catch(err => setStatus('Could not restore: ' + err.message, 'error'));
       });
     });
@@ -3499,6 +3572,7 @@
   function addStaffError(err){
     const code = (err && err.code) || '';
     if(code === 'auth/email-already-in-use') return 'That email already has a login. If you removed them before, tap "Restore access" on their row; otherwise use "They already have a login?" below.';
+    if(code === 'permission-denied') return 'That login already belongs to another business, so it can\'t be added here.';
     if(code === 'auth/weak-password') return 'The password must be at least 6 characters.';
     if(code === 'auth/invalid-email') return "That email address doesn't look right.";
     if(code === 'auth/network-request-failed') return 'No internet connection — connect and try again.';
@@ -3507,7 +3581,13 @@
   }
 
   async function grantStaffAccess(uid, name, email){
-    await fb.setDoc(fb.doc(fb.db, 'staff', uid), { name, email: email || '', active: true, addedAt: fb.serverTimestamp() }, { merge: true });
+    // Two writes together: their place in this business's team, and the users/{uid} pointer
+    // their login uses to find this business. The rules refuse the pointer if the login
+    // already belongs to a different business.
+    const batch = fb.writeBatch(fb.db);
+    batch.set(bdoc('staff', uid), { name, email: email || '', active: true, addedAt: fb.serverTimestamp() }, { merge: true });
+    batch.set(fb.doc(fb.db, 'users', uid), { businessId: bizId, role: 'staff' });
+    await batch.commit();
   }
 
   $('#addStaffBtn').addEventListener('click', async ()=>{
@@ -3546,13 +3626,13 @@
     const st = $('#addStaffStatus');
     st.className = 'status error';
     if(!uid || !name){ st.textContent = 'Enter their name above and paste their User UID.'; return; }
-    if(uid === OWNER_UID || /[\/\s]/.test(uid)){ st.textContent = "That UID doesn't look right."; return; }
+    if(uid === bizId || /[\/\s]/.test(uid)){ st.textContent = "That UID doesn't look right."; return; }
     try{
       await grantStaffAccess(uid, name, email);
       st.className = 'status deepgreen';
       st.textContent = `${name} added ✓`;
       $('#newStaffUid').value = ''; $('#newStaffName').value = ''; $('#newStaffEmail').value = '';
-    }catch(err){ st.textContent = 'Could not add: ' + err.message; }
+    }catch(err){ st.textContent = addStaffError(err); }
   });
 
   function renderLoggedByFilter(){
@@ -3560,11 +3640,11 @@
     // People whose access was removed drop out of the filter; their entries still count
     // under Everyone.
     const staff = staffUids().filter(uid => teamMembers[uid].active);
-    if(state.loggedByFilter !== 'All' && state.loggedByFilter !== OWNER_UID && !staff.includes(state.loggedByFilter)){
+    if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)){
       state.loggedByFilter = 'All';
     }
     if(!role || staff.length === 0){ el.style.display = 'none'; return; }
-    const opts = [['All', 'Everyone']].concat([OWNER_UID].concat(staff).map(uid => [uid, nameFor(uid)]));
+    const opts = [['All', 'Everyone']].concat([bizId].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
     el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');
     el.querySelectorAll('button').forEach(btn=>{
@@ -3602,7 +3682,7 @@
         list.slice(i, i + BATCH).forEach(tx=>{
           const id = String(tx.id);
           // Same id as on the phone, so uploading twice overwrites instead of duplicating.
-          batch.set(fb.doc(fb.db, 'transactions', id), Object.assign({}, tx, {
+          batch.set(bdoc('transactions', id), Object.assign({}, tx, {
             id, loggedBy: currentUser.uid, loggedByName: nameFor(currentUser.uid),
             day: dayKey(new Date(tx.date)), deleted: false, createdAt: fb.serverTimestamp(), imported: true
           }));
@@ -3631,6 +3711,9 @@
     $('#authGate').style.display = '';
     $('#authLoading').style.display = mode === 'loading' ? '' : 'none';
     $('#authForm').style.display = mode === 'form' ? '' : 'none';
+    $('#signupForm').style.display = mode === 'signup' ? '' : 'none';
+    $('#setupForm').style.display = mode === 'setup' ? '' : 'none';
+    $('#authRole').closest('.auth-card').querySelector('#authSub').style.display = (mode === 'form') ? '' : 'none';
     $('#authBlocked').style.display = mode === 'blocked' ? '' : 'none';
     $('#authBlockedSignOut').style.display = mode === 'blocked' ? '' : 'none';
     if(mode === 'loading') $('#authLoading').textContent = message || 'Connecting…';
@@ -3639,6 +3722,7 @@
 
   function onAuthChange(user){
     stopListeners();
+    stopAccessListeners();
     currentUser = user;
     recentTx = []; olderTx = []; olderState = 'idle'; transactions = [];
     teamNames = {}; teamMembers = {}; pendingUploads = 0;
@@ -3658,30 +3742,153 @@
       }
       return;
     }
-    role = null; settingsUnlocked = false;
-    if(user.uid === OWNER_UID){ enterApp('owner'); return; }
-    // Salespeople: allowed only while the owner's Team list has them as active. The rules
-    // refuse this read for anyone who isn't, and the listener stays on so removing someone
-    // signs them out straight away.
+    role = null; settingsUnlocked = false; bizId = null; bizName = '';
+    findBusiness(user);
+  }
+
+  const REMOVED_MSG = 'Your access to this ledger has been removed. Ask the owner if this is a mistake.';
+  let accessUnsubs = [];
+  function stopAccessListeners(){ accessUnsubs.forEach(u => u()); accessUnsubs = []; }
+
+  // Works out who this login is: the owner of businesses/{uid}, a salesperson listed in
+  // users/{uid}, or neither yet (a new owner finishing setup, or someone not added).
+  function findBusiness(user){
+    stopAccessListeners();
     showGate('loading', 'Checking access…');
-    const blockedMsg = `This account (${user.email || user.uid}) doesn't have access to this ledger. Ask the owner to add it in Settings → Team.`;
-    accessUnsub = fb.onSnapshot(fb.doc(fb.db, 'staff', user.uid), (snap)=>{
+    let decided = false;
+    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', user.uid), { includeMetadataChanges: true }, (snap)=>{
+      if(snap.exists() && snap.data().suspended){
+        // The phone's saved copy may be out of date (e.g. just restored): when online, wait
+        // for Firebase's live answer before locking anyone out.
+        if(snap.metadata.fromCache && navigator.onLine) return;
+        decided = true; lockOut(SUSPENDED_MSG); return;
+      }
+      if(snap.exists()){
+        decided = true;
+        bizId = user.uid;
+        bizName = (snap.data().name || '').trim();
+        if(role !== 'owner') enterApp('owner'); else updateWhoLabel();
+        return;
+      }
+      if(decided) return;
+      if(snap.metadata.fromCache && !navigator.onLine){ showGate('loading', 'No internet connection — connect once to finish signing in.'); return; }
+      if(pendingSignup) return; // their business is being created right now
+      decided = true;
+      findStaffBusiness(user);
+    }, ()=> { if(!decided){ decided = true; findStaffBusiness(user); } }));
+  }
+
+  function findStaffBusiness(user){
+    const notAddedMsg = `This account (${user.email || user.uid}) doesn't have access to a ledger. Ask your business owner to add it in Settings → Team.`;
+    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'users', user.uid), async (snap)=>{
+      if(!snap.exists()){
+        if(snap.metadata.fromCache && !navigator.onLine){ showGate('loading', 'No internet connection — connect once to finish signing in.'); return; }
+        if(user.uid === LEGACY_OWNER_UID){ if(!rejectLoginMismatch('owner')) showSetup(true); return; }
+        // Someone on the original ledger whose owner hasn't moved it across yet.
+        try{
+          const legacy = await fb.getDoc(fb.doc(fb.db, 'staff', user.uid));
+          if(legacy.exists()){ lockOut('Your business is moving to the new version of the ledger. Ask the owner to sign in once to finish, then sign in again.'); return; }
+        }catch(e){}
+        if(loginIntent === 'staff'){ lockOut(notAddedMsg); return; }
+        showSetup(false); // an owner whose sign-up didn't finish
+        return;
+      }
+      const b = snap.data().businessId;
+      watchStaffAccess(user, b);
+    }, ()=> lockOut(notAddedMsg)));
+  }
+
+  function watchStaffAccess(user, b){
+    const notAddedMsg = `This account (${user.email || user.uid}) doesn't have access to this ledger. Ask the owner to add it in Settings → Team.`;
+    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', b, 'staff', user.uid), async (snap)=>{
       if(snap.exists() && snap.data().active !== false){
-        if(role !== 'staff') enterApp('staff');
+        if(role !== 'staff'){
+          bizId = b;
+          try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); bizName = ((biz.data() || {}).name || '').trim(); }catch(e){}
+          enterApp('staff');
+        }
         return;
       }
-      if(!snap.exists() && snap.metadata.fromCache){
-        showGate('loading', 'No internet connection — connect once to finish signing in.');
-        return;
-      }
-      lockOut(role === 'staff' ? 'Your access to this ledger has been removed. Ask the owner if this is a mistake.' : blockedMsg);
-    }, ()=>{
-      lockOut(role === 'staff' ? 'Your access to this ledger has been removed. Ask the owner if this is a mistake.' : blockedMsg);
+      if(!snap.exists() && snap.metadata.fromCache && !navigator.onLine){ showGate('loading', 'No internet connection — connect once to finish signing in.'); return; }
+      lockOut(role === 'staff' ? REMOVED_MSG : notAddedMsg);
+    }, async ()=>{
+      // Denied: either they were removed, or the whole business was suspended.
+      let suspended = false;
+      try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); suspended = !!(biz.exists() && biz.data().suspended); }catch(e){}
+      lockOut(suspended ? SUSPENDED_MSG : (role === 'staff' ? REMOVED_MSG : notAddedMsg));
+    }));
+    // Live: if the business is suspended mid-shift, lock them out.
+    accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', b), { includeMetadataChanges: true }, (snap)=>{
+      if(snap.exists() && snap.data().suspended && !(snap.metadata.fromCache && navigator.onLine)) lockOut(SUSPENDED_MSG);
+    }, ()=>{}));
+  }
+
+  function showSetup(isLegacy){
+    showGate('setup');
+    $('#setupIntro').innerHTML = isLegacy
+      ? '<strong>Name your business</strong><br>The ledger now supports separate businesses. Name yours, and everything you have now — transactions, settings and your team — moves into it. The old copy is kept as a backup.'
+      : '<strong>Finish setting up your business</strong><br>Your account was created but your business wasn\'t. Name it to continue.';
+    $('#setupForm').dataset.legacy = isLegacy ? '1' : '';
+    $('#setupSubmit').textContent = isLegacy ? 'Create my business and move my ledger' : 'Create my business';
+    $('#setupOwnerName').value = $('#setupOwnerName').value || '';
+  }
+
+  // Creates businesses/{uid} last, so the app opens only once everything is in place.
+  async function createBusiness(name, ownerName, statusEl, isLegacy){
+    // termsAcceptedAt must be the server time of this write (the rules check it).
+    const uid = currentUser.uid;
+    bizId = uid;
+    const legacy = isLegacy ? await moveLegacyLedger(statusEl, false) : null;
+    // One batch: the business itself, its settings and team, and each salesperson's
+    // users/{uid} pointer (the rules only accept those for a business that exists).
+    const batch = fb.writeBatch(fb.db);
+    if(legacy){
+      if(statusEl) statusEl.textContent = 'Moving settings and team…';
+      if(legacy.settings) batch.set(fb.doc(fb.db, 'businesses', uid, 'settings', 'shop'), legacy.settings);
+      legacy.staff.forEach(d=>{
+        batch.set(fb.doc(fb.db, 'businesses', uid, 'staff', d.id), d.data(), { merge: true });
+        if(d.id !== uid) batch.set(fb.doc(fb.db, 'users', d.id), { businessId: uid, role: 'staff' });
+      });
+    }
+    batch.set(fb.doc(fb.db, 'businesses', uid, 'staff', uid), { name: ownerName, email: currentUser.email || '' }, { merge: true });
+    batch.set(fb.doc(fb.db, 'businesses', uid), {
+      name, ownerUid: uid, ownerEmail: currentUser.email || '', createdAt: fb.serverTimestamp(),
+      termsAcceptedAt: fb.serverTimestamp(), termsVersion: TERMS_VERSION
     });
+    await batch.commit();
+  }
+
+  // Copies the original single-business ledger (top-level collections) into the owner's
+  // business. Same document ids, so nothing duplicates; with onlyMissing it leaves alone
+  // anything already copied, so later changes (like a delete) aren't overwritten.
+  async function moveLegacyLedger(statusEl, onlyMissing){
+    const uid = currentUser.uid;
+    const say = (t) => { if(statusEl){ statusEl.className = 'status'; statusEl.textContent = t; } };
+    say('Reading your current ledger…');
+    const [txSnap, staffSnap, settingsSnap] = await Promise.all([
+      fb.getDocs(fb.collection(fb.db, 'transactions')),
+      fb.getDocs(fb.collection(fb.db, 'staff')),
+      fb.getDoc(fb.doc(fb.db, 'settings', 'shop'))
+    ]);
+    let existing = new Set();
+    if(onlyMissing){
+      const have = await fb.getDocs(fb.collection(fb.db, 'businesses', uid, 'transactions'));
+      existing = new Set(have.docs.map(d => d.id));
+    }
+    const docs = txSnap.docs.filter(d => !existing.has(d.id));
+    const BATCH = 400;
+    for(let i = 0; i < docs.length; i += BATCH){
+      const batch = fb.writeBatch(fb.db);
+      docs.slice(i, i + BATCH).forEach(d => batch.set(fb.doc(fb.db, 'businesses', uid, 'transactions', d.id), d.data()));
+      say(`Moving transactions… ${Math.min(i + BATCH, docs.length)} of ${docs.length}`);
+      await batch.commit();
+    }
+    return { copied: docs.length, staff: staffSnap.docs, settings: settingsSnap.exists() ? settingsSnap.data() : null };
   }
 
   function lockOut(message){
     stopListeners();
+    stopAccessListeners();
     role = null; settingsUnlocked = false;
     recentTx = []; olderTx = []; transactions = [];
     delete document.body.dataset.role;
@@ -3701,6 +3908,8 @@
     renderTeamUI();
     renderLoggedByFilter();
     renderImportUI();
+    renderLegacyUI();
+    renderAdminUI();
     startSettingsListener();
     startTeamListener();
     startTxListener();
@@ -3775,6 +3984,157 @@
     }
   });
 
+  $('#showSignup').addEventListener('click', ()=>{ $('#authStatus').textContent = ''; showGate('signup'); });
+  $('#showSignin').addEventListener('click', ()=>{ $('#authStatus').textContent = ''; showGate('form'); });
+  $('#setupSignOut').addEventListener('click', ()=>{ if(fb) fb.signOut(fb.auth); });
+
+  function signupErrorMessage(err){
+    const code = (err && err.code) || '';
+    if(code === 'auth/email-already-in-use') return 'That email already has an account — go back and sign in instead.';
+    if(code === 'auth/weak-password') return 'The password must be at least 6 characters.';
+    if(code === 'auth/invalid-email') return "That email address doesn't look right.";
+    if(code === 'auth/network-request-failed') return 'No internet connection — connect and try again.';
+    if(code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') return 'New accounts are switched off in Firebase (Authentication → Settings → User actions → Enable create).';
+    return (err && err.message) || 'Could not create the account.';
+  }
+
+  // Business owners only: creates their login, then their business. Salespeople are
+  // added by their owner instead, so this never creates a salesperson.
+  $('#signupForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!fb) return;
+    const name = $('#signupBizName').value.trim();
+    const ownerName = $('#signupOwnerName').value.trim();
+    const email = $('#signupEmail').value.trim();
+    const password = $('#signupPassword').value;
+    const st = $('#authStatus');
+    if(!name || !ownerName || !email || !password){ st.className = 'status error'; st.textContent = 'Fill in all four boxes.'; return; }
+    if(!$('#signupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
+    const btn = $('#signupSubmit');
+    btn.disabled = true;
+    st.className = 'status';
+    st.textContent = 'Creating your account…';
+    pendingSignup = { name, ownerName };
+    loginIntent = 'owner';
+    try{
+      await fb.createUserWithEmailAndPassword(fb.auth, email, password);
+      st.textContent = 'Setting up your business…';
+      await createBusiness(name, ownerName, st, false);
+      $('#signupPassword').value = '';
+      st.textContent = '';
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = signupErrorMessage(err);
+      showGate(currentUser ? 'setup' : 'signup');
+      if(currentUser) showSetup(false);
+    }finally{
+      pendingSignup = null;
+      btn.disabled = false;
+      if(currentUser && !role) findBusiness(currentUser);
+    }
+  });
+
+  $('#setupForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!fb || !currentUser) return;
+    const name = $('#setupBizName').value.trim();
+    const ownerName = $('#setupOwnerName').value.trim();
+    const st = $('#authStatus');
+    if(!name || !ownerName){ st.className = 'status error'; st.textContent = 'Enter your business name and your name.'; return; }
+    if(!$('#setupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
+    const btn = $('#setupSubmit');
+    btn.disabled = true;
+    pendingSignup = { name, ownerName };
+    try{
+      await createBusiness(name, ownerName, st, $('#setupForm').dataset.legacy === '1');
+      st.textContent = '';
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = 'Could not finish: ' + err.message + ' — tap the button to try again.';
+    }finally{
+      pendingSignup = null;
+      btn.disabled = false;
+      if(!role) findBusiness(currentUser);
+    }
+  });
+
+  function renderAdminUI(){
+    $('#adminSection').style.display = (role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID) ? '' : 'none';
+  }
+  const adminDateFormat = new Intl.DateTimeFormat('en-NG', { day:'numeric', month:'short', year:'numeric' });
+  async function loadAdminList(){
+    const st = $('#adminStatus');
+    const list = $('#adminList');
+    st.className = 'status'; st.textContent = 'Loading…';
+    try{
+      const snap = await fb.getDocs(fb.collection(fb.db, 'businesses'));
+      const rows = await Promise.all(snap.docs.map(async d=>{
+        const data = d.data() || {};
+        let email = data.ownerEmail || '';
+        let ownerName = '';
+        try{
+          const o = await fb.getDoc(fb.doc(fb.db, 'businesses', d.id, 'staff', d.id));
+          if(o.exists()){ ownerName = o.data().name || ''; email = email || o.data().email || ''; }
+        }catch(e){}
+        const created = data.createdAt && data.createdAt.toDate ? adminDateFormat.format(data.createdAt.toDate()) : '—';
+        return { id: d.id, name: data.name || '(no name)', ownerName, email, created, suspended: !!data.suspended, createdMs: data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0 };
+      }));
+      rows.sort((a,b)=> b.createdMs - a.createdMs);
+      list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended ? ' suspended' : ''}">
+        <div class="admin-name">${escapeHtml(r.name)}${r.id === PLATFORM_ADMIN_UID ? ' (you)' : ''}</div>
+        <div class="admin-meta">${escapeHtml(r.ownerName || 'Owner')} · ${escapeHtml(r.email || 'no email')} · created ${r.created}</div>
+        <div class="admin-meta">Status: <span class="admin-status">${r.suspended ? 'Suspended' : 'Active'}</span></div>
+        ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${r.suspended
+          ? `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
+          : `<button type="button" class="admin-suspend danger" data-id="${r.id}">Suspend business</button>`}</div>`}
+      </div>`).join('');
+      st.textContent = `${rows.length} business${rows.length === 1 ? '' : 'es'}`;
+      list.querySelectorAll('.admin-suspend').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          armTapTwice(btn, 'Suspend business', 'Tap again to suspend', async ()=>{
+            try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: true, suspendedAt: fb.serverTimestamp() }); loadAdminList(); }
+            catch(err){ st.className = 'status error'; st.textContent = 'Could not suspend: ' + err.message; }
+          });
+        });
+      });
+      list.querySelectorAll('.admin-restore').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: false, suspendedAt: null }); loadAdminList(); }
+          catch(err){ st.className = 'status error'; st.textContent = 'Could not restore: ' + err.message; }
+        });
+      });
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = 'Could not load businesses: ' + err.message;
+    }
+  }
+  $('#adminRefreshBtn').addEventListener('click', ()=>{ $('#adminRefreshBtn').textContent = 'Refresh list'; loadAdminList(); });
+
+  function renderLegacyUI(){
+    $('#legacySection').style.display = (role === 'owner' && currentUser && currentUser.uid === LEGACY_OWNER_UID) ? '' : 'none';
+  }
+  $('#legacyRecopyBtn').addEventListener('click', async ()=>{
+    const st = $('#legacyStatus');
+    const btn = $('#legacyRecopyBtn');
+    btn.disabled = true;
+    try{
+      const n = (await moveLegacyLedger(st, true)).copied;
+      st.className = 'status deepgreen';
+      st.textContent = n ? `Copied ${n} missing entr${n === 1 ? 'y' : 'ies'} ✓` : 'Nothing missing — everything is already here ✓';
+      olderTx = []; olderState = 'idle'; render();
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = 'Could not copy: ' + err.message;
+    }finally{ btn.disabled = false; }
+  });
+
+  $('#bizNameInput').addEventListener('change', ()=>{
+    const v = $('#bizNameInput').value.trim();
+    if(!v || !fb || role !== 'owner') return;
+    fb.updateDoc(fb.doc(fb.db, 'businesses', bizId), { name: v })
+      .catch(err => setStatus('Business name not saved: ' + err.message, 'error'));
+  });
+
   $('#authForgot').addEventListener('click', async ()=>{
     if(!fb) return;
     const st = $('#authStatus');
@@ -3828,6 +4188,7 @@
         onAuthStateChanged: authMod.onAuthStateChanged,
         signInWithEmailAndPassword: authMod.signInWithEmailAndPassword,
         signOut: authMod.signOut,
+        createUserWithEmailAndPassword: authMod.createUserWithEmailAndPassword,
         sendPasswordResetEmail: authMod.sendPasswordResetEmail,
         // Creates a login on a throwaway in-memory instance and returns its UID.
         createLogin: async (email, password)=>{
@@ -3842,7 +4203,7 @@
           return uid;
         },
         collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
-        orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs,
+        orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs, getDoc: fsMod.getDoc,
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc, writeBatch: fsMod.writeBatch,
         serverTimestamp: fsMod.serverTimestamp
       };
