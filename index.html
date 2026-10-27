@@ -438,6 +438,18 @@
   .log-left .byline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:600; }
   .log-left .deleted-note{ font-size: 11px; color: var(--loss); margin-top: 3px; font-weight:700; }
   .log-right .restore{ background:none; border:none; color: var(--profit); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:600; }
+  .team-row{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 12px 10px; margin-top: 10px; }
+  .team-row.removed{ opacity: 0.6; }
+  .team-row .field{ margin: 0; }
+  .team-meta{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 8px; overflow-wrap:anywhere; }
+  .team-meta .removed-tag{ color: var(--loss); font-weight:700; }
+  .team-actions{ display:flex; justify-content:center; gap: 14px; flex-wrap:wrap; margin-top: 6px; }
+  .team-actions button{ background:none; border:none; padding: 2px 0; font-family:'Inter',sans-serif; font-size: 11.5px; font-weight:600; text-decoration: underline; cursor:pointer; color: var(--muted-strong); }
+  .team-actions button.danger{ color: var(--loss); }
+  .team-actions button.armed{ color: var(--loss); font-weight:800; }
+  .team-add{ border: 1.5px dashed var(--line-soft); border-radius: var(--radius-sm); padding: 12px; margin-top: 12px; }
+  .team-add .field{ margin-bottom: 10px; }
+  .team-add-title{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:700; text-align:center; margin-bottom: 8px; }
   #loggedByFilter{ grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
   #loggedByFilter button.active{ border-color: var(--accent); color:#ffffff; background: var(--accent); }
   .disclaimer{ font-size: 11px; color: var(--muted); line-height: 1.65; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
@@ -453,6 +465,7 @@
       <input type="email" id="authEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
       <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
       <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
+      <button class="calc-history-clear" id="authForgot" type="button" style="margin-top:12px; font-size:12px;">Forgot password?</button>
     </form>
     <div id="authBlocked" class="auth-msg" style="display:none;"></div>
     <button class="pdfbtn" id="authBlockedSignOut" type="button" style="display:none;">Sign out</button>
@@ -764,8 +777,22 @@
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
       <h3>Team</h3>
-      <div class="hint">Names shown next to each transaction. Only you (the owner) can change these, and they're stored in your Firebase, not in the app's public code.</div>
+      <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name.</div>
       <div id="teamInputs"></div>
+      <div class="team-add">
+        <div class="team-add-title">Add a salesperson</div>
+        <div class="field"><label>Name</label><input type="text" id="newStaffName" autocomplete="off" placeholder="e.g. Ada Obi" /></div>
+        <div class="field"><label>Email (their login)</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" placeholder="e.g. ada@gmail.com" /></div>
+        <div class="field"><label>Starting password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this; they can reset it any time" /></div>
+        <button class="addbtn" id="addStaffBtn" type="button">Add salesperson</button>
+        <div class="status" id="addStaffStatus"></div>
+        <details style="margin-top:8px;">
+          <summary class="hint" style="cursor:pointer; text-align:center;">They already have a login?</summary>
+          <div class="hint">Find their <strong>User UID</strong> in Firebase → Authentication → Users, and paste it here with their name above.</div>
+          <div class="field" style="margin-top:8px;"><label>User UID</label><input type="text" id="newStaffUid" autocomplete="off" placeholder="e.g. LDtRV9smFf…" /></div>
+          <button class="pdfbtn" id="addStaffByUidBtn" type="button" style="margin-top:0;">Add by UID</button>
+        </details>
+      </div>
 
       <div id="importSection" style="display:none;">
         <h3>Old records on this phone</h3>
@@ -3188,9 +3215,10 @@
     appId: '1:185353398694:web:aa6f147856d3a5dba5c767'
   };
   const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/13.1.0/';
-  // Must match the UIDs in firestore.rules. Adding a salesperson = add their UID in both.
+  // Must match the owner UID in firestore.rules. Salespeople aren't listed here: they're the
+  // documents in the Firestore `staff` collection, which the owner manages from Settings → Team
+  // and which the rules check on every request.
   const OWNER_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
-  const STAFF_UIDS = ['LDtRV9smFfdcudaBjiWixXyyg9A2'];
   // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
   // Older entries are fetched once per session, only when All Time or an older Custom range
   // is picked, which keeps daily reads well inside Firebase's free allowance.
@@ -3200,6 +3228,8 @@
   let currentUser = null;
   let role = null; // 'owner' | 'staff'
   let teamNames = {};
+  let teamMembers = {}; // uid -> { name, email, active }
+  let accessUnsub = null;
   let recentTx = [];
   let olderTx = [];
   let olderState = 'idle'; // 'idle' | 'loading' | 'loaded'
@@ -3207,6 +3237,10 @@
   let pendingUploads = 0;
 
   function dayKey(d){ return toDateInputValue(d); }
+  function staffUids(){
+    return Object.keys(teamMembers).filter(uid => uid !== OWNER_UID)
+      .sort((a,b) => nameFor(a).localeCompare(nameFor(b)));
+  }
   function nameFor(uid){ return teamNames[uid] || (uid === OWNER_UID ? 'Owner' : 'Salesperson'); }
   function recentSinceISO(){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - RECENT_DAYS);
@@ -3294,10 +3328,12 @@
 
   function startTeamListener(){
     teamUnsub = fb.onSnapshot(fb.collection(fb.db, 'staff'), (snap)=>{
-      teamNames = {};
+      teamNames = {}; teamMembers = {};
       snap.forEach(d=>{
-        const n = ((d.data() || {}).name || '').trim();
+        const data = d.data() || {};
+        const n = (data.name || '').trim();
         if(n) teamNames[d.id] = n;
+        teamMembers[d.id] = { name: n, email: data.email || '', active: data.active !== false };
       });
       updateWhoLabel();
       renderTeamUI();
@@ -3307,8 +3343,8 @@
   }
 
   function stopListeners(){
-    [txUnsub, settingsUnsub, teamUnsub].forEach(u => { if(u) u(); });
-    txUnsub = settingsUnsub = teamUnsub = null;
+    [txUnsub, settingsUnsub, teamUnsub, accessUnsub].forEach(u => { if(u) u(); });
+    txUnsub = settingsUnsub = teamUnsub = accessUnsub = null;
   }
 
   function cloudAddTx(tx){
@@ -3358,24 +3394,114 @@
     const el = $('#teamInputs');
     if(!el || role !== 'owner') return;
     if(el.querySelector('input:focus')) return; // don't wipe a name being typed
-    const members = [OWNER_UID].concat(STAFF_UIDS);
-    el.innerHTML = members.map((uid, i)=>{
-      const label = uid === OWNER_UID ? 'You (owner)' : 'Salesperson' + (STAFF_UIDS.length > 1 ? ' ' + i : '');
-      return `<div class="field"><label>${label}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>`;
+    const members = [OWNER_UID].concat(staffUids());
+    el.innerHTML = members.map(uid=>{
+      const m = teamMembers[uid] || { name: '', email: '', active: true };
+      const isOwnerRow = uid === OWNER_UID;
+      const meta = isOwnerRow ? '' : `<div class="team-meta">${escapeHtml(m.email || 'no email saved')}${m.active ? '' : ' · <span class="removed-tag">access removed</span>'}</div>
+        <div class="team-actions">
+          ${m.email ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
+          ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button>`}
+        </div>`;
+      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (owner)' : 'Salesperson'}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
     }).join('');
     el.querySelectorAll('.team-name-input').forEach(inp=>{
       inp.value = teamNames[inp.dataset.uid] || '';
       inp.addEventListener('change', ()=>{
-        fb.setDoc(fb.doc(fb.db, 'staff', inp.dataset.uid), { name: inp.value.trim() })
+        // merge, so renaming never touches someone's access or email
+        fb.setDoc(fb.doc(fb.db, 'staff', inp.dataset.uid), { name: inp.value.trim() }, { merge: true })
           .catch(err => setStatus('Name not saved: ' + err.message, 'error'));
+      });
+    });
+    el.querySelectorAll('.team-remove').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        armTapTwice(btn, 'Remove access', 'Tap again to remove', ()=>{
+          fb.updateDoc(fb.doc(fb.db, 'staff', btn.dataset.uid), { active: false, removedAt: fb.serverTimestamp() })
+            .catch(err => setStatus('Could not remove: ' + err.message, 'error'));
+        });
+      });
+    });
+    el.querySelectorAll('.team-restore').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        fb.updateDoc(fb.doc(fb.db, 'staff', btn.dataset.uid), { active: true, removedAt: null })
+          .catch(err => setStatus('Could not restore: ' + err.message, 'error'));
+      });
+    });
+    el.querySelectorAll('.team-reset').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const m = teamMembers[btn.dataset.uid];
+        try{
+          await fb.sendPasswordResetEmail(fb.auth, m.email);
+          btn.textContent = 'Reset email sent ✓';
+        }catch(err){ btn.textContent = 'Could not send — ' + ((err && err.code) || 'error'); }
       });
     });
   }
 
+  function addStaffError(err){
+    const code = (err && err.code) || '';
+    if(code === 'auth/email-already-in-use') return 'That email already has a login. If you removed them before, tap "Restore access" on their row; otherwise use "They already have a login?" below.';
+    if(code === 'auth/weak-password') return 'The password must be at least 6 characters.';
+    if(code === 'auth/invalid-email') return "That email address doesn't look right.";
+    if(code === 'auth/network-request-failed') return 'No internet connection — connect and try again.';
+    if(code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') return 'Firebase is blocking new logins: in Firebase → Authentication → Settings → User actions, turn on "Enable create (sign-up)".';
+    return (err && err.message) || 'Could not add.';
+  }
+
+  async function grantStaffAccess(uid, name, email){
+    await fb.setDoc(fb.doc(fb.db, 'staff', uid), { name, email: email || '', active: true, addedAt: fb.serverTimestamp() }, { merge: true });
+  }
+
+  $('#addStaffBtn').addEventListener('click', async ()=>{
+    if(!fb || role !== 'owner') return;
+    const name = $('#newStaffName').value.trim();
+    const email = $('#newStaffEmail').value.trim();
+    const password = $('#newStaffPassword').value;
+    const st = $('#addStaffStatus');
+    st.className = 'status error';
+    if(!name || !email || !password){ st.textContent = 'Enter their name, email and a starting password.'; return; }
+    const btn = $('#addStaffBtn');
+    btn.disabled = true;
+    st.className = 'status';
+    st.textContent = 'Creating their login…';
+    try{
+      // A separate, in-memory Firebase instance creates the account, so the owner stays
+      // signed in here (creating a user on the main instance would switch to that user).
+      const uid = await fb.createLogin(email, password);
+      await grantStaffAccess(uid, name, email);
+      st.className = 'status deepgreen';
+      st.textContent = `${name} added ✓ They can sign in now with ${email} and the password you set.`;
+      $('#newStaffName').value = ''; $('#newStaffEmail').value = ''; $('#newStaffPassword').value = '';
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = addStaffError(err);
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  $('#addStaffByUidBtn').addEventListener('click', async ()=>{
+    if(!fb || role !== 'owner') return;
+    const uid = $('#newStaffUid').value.trim();
+    const name = $('#newStaffName').value.trim();
+    const email = $('#newStaffEmail').value.trim();
+    const st = $('#addStaffStatus');
+    st.className = 'status error';
+    if(!uid || !name){ st.textContent = 'Enter their name above and paste their User UID.'; return; }
+    if(uid === OWNER_UID || /[\/\s]/.test(uid)){ st.textContent = "That UID doesn't look right."; return; }
+    try{
+      await grantStaffAccess(uid, name, email);
+      st.className = 'status deepgreen';
+      st.textContent = `${name} added ✓`;
+      $('#newStaffUid').value = ''; $('#newStaffName').value = ''; $('#newStaffEmail').value = '';
+    }catch(err){ st.textContent = 'Could not add: ' + err.message; }
+  });
+
   function renderLoggedByFilter(){
     const el = $('#loggedByFilter');
-    if(!role || STAFF_UIDS.length === 0){ el.style.display = 'none'; return; }
-    const opts = [['All', 'Everyone']].concat([OWNER_UID].concat(STAFF_UIDS).map(uid => [uid, nameFor(uid)]));
+    const staff = staffUids();
+    if(!role || staff.length === 0){ el.style.display = 'none'; return; }
+    const opts = [['All', 'Everyone']].concat([OWNER_UID].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
     el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');
     el.querySelectorAll('button').forEach(btn=>{
@@ -3452,7 +3578,7 @@
     stopListeners();
     currentUser = user;
     recentTx = []; olderTx = []; olderState = 'idle'; transactions = [];
-    teamNames = {}; pendingUploads = 0;
+    teamNames = {}; teamMembers = {}; pendingUploads = 0;
     hideSettingsPanels();
     if(!user){
       role = null; settingsUnlocked = false;
@@ -3460,12 +3586,38 @@
       showGate('form');
       return;
     }
-    role = user.uid === OWNER_UID ? 'owner' : (STAFF_UIDS.includes(user.uid) ? 'staff' : null);
-    if(!role){
-      settingsUnlocked = false;
-      showGate('blocked', `This account (${user.email || user.uid}) isn't set up for this ledger yet. Ask the owner to add it.`);
-      return;
-    }
+    role = null; settingsUnlocked = false;
+    if(user.uid === OWNER_UID){ enterApp('owner'); return; }
+    // Salespeople: allowed only while the owner's Team list has them as active. The rules
+    // refuse this read for anyone who isn't, and the listener stays on so removing someone
+    // signs them out straight away.
+    showGate('loading', 'Checking access…');
+    const blockedMsg = `This account (${user.email || user.uid}) doesn't have access to this ledger. Ask the owner to add it in Settings → Team.`;
+    accessUnsub = fb.onSnapshot(fb.doc(fb.db, 'staff', user.uid), (snap)=>{
+      if(snap.exists() && snap.data().active !== false){
+        if(role !== 'staff') enterApp('staff');
+        return;
+      }
+      if(!snap.exists() && snap.metadata.fromCache){
+        showGate('loading', 'No internet connection — connect once to finish signing in.');
+        return;
+      }
+      lockOut(role === 'staff' ? 'Your access to this ledger has been removed. Ask the owner if this is a mistake.' : blockedMsg);
+    }, ()=>{
+      lockOut(role === 'staff' ? 'Your access to this ledger has been removed. Ask the owner if this is a mistake.' : blockedMsg);
+    });
+  }
+
+  function lockOut(message){
+    stopListeners();
+    role = null; settingsUnlocked = false;
+    recentTx = []; olderTx = []; transactions = [];
+    delete document.body.dataset.role;
+    showGate('blocked', message);
+  }
+
+  function enterApp(newRole){
+    role = newRole;
     document.body.dataset.role = role;
     settingsUnlocked = role === 'owner';
     state.loggedByFilter = 'All';
@@ -3510,6 +3662,21 @@
     }
   });
 
+  $('#authForgot').addEventListener('click', async ()=>{
+    if(!fb) return;
+    const st = $('#authStatus');
+    const email = $('#authEmail').value.trim();
+    if(!email){ st.className = 'status error'; st.textContent = 'Type your email above first, then tap "Forgot password?".'; return; }
+    try{
+      await fb.sendPasswordResetEmail(fb.auth, email);
+      st.className = 'status deepgreen';
+      st.textContent = `If ${email} has a login, a reset link is on its way. Check your inbox and spam folder.`;
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = (err && err.code) === 'auth/network-request-failed' ? 'No internet connection — connect and try again.' : "Couldn't send the reset email — check the address.";
+    }
+  });
+
   $('#signOutBtn').addEventListener('click', ()=>{
     if(pendingUploads > 0){
       setStatus(`${pendingUploads} transaction${pendingUploads === 1 ? '' : 's'} not uploaded yet — connect to the internet before signing out.`, 'error');
@@ -3538,7 +3705,8 @@
         db = fsMod.initializeFirestore(app, { ignoreUndefinedProperties: true });
       }
       // ?emulator=1 points the page at a local Firebase emulator, for testing only.
-      if(new URLSearchParams(location.search).get('emulator') === '1'){
+      const useEmulator = new URLSearchParams(location.search).get('emulator') === '1';
+      if(useEmulator){
         authMod.connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
         fsMod.connectFirestoreEmulator(db, '127.0.0.1', 8080);
       }
@@ -3547,6 +3715,19 @@
         onAuthStateChanged: authMod.onAuthStateChanged,
         signInWithEmailAndPassword: authMod.signInWithEmailAndPassword,
         signOut: authMod.signOut,
+        sendPasswordResetEmail: authMod.sendPasswordResetEmail,
+        // Creates a login on a throwaway in-memory instance and returns its UID.
+        createLogin: async (email, password)=>{
+          const spare = appMod.getApps().find(a => a.name === 'create-login') || appMod.initializeApp(FIREBASE_CONFIG, 'create-login');
+          let spareAuth;
+          try{ spareAuth = authMod.initializeAuth(spare, { persistence: authMod.inMemoryPersistence }); }
+          catch(e){ spareAuth = authMod.getAuth(spare); }
+          if(useEmulator && !spareAuth.emulatorConfig) authMod.connectAuthEmulator(spareAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+          const cred = await authMod.createUserWithEmailAndPassword(spareAuth, email, password);
+          const uid = cred.user.uid;
+          await authMod.signOut(spareAuth);
+          return uid;
+        },
         collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
         orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs,
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, writeBatch: fsMod.writeBatch,
