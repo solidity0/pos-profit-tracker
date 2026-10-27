@@ -1,14 +1,16 @@
 // Firestore security rules for the Ledger app.
 // Paste into Firebase console > Firestore Database > Rules, then Publish.
-// To add a salesperson: put their Authentication UID in isStaff() here AND in
-// STAFF_UIDS in index.html.
+// Salespeople are managed in the app (Settings -> Team): each one is a document in the
+// `staff` collection, and they have access while that document isn't marked inactive.
+// Only the owner can write that collection, so only the owner can grant access.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
     function isOwner()  { return signedIn() && request.auth.uid == '0xxeZTLlaAeTzTgpezc58hwDxXp2'; }
-    function isStaff()  { return signedIn() && request.auth.uid in ['LDtRV9smFfdcudaBjiWixXyyg9A2']; }
+    function staffDoc() { return /databases/$(database)/documents/staff/$(request.auth.uid); }
+    function isStaff()  { return signedIn() && exists(staffDoc()) && get(staffDoc()).data.get('active', true) == true; }
     function isMember() { return isOwner() || isStaff(); }
 
     match /transactions/{txId} {
@@ -42,7 +44,7 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
-    // Team names: everyone reads, only the owner changes.
+    // Team list (who has access, and their names): everyone reads, only the owner changes.
     match /staff/{uid} {
       allow read: if isMember();
       allow write: if isOwner();
