@@ -409,6 +409,7 @@
   .card.has-clear{ position:relative; }
   .clearbtn{ background:none; border: 1.5px solid var(--line); color: var(--muted); font-family: 'Inter', sans-serif; font-weight:600; font-size: 11px; padding: 6px 13px; border-radius: 20px; cursor:pointer; transition: all 0.15s; flex-shrink:0; white-space:nowrap; }
   .clearbtn:hover{ border-color: var(--loss); color: var(--loss); }
+  .clearbtn.sharebtn:hover{ border-color: var(--theme); color: var(--theme-soft); }
   .clearbtn.armed, .clearbtn.armed:hover{ background: var(--loss); border-color: var(--loss); color: #1A0E0E; }
   .status{ font-size: 11px; color: var(--muted); text-align:center; margin-top: 6px; min-height: 15px; font-weight:500; }
   .status.error{ color: var(--loss); font-weight:700; }
@@ -659,6 +660,8 @@
     </button>
     <div id="logContent" class="scroll-panel" style="display:none;">
       <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
+      <button class="clearbtn sharebtn" id="logSharePdfBtn" type="button" style="display:none;">Share PDF</button>
+      <div class="status" id="logPdfStatus"></div>
       <div id="logList"></div>
       <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
     </div>
@@ -777,7 +780,7 @@
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
       <h3>Team</h3>
-      <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name.</div>
+      <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name. After removing someone you can delete them permanently, which takes them off this list for good.</div>
       <div id="teamInputs"></div>
       <div class="team-add">
         <div class="team-add-title">Add a salesperson</div>
@@ -2754,14 +2757,16 @@
 
     const LOCK_HTML = `${eyeOffSvg}<span class="lock-dots">••••</span>`;
     $('#sumCustomerFee').textContent = fmt(sumCustomer);
-    $('#sumBaseFee').innerHTML = settingsUnlocked ? '−' + fmt(sumBase) : LOCK_HTML;
-    $('#sumVat').innerHTML = settingsUnlocked ? '−' + fmt(sumVat) : LOCK_HTML;
-    $('#sumStamp').innerHTML = settingsUnlocked ? '−' + fmt(sumStamp) : LOCK_HTML;
+    $('#sumBaseFee').textContent = '−' + fmt(sumBase);
+    // Fee, VAT and stamp duty totals are shown to everyone; only auto-save is owner-only.
+    $('#sumVat').textContent = '−' + fmt(sumVat);
+    $('#sumStamp').textContent = '−' + fmt(sumStamp);
     const netEl = $('#netProfit');
     netEl.textContent = fmt(sumNet);
     netEl.classList.toggle('neg', sumNet < 0);
     $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s') + (olderState === 'loading' && needsOlderTransactions() ? ' · loading older…' : '');
-    $('#sumAutosaveRow').style.display = sumAutosave > 0 ? 'flex' : 'none';
+    // Auto-save is the owner's own savings, so the salesperson doesn't see the row at all.
+    $('#sumAutosaveRow').style.display = (sumAutosave > 0 && settingsUnlocked) ? 'flex' : 'none';
     $('#sumAutosave').innerHTML = settingsUnlocked ? '−' + fmt(sumAutosave) : LOCK_HTML;
 
     // The log is the expensive part (one DOM row per transaction), so only build it while
@@ -2779,9 +2784,15 @@
   const logDateFormat = new Intl.DateTimeFormat('en-NG', {day:'numeric', month:'short', year:'numeric'});
   const logTimeFormat = new Intl.DateTimeFormat('en-NG', {hour:'numeric', minute:'2-digit', hour12:true});
 
+  // These two buttons get moved into the first date row on every render (and detached
+  // when the list is emptied), so hold on to them rather than looking them up each time.
+  const LOG_CLEAR_BTN = $('#clearLogBtn');
+  const LOG_SHARE_BTN = $('#logSharePdfBtn');
+
   function renderLog(){
     logNeedsRender = false;
-    const clearBtn = $('#clearLogBtn');
+    const clearBtn = LOG_CLEAR_BTN;
+    const shareBtn = LOG_SHARE_BTN;
     const logList = $('#logList');
     const allLogFiltered = getFilteredForLog();
     // Changing the period/provider filter starts the list over at the first page.
@@ -2793,6 +2804,7 @@
     if(logFiltered.length === 0){
       $('#emptyState').style.display = 'block';
       clearBtn.style.display = 'none';
+      shareBtn.style.display = 'none';
     } else {
       $('#emptyState').style.display = 'none';
       let lastDayKey = null;
@@ -2812,6 +2824,9 @@
             const sepRow = document.createElement('div');
             sepRow.className = 'log-date-sep-row';
             sepRow.appendChild(sep);
+            // Shares the same report as Performance Overview (current period and filters).
+            shareBtn.style.display = 'block';
+            sepRow.appendChild(shareBtn);
             clearBtn.style.display = 'block';
             sepRow.appendChild(clearBtn);
             logList.appendChild(sepRow);
@@ -2850,7 +2865,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy)));
+        if(t.loggedBy && !t.imported) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)));
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.createdAtMs && !t.pending && t.createdAtMs - d.getTime() > 10 * 60000) bylineParts.push('uploaded ' + logTimeFormat.format(new Date(t.createdAtMs)));
         if(t.pending) bylineParts.push('⏳ not uploaded yet');
@@ -3070,7 +3085,7 @@
 
       // Line 1.5: transaction type, directly under the provider name
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(30);
-      doc.text(typeLabel(t) + (t.loggedBy && !t.imported ? '  ·  by ' + nameFor(t.loggedBy) : ''), marginX, y);
+      doc.text(typeLabel(t) + (t.loggedBy && !t.imported ? '  ·  by ' + nameFor(t.loggedBy, t.loggedByName) : ''), marginX, y);
       y += 13;
 
       // Line 2: time, amount, and what was charged to the customer (wrapped)
@@ -3106,7 +3121,7 @@
       return;
     }
     pdfBtn.disabled = true;
-    const originalBtnLabel = pdfBtn.textContent;
+    const originalBtnLabel = pdfBtn.innerHTML;
     pdfBtn.textContent = 'Building…';
     try{
       const built = buildPdfDoc();
@@ -3119,19 +3134,17 @@
       setTimeout(()=>{ pdfStatus.textContent = ''; }, 4000);
     } finally {
       pdfBtn.disabled = false;
-      pdfBtn.textContent = originalBtnLabel;
+      pdfBtn.innerHTML = originalBtnLabel;
     }
   }
 
-  async function sharePdf(){
-    const pdfBtn = $('#sharePdfBtn');
-    const pdfStatus = $('#pdfStatus');
+  async function sharePdf(pdfBtn = $('#sharePdfBtn'), pdfStatus = $('#pdfStatus')){
     if(typeof window.jspdf === 'undefined'){
       pdfStatus.textContent = 'PDF library failed to load — check your connection and retry.';
       return;
     }
     pdfBtn.disabled = true;
-    const originalBtnLabel = pdfBtn.textContent;
+    const originalBtnLabel = pdfBtn.innerHTML;
     pdfBtn.textContent = 'Building…';
     try{
       const built = buildPdfDoc();
@@ -3159,12 +3172,13 @@
       }
     } finally {
       pdfBtn.disabled = false;
-      pdfBtn.textContent = originalBtnLabel;
+      pdfBtn.innerHTML = originalBtnLabel;
     }
   }
 
   $('#downloadPdfBtn').addEventListener('click', downloadPdf);
-  $('#sharePdfBtn').addEventListener('click', sharePdf);
+  $('#sharePdfBtn').addEventListener('click', ()=> sharePdf());
+  $('#logSharePdfBtn').addEventListener('click', ()=> sharePdf($('#logSharePdfBtn'), $('#logPdfStatus')));
 
   let lastKnownDate = new Date().toDateString();
   setInterval(()=>{
@@ -3241,7 +3255,7 @@
     return Object.keys(teamMembers).filter(uid => uid !== OWNER_UID)
       .sort((a,b) => nameFor(a).localeCompare(nameFor(b)));
   }
-  function nameFor(uid){ return teamNames[uid] || (uid === OWNER_UID ? 'Owner' : 'Salesperson'); }
+  function nameFor(uid, savedName){ return teamNames[uid] || savedName || (uid === OWNER_UID ? 'Owner' : 'Salesperson'); }
   function recentSinceISO(){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - RECENT_DAYS);
     return d.toISOString();
@@ -3401,7 +3415,7 @@
       const meta = isOwnerRow ? '' : `<div class="team-meta">${escapeHtml(m.email || 'no email saved')}${m.active ? '' : ' · <span class="removed-tag">access removed</span>'}</div>
         <div class="team-actions">
           ${m.email ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
-          ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button>`}
+          ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button><button type="button" class="team-delete danger" data-uid="${uid}">Delete permanently</button>`}
         </div>`;
       return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (owner)' : 'Salesperson'}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
     }).join('');
@@ -3418,6 +3432,14 @@
         armTapTwice(btn, 'Remove access', 'Tap again to remove', ()=>{
           fb.updateDoc(fb.doc(fb.db, 'staff', btn.dataset.uid), { active: false, removedAt: fb.serverTimestamp() })
             .catch(err => setStatus('Could not remove: ' + err.message, 'error'));
+        });
+      });
+    });
+    el.querySelectorAll('.team-delete').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        armTapTwice(btn, 'Delete permanently', 'Tap again to delete', ()=>{
+          fb.deleteDoc(fb.doc(fb.db, 'staff', btn.dataset.uid))
+            .catch(err => setStatus('Could not delete: ' + err.message, 'error'));
         });
       });
     });
@@ -3499,7 +3521,12 @@
 
   function renderLoggedByFilter(){
     const el = $('#loggedByFilter');
-    const staff = staffUids();
+    // People whose access was removed drop out of the filter; their entries still count
+    // under Everyone.
+    const staff = staffUids().filter(uid => teamMembers[uid].active);
+    if(state.loggedByFilter !== 'All' && state.loggedByFilter !== OWNER_UID && !staff.includes(state.loggedByFilter)){
+      state.loggedByFilter = 'All';
+    }
     if(!role || staff.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([OWNER_UID].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
@@ -3730,7 +3757,7 @@
         },
         collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
         orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs,
-        setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, writeBatch: fsMod.writeBatch,
+        setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc, writeBatch: fsMod.writeBatch,
         serverTimestamp: fsMod.serverTimestamp
       };
       fb.onAuthStateChanged(auth, onAuthChange);
