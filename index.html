@@ -429,7 +429,10 @@
   .auth-gate{ min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 24px 16px; }
   .auth-card{ width:100%; max-width: 360px; background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow-sm); text-align:center; }
   .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
-  .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+  .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .auth-role button{ background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); border-radius: var(--radius-sm); padding: 11px 6px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; cursor:pointer; }
+  .auth-role button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
   .auth-card input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family:'Inter',sans-serif; font-size: 16px; padding: 12px 13px; border-radius: var(--radius-sm); outline:none; margin-bottom: 10px; box-sizing: border-box; }
   .auth-card input:focus{ border-color: var(--theme); }
   .auth-card .status{ min-height: 18px; }
@@ -465,9 +468,13 @@
 <div class="auth-gate" id="authGate">
   <div class="auth-card">
     <h1>Ledger</h1>
-    <div class="auth-sub">Sign in to log and view transactions</div>
+    <div class="auth-sub" id="authSub">Sign in to log and view transactions</div>
     <div id="authLoading" class="auth-msg">Connecting…</div>
     <form id="authForm" style="display:none;" autocomplete="on">
+      <div class="auth-role" id="authRole">
+        <button type="button" data-val="owner">Business Owner</button>
+        <button type="button" data-val="staff">Salesperson</button>
+      </div>
       <input type="email" id="authEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
       <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
       <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
@@ -3616,6 +3623,11 @@
       role = null; settingsUnlocked = false;
       delete document.body.dataset.role;
       showGate('form');
+      if(loginMismatchMsg){
+        $('#authStatus').textContent = loginMismatchMsg;
+        $('#authStatus').className = 'status error';
+        loginMismatchMsg = '';
+      }
       return;
     }
     role = null; settingsUnlocked = false;
@@ -3649,6 +3661,7 @@
   }
 
   function enterApp(newRole){
+    if(rejectLoginMismatch(newRole)) return;
     role = newRole;
     document.body.dataset.role = role;
     settingsUnlocked = role === 'owner';
@@ -3674,9 +3687,43 @@
     return (err && err.message) || 'Sign-in failed.';
   }
 
+  // Business Owner / Salesperson choice on the sign-in screen. It doesn't grant anything —
+  // the account decides what someone can do — but signing in with the wrong one chosen is
+  // refused with a clear message, so nobody ends up confused about which login they used.
+  let loginChoice = 'owner';
+  let loginIntent = null;      // set only for a sign-in typed on this screen
+  let loginMismatchMsg = '';
+  try{ if(localStorage.getItem(LS_PREFIX + 'loginRole') === 'staff') loginChoice = 'staff'; }catch(e){}
+  function renderLoginChoice(){
+    $('#authRole').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.val === loginChoice));
+    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as the business owner' : 'Sign in as a salesperson';
+  }
+  $('#authRole').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      loginChoice = btn.dataset.val;
+      try{ localStorage.setItem(LS_PREFIX + 'loginRole', loginChoice); }catch(e){}
+      $('#authStatus').textContent = '';
+      renderLoginChoice();
+    });
+  });
+  renderLoginChoice();
+  // Returns true when the account doesn't match the option picked; signs it back out.
+  function rejectLoginMismatch(actualRole){
+    const intent = loginIntent;
+    loginIntent = null;
+    if(!intent || intent === actualRole) return false;
+    loginMismatchMsg = actualRole === 'owner'
+      ? 'This is the business owner login — choose "Business Owner" and sign in again.'
+      : 'This is a salesperson login — choose "Salesperson" and sign in again.';
+    fb.signOut(fb.auth);
+    return true;
+  }
+
   $('#authForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     if(!fb) return;
+    loginIntent = loginChoice;
+    loginMismatchMsg = '';
     const btn = $('#authSubmit');
     const st = $('#authStatus');
     btn.disabled = true;
