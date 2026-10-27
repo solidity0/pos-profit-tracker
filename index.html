@@ -3624,9 +3624,13 @@
       delete document.body.dataset.role;
       showGate('form');
       if(loginMismatchMsg){
+        // Keep their choice so they can just tap the other one.
         $('#authStatus').textContent = loginMismatchMsg;
         $('#authStatus').className = 'status error';
         loginMismatchMsg = '';
+      }else{
+        loginChoice = null; // signed out: the next person chooses afresh
+        renderLoginChoice();
       }
       return;
     }
@@ -3690,18 +3694,19 @@
   // Business Owner / Salesperson choice on the sign-in screen. It doesn't grant anything —
   // the account decides what someone can do — but signing in with the wrong one chosen is
   // refused with a clear message, so nobody ends up confused about which login they used.
-  let loginChoice = 'owner';
+  // Nothing is pre-selected or remembered: the person picks one every time they sign in.
+  let loginChoice = null;
   let loginIntent = null;      // set only for a sign-in typed on this screen
   let loginMismatchMsg = '';
-  try{ if(localStorage.getItem(LS_PREFIX + 'loginRole') === 'staff') loginChoice = 'staff'; }catch(e){}
   function renderLoginChoice(){
     $('#authRole').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.val === loginChoice));
-    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as the business owner' : 'Sign in as a salesperson';
+    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as the business owner'
+      : loginChoice === 'staff' ? 'Sign in as a salesperson'
+      : 'Choose how you are signing in';
   }
   $('#authRole').querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       loginChoice = btn.dataset.val;
-      try{ localStorage.setItem(LS_PREFIX + 'loginRole', loginChoice); }catch(e){}
       $('#authStatus').textContent = '';
       renderLoginChoice();
     });
@@ -3722,6 +3727,11 @@
   $('#authForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     if(!fb) return;
+    if(!loginChoice){
+      $('#authStatus').className = 'status error';
+      $('#authStatus').textContent = 'Choose Business Owner or Salesperson first.';
+      return;
+    }
     loginIntent = loginChoice;
     loginMismatchMsg = '';
     const btn = $('#authSubmit');
