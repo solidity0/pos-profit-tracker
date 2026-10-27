@@ -2942,9 +2942,8 @@
         const isCredit = t.type === 'Withdrawal';
         const iconClass = isCombo ? 'combo' : (isCredit ? 'in' : 'out');
         const iconSvg = isCombo ? (arrowDownSvg + arrowUpSvg) : (isCredit ? arrowDownSvg : arrowUpSvg);
-        const profitBlock = settingsUnlocked
-          ? `<div class="profit-label">${t.netProfit<0?'loss':'profit'}</div><div class="profit ${t.netProfit<0?'neg':''}">${fmt(t.netProfit)}</div>`
-          : `<div class="profit-locked">${eyeOffSvg}</div>`;
+        // Everyone on the team sees each entry's profit (or loss); the cost line stays owner-only.
+        const profitBlock = `<div class="profit-label">${t.netProfit<0?'loss':'profit'}</div><div class="profit ${t.netProfit<0?'neg':''}">${fmt(t.netProfit)}</div>`;
         const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
         const typeClass = isSameBankTitle ? providerColorClass : '';
