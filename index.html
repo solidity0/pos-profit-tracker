@@ -315,7 +315,12 @@
   .pdfbtn:disabled{ opacity:0.6; cursor:default; }
 
   .log-date-sep{ font-size: 13px; font-weight: 700; color: var(--muted); margin: 18px 0 6px; font-family: 'Space Grotesk', sans-serif; }
-  .log-date-sep-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 18px 0 6px; }
+  /* Three columns with equal outer sides, so the middle button (Share PDF) sits in the true
+     centre even though the date label and Clear are different widths. */
+  .log-date-sep-row{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:10px; margin: 18px 0 6px; }
+  .log-date-sep-row > :first-child{ justify-self:start; min-width:0; }
+  .log-date-sep-row > :last-child{ justify-self:end; }
+  #logPdfStatus:empty{ min-height:0; margin:0; }
   .log-date-sep-row .log-date-sep{ margin: 0; }
   .log-date-sep:first-child{ margin-top: 2px; }
   .log-day-group{ background: var(--surface-2); border-radius: var(--radius-sm); padding: 2px 14px; }
