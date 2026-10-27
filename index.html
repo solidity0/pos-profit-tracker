@@ -2762,6 +2762,8 @@
   }
 
   function matchesLoggedBy(t){
+    // A salesperson only ever works with their own entries (their phone only loads those).
+    if(role === 'staff') return !!currentUser && t.loggedBy === currentUser.uid;
     return state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter;
   }
 
@@ -3057,7 +3059,10 @@
     doc.text('Ledger — Daily Report', marginX, y);
     y += 22;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-    const headerLabel = `${periodLabel} · ${providerLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`;
+    // Whose entries this report covers: a salesperson's own, or the person the owner filtered to.
+    const reportPerson = role === 'staff' ? currentUser.uid : (state.loggedByFilter !== 'All' ? state.loggedByFilter : null);
+    const personLabel = reportPerson ? ` · by ${nameFor(reportPerson)}` : '';
+    const headerLabel = `${periodLabel} · ${providerLabel}${personLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`;
     drawSegments(doc, marginX, y, colorizeLabel(headerLabel, [90,90,90]));
     y += 26;
 
@@ -3397,22 +3402,35 @@
   function startTxListener(){
     if(txUnsub){ txUnsub(); txUnsub = null; }
     const col = bcol('transactions');
-    // Owner and salesperson both see the whole shop's transactions (the salesperson
-    // sends the daily report); what they can change differs, and the rules enforce that.
-    const q = fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
+    // The owner sees the whole business; a salesperson sees, and reports on, only what they
+    // logged. Their query must filter on loggedBy or the rules refuse it, and it needs the
+    // loggedBy + date index (firestore.indexes.json).
+    const q = role === 'staff'
+      ? fb.query(col, fb.where('loggedBy', '==', currentUser.uid), fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'))
+      : fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
     txUnsub = fb.onSnapshot(q, { includeMetadataChanges: true }, (snap)=>{
       recentTx = snap.docs.map(docToTx);
       pendingUploads = recentTx.filter(t => t.pending).length;
       mergeTransactions();
       updateSyncBadge();
       render();
-    }, (err)=>{ setStatus('Sync problem: ' + err.message, 'error'); });
+    }, (err)=>{ setStatus(syncErrorMessage(err), 'error'); });
+  }
+
+  function syncErrorMessage(err){
+    if(err && err.code === 'failed-precondition'){
+      $('#syncBadge').textContent = '⚠ setup needed';
+      return 'Your entries can\'t load yet: the business owner needs to finish a one-time database setup in Firebase (an index on transactions). Ask them.';
+    }
+    return 'Sync problem: ' + ((err && err.message) || 'unknown error');
   }
 
   async function loadOlderTransactions(){
     olderState = 'loading';
     try{
-      const q = fb.query(bcol('transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
+      const q = role === 'staff'
+        ? fb.query(bcol('transactions'), fb.where('loggedBy', '==', currentUser.uid), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'))
+        : fb.query(bcol('transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
       const snap = await fb.getDocs(q);
       olderTx = snap.docs.map(docToTx);
       olderState = 'loaded';
@@ -3643,7 +3661,7 @@
     if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)){
       state.loggedByFilter = 'All';
     }
-    if(!role || staff.length === 0){ el.style.display = 'none'; return; }
+    if(role !== 'owner' || staff.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([bizId].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
     el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');

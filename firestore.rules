@@ -42,8 +42,10 @@ service cloud.firestore {
       allow delete: if false;
 
       match /transactions/{txId} {
-        // The whole team sees the business's transactions (the salesperson sends the daily report).
-        allow read: if isMemberOf(b);
+        // The owner sees all of the business's transactions; a salesperson sees only the ones
+        // they logged themselves (their reports cover only their own work).
+        allow read: if (isOwnerOf(b) && bizActive(b))
+          || (isMemberOf(b) && isStaffOf(b) && resource.data.loggedBy == request.auth.uid);
 
         // The owner can write anything in their own business. A salesperson can log only
         // as themselves, stamped with the server's time.
