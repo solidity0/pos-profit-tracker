@@ -431,8 +431,32 @@
   .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
   .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 14px; }
   .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-  .auth-role button{ background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); border-radius: var(--radius-sm); padding: 11px 6px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; cursor:pointer; }
-  .auth-role button.active{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
+  /* Role buttons: Business Owner is blue (owner/admin), Salesperson is light neutral with
+     a blue accent. Both stay fully coloured when unselected so neither looks disabled;
+     the chosen one fills in and gets a check mark. */
+  .auth-role button{ --owner: #3B82F6; --staff: #F8FAFC; --staff-accent: #60A5FA;
+    border: 1.5px solid transparent; border-radius: var(--radius-sm); padding: 11px 6px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; cursor:pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s; -webkit-tap-highlight-color: transparent; }
+  .auth-role button:active{ transform: scale(0.98); }
+  .auth-role button:focus-visible{ outline: 2px solid var(--staff-accent); outline-offset: 2px; }
+  .auth-role button.active::before{ content: '✓'; margin-right: 6px; }
+
+  .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.14); border-color: var(--owner); color: #93C5FD; }
+  .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.24); color: #BFDBFE; }
+  .auth-role button[data-val="owner"].active{ background: var(--owner); border-color: var(--owner); color: #FFFFFF; box-shadow: 0 6px 18px -6px var(--owner); }
+
+  .auth-role button[data-val="staff"]{ background: rgba(248,250,252,0.13); border-color: rgba(248,250,252,0.8); color: var(--staff); }
+  .auth-role button[data-val="staff"]:hover{ background: rgba(248,250,252,0.2); border-color: var(--staff-accent); }
+  .auth-role button[data-val="staff"].active{ background: var(--staff); border-color: var(--staff-accent); color: #1E3A8A; box-shadow: 0 0 0 3px rgba(96,165,250,0.35); }
+  .auth-role button[data-val="staff"].active::before{ color: var(--staff-accent); }
+
+  /* Light theme: same roles, darker text so they read on a white card. */
+  [data-theme="day"] .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.10); color: #1D4ED8; }
+  [data-theme="day"] .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.18); color: #1E40AF; }
+  [data-theme="day"] .auth-role button[data-val="owner"].active{ background: var(--owner); color: #FFFFFF; }
+  [data-theme="day"] .auth-role button[data-val="staff"]{ background: var(--staff); border-color: #CBD5E1; color: #0F172A; }
+  [data-theme="day"] .auth-role button[data-val="staff"]:hover{ border-color: var(--staff-accent); background: #FFFFFF; }
+  [data-theme="day"] .auth-role button[data-val="staff"].active{ background: #FFFFFF; border-color: var(--staff-accent); color: #1E40AF; box-shadow: 0 0 0 3px rgba(96,165,250,0.30); }
   .auth-card input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family:'Inter',sans-serif; font-size: 16px; padding: 12px 13px; border-radius: var(--radius-sm); outline:none; margin-bottom: 10px; box-sizing: border-box; }
   .auth-card input:focus{ border-color: var(--theme); }
   .auth-card .status{ min-height: 18px; }
