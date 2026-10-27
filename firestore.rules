@@ -42,7 +42,8 @@ service cloud.firestore {
       allow delete: if false;
 
       match /transactions/{txId} {
-        // The whole team sees the business's transactions (the salesperson sends the daily report).
+        // The whole team sees the business's transactions in the Transaction Log; a
+        // salesperson's totals and reports cover only their own entries (done in the app).
         allow read: if isMemberOf(b);
 
         // The owner can write anything in their own business. A salesperson can log only

@@ -671,8 +671,8 @@
       <div class="autofee" id="overrideFeeRow">
         <label class="toggle"><input type="checkbox" id="overrideFee" /><span id="overrideFeeLabel">override fee (same bank transfer)</span></label>
       </div>
-      <label class="autobox-label owner-only">Total deducted from your balance (auto)</label>
-      <div class="autobox deduct owner-only">
+      <label class="autobox-label">Total deducted from your balance (auto)</label>
+      <div class="autobox deduct">
         <div class="total" id="machineTotal">₦0</div>
         <div class="breakdown" id="machineBreakdown">fee ₦0 · VAT ₦0 · stamp duty ₦0</div>
       </div>
@@ -2762,6 +2762,9 @@
   }
 
   function matchesLoggedBy(t){
+    // A salesperson's totals, volume and reports cover only their own entries (their
+    // Transaction Log still shows everyone's; see getFilteredForLog).
+    if(role === 'staff') return !!currentUser && t.loggedBy === currentUser.uid;
     return state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter;
   }
 
@@ -2781,7 +2784,8 @@
     return transactions.filter(t=>{
       const periodOk = isInPeriod(t.date, state.period);
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      return periodOk && provOk && matchesLoggedBy(t) && (role === 'owner' || !t.deleted);
+      // A salesperson's log shows everyone's entries; their reports stay their own.
+      return periodOk && provOk && (role === 'staff' || matchesLoggedBy(t)) && (role === 'owner' || !t.deleted);
     });
   }
 
@@ -2815,7 +2819,7 @@
     emptyEl.style.display = 'none';
     contentEl.style.display = 'block';
 
-    const inRange = transactions.filter(t => !t.deleted && isInPeriod(t.date, state.trendPeriod));
+    const inRange = transactions.filter(t => !t.deleted && isInPeriod(t.date, state.trendPeriod) && (role !== 'staff' || matchesLoggedBy(t)));
     let moneyIn = 0, moneyOut = 0;
     inRange.forEach(t=>{
       const amt = t.amount || 0;
@@ -3057,7 +3061,10 @@
     doc.text('Ledger — Daily Report', marginX, y);
     y += 22;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-    const headerLabel = `${periodLabel} · ${providerLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`;
+    // Whose entries this report covers: a salesperson's own, or the person the owner filtered to.
+    const reportPerson = role === 'staff' ? currentUser.uid : (state.loggedByFilter !== 'All' ? state.loggedByFilter : null);
+    const personLabel = reportPerson ? ` · by ${nameFor(reportPerson)}` : '';
+    const headerLabel = `${periodLabel} · ${providerLabel}${personLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`;
     drawSegments(doc, marginX, y, colorizeLabel(headerLabel, [90,90,90]));
     y += 26;
 
@@ -3397,8 +3404,8 @@
   function startTxListener(){
     if(txUnsub){ txUnsub(); txUnsub = null; }
     const col = bcol('transactions');
-    // Owner and salesperson both see the whole shop's transactions (the salesperson
-    // sends the daily report); what they can change differs, and the rules enforce that.
+    // Everyone in the business loads all of its entries: the Transaction Log shows them all,
+    // while a salesperson's totals and reports are narrowed to their own on screen.
     const q = fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
     txUnsub = fb.onSnapshot(q, { includeMetadataChanges: true }, (snap)=>{
       recentTx = snap.docs.map(docToTx);
@@ -3406,7 +3413,11 @@
       mergeTransactions();
       updateSyncBadge();
       render();
-    }, (err)=>{ setStatus('Sync problem: ' + err.message, 'error'); });
+    }, (err)=>{ setStatus(syncErrorMessage(err), 'error'); });
+  }
+
+  function syncErrorMessage(err){
+    return 'Sync problem: ' + ((err && err.message) || 'unknown error');
   }
 
   async function loadOlderTransactions(){
@@ -3643,7 +3654,7 @@
     if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)){
       state.loggedByFilter = 'All';
     }
-    if(!role || staff.length === 0){ el.style.display = 'none'; return; }
+    if(role !== 'owner' || staff.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([bizId].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
     el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');
