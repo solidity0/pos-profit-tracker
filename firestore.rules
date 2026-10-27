@@ -93,6 +93,24 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.businessId == request.auth.uid;
     }
 
+    // Username → login lookup, so salespeople can sign in with a username. Readable by exact
+    // name before signing in (never listable). A business owner can claim a free username for
+    // their own business, and only that business can change or release it.
+    match /usernames/{name} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && name.matches('^[a-z0-9][a-z0-9._-]{2,29}$')
+        && request.resource.data.keys().hasOnly(['email', 'businessId'])
+        && request.resource.data.businessId == request.auth.uid
+        && request.resource.data.email is string
+        && existsAfter(bizPath(request.auth.uid));
+      allow update: if signedIn() && resource.data.businessId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['email', 'businessId'])
+        && request.resource.data.businessId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.businessId == request.auth.uid;
+    }
+
     // ---- Original single-business ledger (before businesses) ----
     // Kept as a backup and so phones still on the old version keep working until they reload.
     // The original owner copies it into their business the first time they sign in.

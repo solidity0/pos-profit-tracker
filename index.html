@@ -511,7 +511,7 @@
         <button type="button" data-val="owner">Business Owner</button>
         <button type="button" data-val="staff">Salesperson</button>
       </div>
-      <input type="email" id="authEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
+      <input type="text" id="authEmail" placeholder="Email or username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required />
       <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
       <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
       <button class="calc-history-clear" id="authForgot" type="button" style="margin-top:12px; font-size:12px;">Forgot password?</button>
@@ -867,8 +867,10 @@
       <div class="team-add">
         <div class="team-add-title">Add a salesperson</div>
         <div class="field"><label>Name</label><input type="text" id="newStaffName" autocomplete="off" placeholder="e.g. Ada Obi" /></div>
-        <div class="field"><label>Email (their login)</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" placeholder="e.g. ada@gmail.com" /></div>
-        <div class="field"><label>Starting password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this; they can reset it any time" /></div>
+        <div class="field"><label>Email</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
+        <div class="field"><label>Username</label><input type="text" id="newStaffUsername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. ada" /></div>
+        <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email. Password reset links go to the email. Usernames are 3–30 letters, numbers, dots, dashes or underscores, and can't already be used on Ledger.</div>
+        <div class="field"><label>Password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this password" /></div>
         <button class="addbtn" id="addStaffBtn" type="button">Add salesperson</button>
         <div class="status" id="addStaffStatus"></div>
         <button class="pdfbtn" id="addStaffResetBtn" type="button" style="display:none; margin-top:6px;">Send them a password reset email</button>
@@ -970,6 +972,19 @@
     </div>
   </div>
 
+  </div>
+
+  <div class="card" id="passwordCard">
+    <button class="log-toggle" id="passwordToggle" type="button">
+      <span class="log-caret" id="passwordCaret">▶</span>
+      <span>Change my password</span>
+    </button>
+    <form id="passwordForm" style="display:none; margin-top:14px;">
+      <div class="field"><label>Current password</label><input type="password" id="pwCurrent" autocomplete="current-password" /></div>
+      <div class="field"><label>New password (6+ characters)</label><input type="password" id="pwNew" autocomplete="new-password" /></div>
+      <button class="addbtn" id="pwSubmit" type="submit">Change password</button>
+      <div class="status" id="pwStatus"></div>
+    </form>
   </div>
 
   <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved · <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
@@ -3338,6 +3353,26 @@
   const PLATFORM_ADMIN_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
   // Bump when terms.html / privacy.html change materially; stored with each acceptance.
   const TERMS_VERSION = '2026-10-27';
+  // Salespeople can have a username instead of an email. Firebase logins need an email, so a
+  // username is stored as username@STAFF_LOGIN_DOMAIN (this project's own Firebase domain,
+  // which receives no mail). Anything typed with an "@" is used as a normal email.
+  const STAFF_LOGIN_DOMAIN = 'ledger-3c7f0.firebaseapp.com';
+  const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,29}$/;
+  function isUsernameLogin(email){ return (email || '').toLowerCase().endsWith('@' + STAFF_LOGIN_DOMAIN); }
+  function displayLogin(email){ return isUsernameLogin(email) ? email.split('@')[0] : (email || ''); }
+  // usernames/{name} → { email, businessId }: lets a username sign in to whichever login it
+  // belongs to (a real email, or username@STAFF_LOGIN_DOMAIN). It can be read by exact name
+  // before signing in, but never listed; only the business that created it can change it.
+  async function resolveLogin(input){
+    const v = (input || '').trim();
+    if(v.includes('@')) return v;
+    const name = v.toLowerCase();
+    try{
+      const snap = await fb.getDoc(fb.doc(fb.db, 'usernames', name));
+      if(snap.exists() && snap.data().email) return snap.data().email;
+    }catch(e){}
+    return `${name}@${STAFF_LOGIN_DOMAIN}`;
+  }
   const SUSPENDED_MSG = 'This business account has been suspended, so its ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
   // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
   // Older entries are fetched once per session, only when All Time or an older Custom range
@@ -3461,7 +3496,7 @@
         const data = d.data() || {};
         const n = (data.name || '').trim();
         if(n) teamNames[d.id] = n;
-        teamMembers[d.id] = { name: n, email: data.email || '', active: data.active !== false };
+        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false };
       });
       updateWhoLabel();
       renderTeamUI();
@@ -3529,9 +3564,12 @@
     el.innerHTML = members.map(uid=>{
       const m = teamMembers[uid] || { name: '', email: '', active: true };
       const isOwnerRow = uid === bizId;
-      const meta = isOwnerRow ? '' : `<div class="team-meta">${escapeHtml(m.email || 'no email saved')}${m.active ? '' : ' · <span class="removed-tag">access removed</span>'}</div>
+      const loginBits = [];
+      if(m.username || isUsernameLogin(m.email)) loginBits.push('username: ' + (m.username || displayLogin(m.email)));
+      if(m.email && !isUsernameLogin(m.email)) loginBits.push(m.email);
+      const meta = isOwnerRow ? '' : `<div class="team-meta">${escapeHtml(loginBits.join(' · ') || 'no email saved')}${m.active ? '' : ' · <span class="removed-tag">access removed</span>'}</div>
         <div class="team-actions">
-          ${m.email ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
+          ${m.email && !isUsernameLogin(m.email) ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
           ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button><button type="button" class="team-delete danger" data-uid="${uid}">Delete permanently</button>`}
         </div>`;
       return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (owner)' : 'Salesperson'}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
@@ -3559,6 +3597,8 @@
           const batch = fb.writeBatch(fb.db);
           batch.delete(bdoc('staff', btn.dataset.uid));
           batch.delete(fb.doc(fb.db, 'users', btn.dataset.uid));
+          const uname = (teamMembers[btn.dataset.uid] || {}).username;
+          if(uname) batch.delete(fb.doc(fb.db, 'usernames', uname));
           batch.commit().catch(err => setStatus('Could not delete: ' + err.message, 'error'));
         });
       });
@@ -3583,7 +3623,7 @@
   function addStaffError(err){
     const code = (err && err.code) || '';
     if(code === 'auth/email-already-in-use') return 'That email already has a login. Enter the password they use, or tap "Restore access" on their row if they are only removed.';
-    if(code === 'permission-denied') return 'That login already belongs to another business, so it can\'t be added here.';
+    if(code === 'permission-denied') return 'That login (or username) already belongs to another business, so it can\'t be added here.';
     if(code === 'auth/weak-password') return 'The password must be at least 6 characters.';
     if(code === 'auth/invalid-email') return "That email address doesn't look right.";
     if(code === 'auth/network-request-failed') return 'No internet connection — connect and try again.';
@@ -3591,24 +3631,47 @@
     return (err && err.message) || 'Could not add.';
   }
 
-  async function grantStaffAccess(uid, name, email){
-    // Two writes together: their place in this business's team, and the users/{uid} pointer
-    // their login uses to find this business. The rules refuse the pointer if the login
-    // already belongs to a different business.
+  async function grantStaffAccess(uid, name, email, username){
+    // Written together: their place in this business's team, the users/{uid} pointer their
+    // login uses to find this business, and (if given) their username. The rules refuse the
+    // pointer if the login belongs to a different business, and the username if it's taken.
     const batch = fb.writeBatch(fb.db);
-    batch.set(bdoc('staff', uid), { name, email: email || '', active: true, addedAt: fb.serverTimestamp() }, { merge: true });
+    const staffData = { name, email: email || '', active: true, addedAt: fb.serverTimestamp() };
+    if(username) staffData.username = username;
+    batch.set(bdoc('staff', uid), staffData, { merge: true });
     batch.set(fb.doc(fb.db, 'users', uid), { businessId: bizId, role: 'staff' });
+    if(username) batch.set(fb.doc(fb.db, 'usernames', username), { email, businessId: bizId });
+    // Changing someone's username releases their old one.
+    const previous = (teamMembers[uid] || {}).username;
+    if(username && previous && previous !== username) batch.delete(fb.doc(fb.db, 'usernames', previous));
     await batch.commit();
   }
 
   $('#addStaffBtn').addEventListener('click', async ()=>{
     if(!fb || role !== 'owner') return;
     const name = $('#newStaffName').value.trim();
-    const email = $('#newStaffEmail').value.trim();
+    const realEmail = $('#newStaffEmail').value.trim();
+    const username = $('#newStaffUsername').value.trim().toLowerCase();
     const password = $('#newStaffPassword').value;
     const st = $('#addStaffStatus');
     st.className = 'status error';
-    if(!name || !email || !password){ st.textContent = 'Enter their name, email and a starting password.'; return; }
+    // Email is required (password resets go there); the username is their quick login.
+    if(!name || !realEmail || !username || !password){ st.textContent = 'Enter their name, email, username and a password.'; return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(realEmail)){ st.textContent = "That email address doesn't look right."; return; }
+    if(!USERNAME_RE.test(username)){
+      st.textContent = 'Usernames are 3–30 characters: letters, numbers, dots, dashes or underscores, starting with a letter or number.'; return;
+    }
+    const email = realEmail;
+    const shown = username;
+    if(username){
+      try{
+        const taken = await fb.getDoc(fb.doc(fb.db, 'usernames', username));
+        if(taken.exists() && (taken.data().businessId !== bizId || (taken.data().email || '').toLowerCase() !== email.toLowerCase())){
+          const suffix = (bizName || 'shop').toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,10) || 'shop';
+          st.textContent = `The username "${username}" is already taken. Choose a different one (for example ${username}.${suffix}).`; return;
+        }
+      }catch(e){}
+    }
     const btn = $('#addStaffBtn');
     const resetBtn = $('#addStaffResetBtn');
     btn.disabled = true;
@@ -3625,13 +3688,12 @@
         if(!err || err.code !== 'auth/email-already-in-use') throw err;
         // The email already has a login (e.g. someone deleted permanently and now re-added).
         // Signing in with it on the spare instance proves who it is and gives us its UID.
-        st.textContent = 'That email already has a login — checking it…';
+        st.textContent = 'That login already exists — checking it…';
         try{ uid = await fb.loginUid(email, password); existing = true; }
         catch(signInErr){
           const code = signInErr && signInErr.code;
           if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/invalid-login-credentials'){
-            resetBtn.dataset.email = email;
-            resetBtn.style.display = '';
+            resetBtn.dataset.email = email; resetBtn.style.display = '';
             const e2 = new Error(`That email already has a login, but not with this password. Enter the password they use now — or send them a reset email below, ask them to choose a new password, then add them again with it.`);
             e2.code = 'existing-login-wrong-password';
             throw e2;
@@ -3640,12 +3702,12 @@
         }
       }
       if(uid === bizId){ const e3 = new Error("That's your own login — it can't be added as a salesperson."); e3.code = 'own-login'; throw e3; }
-      await grantStaffAccess(uid, name, email);
+      await grantStaffAccess(uid, name, email, username);
       st.className = 'status deepgreen';
       st.textContent = existing
-        ? `${name} added back ✓ They can sign in with ${email} and their existing password.`
-        : `${name} added ✓ They can sign in now with ${email} and the password you set.`;
-      $('#newStaffName').value = ''; $('#newStaffEmail').value = ''; $('#newStaffPassword').value = '';
+        ? `${name} added back ✓ They can sign in with ${shown} and their existing password.`
+        : `${name} added ✓ They can sign in now with ${shown} and the password you set.`;
+      $('#newStaffName').value = ''; $('#newStaffEmail').value = ''; $('#newStaffUsername').value = ''; $('#newStaffPassword').value = '';
     }catch(err){
       st.className = 'status error';
       st.textContent = (err && (err.code === 'existing-login-wrong-password' || err.code === 'own-login')) ? err.message : addStaffError(err);
@@ -3823,7 +3885,7 @@
   }
 
   function findStaffBusiness(user){
-    const notAddedMsg = `This account (${user.email || user.uid}) doesn't have access to a ledger. Ask your business owner to add it in Settings → Team.`;
+    const notAddedMsg = `This account (${displayLogin(user.email) || user.uid}) doesn't have access to a ledger. Ask your business owner to add it in Settings → Team.`;
     accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'users', user.uid), async (snap)=>{
       if(!snap.exists()){
         if(snap.metadata.fromCache && !navigator.onLine){ showGate('loading', 'No internet connection — connect once to finish signing in.'); return; }
@@ -3843,7 +3905,7 @@
   }
 
   function watchStaffAccess(user, b){
-    const notAddedMsg = `This account (${user.email || user.uid}) doesn't have access to this ledger. Ask the owner to add it in Settings → Team.`;
+    const notAddedMsg = `This account (${displayLogin(user.email) || user.uid}) doesn't have access to this ledger. Ask the owner to add it in Settings → Team.`;
     accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', b, 'staff', user.uid), async (snap)=>{
       if(snap.exists() && snap.data().active !== false){
         if(role !== 'staff'){
@@ -4017,7 +4079,7 @@
     st.className = 'status';
     st.textContent = 'Signing in…';
     try{
-      await fb.signInWithEmailAndPassword(fb.auth, $('#authEmail').value.trim(), $('#authPassword').value);
+      await fb.signInWithEmailAndPassword(fb.auth, await resolveLogin($('#authEmail').value), $('#authPassword').value);
       $('#authPassword').value = '';
       st.textContent = '';
     }catch(err){
@@ -4184,6 +4246,15 @@
     const st = $('#authStatus');
     const email = $('#authEmail').value.trim();
     if(!email){ st.className = 'status error'; st.textContent = 'Type your email above first, then tap "Forgot password?".'; return; }
+    if(!email.includes('@')){
+      // A username with an email behind it can still get a reset link (sent to that email).
+      const resolved = await resolveLogin(email);
+      if(isUsernameLogin(resolved)){ st.className = 'status error'; st.textContent = "This username has no email to send a reset link to. Ask your business owner to add an email for you, or to add you again with a new password."; return; }
+      try{ await fb.sendPasswordResetEmail(fb.auth, resolved); }catch(e){}
+      st.className = 'status deepgreen';
+      st.textContent = 'If that username has an email, a reset link is on its way to it. Check the inbox and spam folder.';
+      return;
+    }
     try{
       await fb.sendPasswordResetEmail(fb.auth, email);
       st.className = 'status deepgreen';
@@ -4192,6 +4263,40 @@
       st.className = 'status error';
       st.textContent = (err && err.code) === 'auth/network-request-failed' ? 'No internet connection — connect and try again.' : "Couldn't send the reset email — check the address.";
     }
+  });
+
+  $('#passwordToggle').addEventListener('click', ()=>{
+    const f = $('#passwordForm');
+    const open = f.style.display === 'none';
+    f.style.display = open ? '' : 'none';
+    $('#passwordCaret').classList.toggle('open', open);
+  });
+  $('#passwordForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!fb || !currentUser) return;
+    const st = $('#pwStatus');
+    const current = $('#pwCurrent').value, next = $('#pwNew').value;
+    st.className = 'status error';
+    if(!current || !next){ st.textContent = 'Enter your current password and a new one.'; return; }
+    if(next.length < 6){ st.textContent = 'The new password must be at least 6 characters.'; return; }
+    const btn = $('#pwSubmit'); btn.disabled = true;
+    st.className = 'status'; st.textContent = 'Changing…';
+    try{
+      // Firebase asks for the current password again before changing it.
+      await fb.reauthenticateWithCredential(currentUser, fb.EmailAuthProvider.credential(currentUser.email, current));
+      await fb.updatePassword(currentUser, next);
+      st.className = 'status deepgreen';
+      st.textContent = 'Password changed ✓ Use the new one next time you sign in.';
+      $('#pwCurrent').value = ''; $('#pwNew').value = '';
+    }catch(err){
+      const code = (err && err.code) || '';
+      st.className = 'status error';
+      st.textContent = ['auth/invalid-credential','auth/wrong-password','auth/invalid-login-credentials'].includes(code) ? 'Your current password is wrong.'
+        : code === 'auth/weak-password' ? 'The new password must be at least 6 characters.'
+        : code === 'auth/network-request-failed' ? 'No internet connection — connect and try again.'
+        : code === 'auth/too-many-requests' ? 'Too many attempts — wait a few minutes and try again.'
+        : 'Could not change the password: ' + ((err && err.message) || code);
+    }finally{ btn.disabled = false; }
   });
 
   $('#signOutBtn').addEventListener('click', ()=>{
@@ -4234,6 +4339,9 @@
         signOut: authMod.signOut,
         createUserWithEmailAndPassword: authMod.createUserWithEmailAndPassword,
         sendPasswordResetEmail: authMod.sendPasswordResetEmail,
+        reauthenticateWithCredential: authMod.reauthenticateWithCredential,
+        updatePassword: authMod.updatePassword,
+        EmailAuthProvider: authMod.EmailAuthProvider,
         // Creates a login on a throwaway in-memory instance and returns its UID.
         createLogin: async (email, password)=>{
           const spare = appMod.getApps().find(a => a.name === 'create-login') || appMod.initializeApp(FIREBASE_CONFIG, 'create-login');
