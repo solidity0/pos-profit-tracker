@@ -2755,13 +2755,15 @@
     const LOCK_HTML = `${eyeOffSvg}<span class="lock-dots">••••</span>`;
     $('#sumCustomerFee').textContent = fmt(sumCustomer);
     $('#sumBaseFee').innerHTML = settingsUnlocked ? '−' + fmt(sumBase) : LOCK_HTML;
-    $('#sumVat').innerHTML = settingsUnlocked ? '−' + fmt(sumVat) : LOCK_HTML;
-    $('#sumStamp').innerHTML = settingsUnlocked ? '−' + fmt(sumStamp) : LOCK_HTML;
+    // VAT and stamp duty are shown to everyone; the machine fee stays owner-only.
+    $('#sumVat').textContent = '−' + fmt(sumVat);
+    $('#sumStamp').textContent = '−' + fmt(sumStamp);
     const netEl = $('#netProfit');
     netEl.textContent = fmt(sumNet);
     netEl.classList.toggle('neg', sumNet < 0);
     $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s') + (olderState === 'loading' && needsOlderTransactions() ? ' · loading older…' : '');
-    $('#sumAutosaveRow').style.display = sumAutosave > 0 ? 'flex' : 'none';
+    // Auto-save is the owner's own savings, so the salesperson doesn't see the row at all.
+    $('#sumAutosaveRow').style.display = (sumAutosave > 0 && settingsUnlocked) ? 'flex' : 'none';
     $('#sumAutosave').innerHTML = settingsUnlocked ? '−' + fmt(sumAutosave) : LOCK_HTML;
 
     // The log is the expensive part (one DOM row per transaction), so only build it while
