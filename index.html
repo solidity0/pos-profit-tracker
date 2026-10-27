@@ -2762,7 +2762,8 @@
   }
 
   function matchesLoggedBy(t){
-    // A salesperson only ever works with their own entries (their phone only loads those).
+    // A salesperson's totals, volume and reports cover only their own entries (their
+    // Transaction Log still shows everyone's; see getFilteredForLog).
     if(role === 'staff') return !!currentUser && t.loggedBy === currentUser.uid;
     return state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter;
   }
@@ -2783,7 +2784,8 @@
     return transactions.filter(t=>{
       const periodOk = isInPeriod(t.date, state.period);
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      return periodOk && provOk && matchesLoggedBy(t) && (role === 'owner' || !t.deleted);
+      // A salesperson's log shows everyone's entries; their reports stay their own.
+      return periodOk && provOk && (role === 'staff' || matchesLoggedBy(t)) && (role === 'owner' || !t.deleted);
     });
   }
 
@@ -2817,7 +2819,7 @@
     emptyEl.style.display = 'none';
     contentEl.style.display = 'block';
 
-    const inRange = transactions.filter(t => !t.deleted && isInPeriod(t.date, state.trendPeriod));
+    const inRange = transactions.filter(t => !t.deleted && isInPeriod(t.date, state.trendPeriod) && (role !== 'staff' || matchesLoggedBy(t)));
     let moneyIn = 0, moneyOut = 0;
     inRange.forEach(t=>{
       const amt = t.amount || 0;
@@ -3402,12 +3404,9 @@
   function startTxListener(){
     if(txUnsub){ txUnsub(); txUnsub = null; }
     const col = bcol('transactions');
-    // The owner sees the whole business; a salesperson sees, and reports on, only what they
-    // logged. Their query must filter on loggedBy or the rules refuse it, and it needs the
-    // loggedBy + date index (firestore.indexes.json).
-    const q = role === 'staff'
-      ? fb.query(col, fb.where('loggedBy', '==', currentUser.uid), fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'))
-      : fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
+    // Everyone in the business loads all of its entries: the Transaction Log shows them all,
+    // while a salesperson's totals and reports are narrowed to their own on screen.
+    const q = fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
     txUnsub = fb.onSnapshot(q, { includeMetadataChanges: true }, (snap)=>{
       recentTx = snap.docs.map(docToTx);
       pendingUploads = recentTx.filter(t => t.pending).length;
@@ -3418,19 +3417,13 @@
   }
 
   function syncErrorMessage(err){
-    if(err && err.code === 'failed-precondition'){
-      $('#syncBadge').textContent = '⚠ setup needed';
-      return 'Your entries can\'t load yet: the business owner needs to finish a one-time database setup in Firebase (an index on transactions). Ask them.';
-    }
     return 'Sync problem: ' + ((err && err.message) || 'unknown error');
   }
 
   async function loadOlderTransactions(){
     olderState = 'loading';
     try{
-      const q = role === 'staff'
-        ? fb.query(bcol('transactions'), fb.where('loggedBy', '==', currentUser.uid), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'))
-        : fb.query(bcol('transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
+      const q = fb.query(bcol('transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
       const snap = await fb.getDocs(q);
       olderTx = snap.docs.map(docToTx);
       olderState = 'loaded';
