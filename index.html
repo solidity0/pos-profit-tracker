@@ -419,18 +419,59 @@
   .status-line.error{ color: var(--loss); font-weight:700; }
   #customerFee{ border-color: var(--deepgreen) !important; background: var(--deepgreen-tint) !important; color: var(--deepgreen); font-weight:600; }
   #customerFee::placeholder{ color: var(--deepgreen); opacity:0.6; }
+  /* Sign-in screen + cloud sync UI */
+  .auth-gate{ min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 24px 16px; }
+  .auth-card{ width:100%; max-width: 360px; background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow-sm); text-align:center; }
+  .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
+  .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+  .auth-card input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family:'Inter',sans-serif; font-size: 16px; padding: 12px 13px; border-radius: var(--radius-sm); outline:none; margin-bottom: 10px; box-sizing: border-box; }
+  .auth-card input:focus{ border-color: var(--theme); }
+  .auth-card .status{ min-height: 18px; }
+  .auth-msg{ font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .who{ font-size: 10.5px; color: var(--muted); font-weight:600; margin-top: 2px; }
+  .sync-badge{ font-size: 10px; font-weight:700; color: var(--accent); white-space:nowrap; }
+  .signout-btn{ background:none; border: 1.5px solid var(--line-soft); color: var(--muted); border-radius: 9px; height: 30px; padding: 0 9px; font-family:'Inter',sans-serif; font-size: 11px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .signout-btn:hover{ border-color: var(--loss); color: var(--loss); }
+  body[data-role="staff"] .owner-only{ display:none !important; }
+  .log-item.deleted{ opacity: 0.55; }
+  .log-item.deleted .type{ text-decoration: line-through; }
+  .log-left .byline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:600; }
+  .log-left .deleted-note{ font-size: 11px; color: var(--loss); margin-top: 3px; font-weight:700; }
+  .log-right .restore{ background:none; border:none; color: var(--profit); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:600; }
+  #loggedByFilter{ grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
+  #loggedByFilter button.active{ border-color: var(--accent); color:#ffffff; background: var(--accent); }
   .disclaimer{ font-size: 11px; color: var(--muted); line-height: 1.65; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <h1>Ledger</h1>
+    <div class="auth-sub">Sign in to log and view transactions</div>
+    <div id="authLoading" class="auth-msg">Connecting…</div>
+    <form id="authForm" style="display:none;" autocomplete="on">
+      <input type="email" id="authEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
+      <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
+      <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
+    </form>
+    <div id="authBlocked" class="auth-msg" style="display:none;"></div>
+    <button class="pdfbtn" id="authBlockedSignOut" type="button" style="display:none;">Sign out</button>
+    <div class="status" id="authStatus"></div>
+  </div>
+</div>
+<div class="wrap" id="appWrap" style="display:none;">
 
   <header class="top">
     <div class="brand">
-      <h1>Ledger</h1>
+      <div>
+        <h1>Ledger</h1>
+        <div class="who" id="whoLabel"></div>
+      </div>
     </div>
     <div class="top-right">
+      <span class="sync-badge" id="syncBadge"></span>
       <div class="today" id="todayLabel"></div>
+      <button class="signout-btn" id="signOutBtn" type="button">Sign out</button>
       <button class="text-size-toggle" id="textSizeToggle" aria-label="Toggle compact view" aria-pressed="false">Aa</button>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
     </div>
@@ -545,15 +586,15 @@
       <div class="autofee" id="overrideFeeRow">
         <label class="toggle"><input type="checkbox" id="overrideFee" /><span id="overrideFeeLabel">override fee (same bank transfer)</span></label>
       </div>
-      <label class="autobox-label">Total deducted from your balance (auto)</label>
-      <div class="autobox deduct">
+      <label class="autobox-label owner-only">Total deducted from your balance (auto)</label>
+      <div class="autobox deduct owner-only">
         <div class="total" id="machineTotal">₦0</div>
         <div class="breakdown" id="machineBreakdown">fee ₦0 · VAT ₦0 · stamp duty ₦0</div>
       </div>
     </div>
 
     <button class="addbtn" id="addBtn">Add Transaction</button>
-    <div class="hint">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
+    <div class="hint owner-only">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
   </div>
 
@@ -610,7 +651,7 @@
     </div>
   </div>
 
-  <div class="card" id="volumeCard">
+  <div class="card owner-only" id="volumeCard">
     <button class="log-toggle" id="volumeToggle">
       <span class="log-caret" id="volumeCaret">▶</span>
       <span>Volume Analysis</span>
@@ -643,7 +684,7 @@
 
 
   <div class="stack-col">
-  <div class="card" id="perfCard">
+  <div class="card owner-only" id="perfCard">
     <button class="summary-toggle" id="summaryToggle">
       <span class="summary-caret" id="summaryCaret">▶</span>
       <span>Performance Overview</span>
@@ -675,6 +716,7 @@
         <button data-val="Moniepoint">Moniepoint</button>
         <button data-val="Opay">OPay</button>
       </div>
+      <div class="provider-filter" id="loggedByFilter" style="display:none;"></div>
 
       <div class="rline neg"><span>VAT</span><span class="amt" id="sumVat">−₦0</span></div>
       <div class="rline neg"><span>Stamp duty</span><span class="amt" id="sumStamp">−₦0</span></div>
@@ -715,26 +757,22 @@
   </div>
 
 
-  <div class="card">
+  <div class="card owner-only" id="settingsCard">
     <div class="settings-gate">
       <button class="settings-toggle" id="settingsToggle"><span id="settingsCaret">▶</span> Settings &amp; rate table</button>
 
-      <div class="settings-password" id="settingsPasswordBox" style="display:none;">
-        <input type="password" id="settingsPasswordInput" autocomplete="off" placeholder="Enter password" />
-        <button id="settingsUnlockBtn">Unlock</button>
-        <div class="status" id="settingsPasswordStatus"></div>
-      </div>
-
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
-      <div class="lock-reminder">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>Remember to tap <strong>Lock now</strong> when you're done — this auto-locks after 30 minutes either way.</span>
+      <h3>Team</h3>
+      <div class="hint">Names shown next to each transaction. Only you (the owner) can change these, and they're stored in your Firebase, not in the app's public code.</div>
+      <div id="teamInputs"></div>
+
+      <div id="importSection" style="display:none;">
+        <h3>Old records on this phone</h3>
+        <div class="hint" id="importHint"></div>
+        <button class="pdfbtn" id="importBtn" type="button"></button>
+        <div class="status" id="importStatus"></div>
       </div>
-      <button class="lock-now-btn" id="lockNowBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Lock now
-      </button>
 
       <h3 class="mp-heading">Moniepoint rates</h3>
       <div class="row2">
@@ -805,8 +843,7 @@
         This is built from an actual terminal statement. Annual income tax (progressive, on total yearly profit) is separate and not calculated here — use your Net Profit totals for that when you file.
       </div>
 
-      <div class="settings-bottom-row">
-        <button class="resetbtn" id="resetBtn">Erase all data</button>
+      <div class="settings-bottom-row" style="justify-content:flex-end;">
         <button class="donebtn" id="settingsDoneBtn" type="button">Done</button>
       </div>
       </div>
@@ -869,7 +906,7 @@
     });
   }
 
-  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', trendPeriod: 'today', customStart: null, customEnd: null };
+  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', loggedByFilter: 'All', trendPeriod: 'today', customStart: null, customEnd: null };
   let selectedCombosBillers = new Set();
   let transactions = [];
   let settings = {
@@ -1106,8 +1143,10 @@
 
     const aboveEl = $('#serviceFeeAboveInput');
     if(aboveEl){
-      attachCommaFormatting(aboveEl);
       aboveEl.value = settings.customerFeeAboveRate ? Number(settings.customerFeeAboveRate).toLocaleString('en-US') : '';
+      if(aboveEl.dataset.wired) return;
+      aboveEl.dataset.wired = '1';
+      attachCommaFormatting(aboveEl);
       aboveEl.addEventListener('change', async ()=>{
         const raw = (aboveEl.value || '').replace(/,/g, '');
         const n = parseFloat(raw);
@@ -1480,37 +1519,34 @@
     renderMoniepointFeeTable();
   }
 
-  async function loadData(){
-    try{
-      const t = await store.get('transactions');
-      transactions = t && t.value ? JSON.parse(t.value) : [];
-    }catch(e){ transactions = []; }
-    try{
-      const s = await store.get('settings');
-      if(s && s.value){
-        const parsed = JSON.parse(s.value);
-        const defaultRates = settings.rates; // capture fresh defaults before they get overwritten below
-        const defaultCustomerFees = settings.customerFees;
-        const defaultCombo = settings.customerFeesCombo;
-        settings = Object.assign({}, settings, parsed);
-        settings.rates = {
-          Moniepoint: Object.assign({}, defaultRates.Moniepoint, (parsed.rates && parsed.rates.Moniepoint) || {}),
-          Opay: Object.assign({}, defaultRates.Opay, (parsed.rates && parsed.rates.Opay) || {})
-        };
-        settings.customerFees = Object.assign({}, defaultCustomerFees, parsed.customerFees || {});
-        settings.customerFeesCombo = Object.assign({}, defaultCombo, parsed.customerFeesCombo || {});
-        if(parsed.vatEnabled === false){
-          settings.rates.Moniepoint.vatRate = 0;
-          settings.rates.Opay.vatRate = 0;
-        }
-        if(parsed.stampEnabled === false){
-          settings.stampFlat = 0;
-        }
-        delete settings.vatEnabled;
-        delete settings.stampEnabled;
-      }
-    }catch(e){}
+  // Transactions now live in Firebase. Whatever this phone saved locally before the switch
+  // is kept untouched as `legacyTransactions`, so the owner can upload it once.
+  let legacyTransactions = [];
+  let importDone = false;
 
+  function applyParsedSettings(parsed){
+    const defaultRates = settings.rates; // capture fresh defaults before they get overwritten below
+    const defaultCustomerFees = settings.customerFees;
+    const defaultCombo = settings.customerFeesCombo;
+    settings = Object.assign({}, settings, parsed);
+    settings.rates = {
+      Moniepoint: Object.assign({}, defaultRates.Moniepoint, (parsed.rates && parsed.rates.Moniepoint) || {}),
+      Opay: Object.assign({}, defaultRates.Opay, (parsed.rates && parsed.rates.Opay) || {})
+    };
+    settings.customerFees = Object.assign({}, defaultCustomerFees, parsed.customerFees || {});
+    settings.customerFeesCombo = Object.assign({}, defaultCombo, parsed.customerFeesCombo || {});
+    if(parsed.vatEnabled === false){
+      settings.rates.Moniepoint.vatRate = 0;
+      settings.rates.Opay.vatRate = 0;
+    }
+    if(parsed.stampEnabled === false){
+      settings.stampFlat = 0;
+    }
+    delete settings.vatEnabled;
+    delete settings.stampEnabled;
+  }
+
+  function populateSettingsUI(){
     const setFmt = (sel, val) => { $(sel).value = val ? Number(val).toLocaleString('en-US') : ''; };
     $('#mp_pct').value = settings.rates.Moniepoint.pct;
     setFmt('#mp_flat', settings.rates.Moniepoint.flat);
@@ -1534,18 +1570,38 @@
     renderServiceFeeReference();
     renderSafetyTipsEditor();
     renderSafetyTipsDisplay();
+  }
 
+  async function loadData(){
+    try{
+      const t = await store.get('transactions');
+      const parsed = t && t.value ? JSON.parse(t.value) : [];
+      legacyTransactions = Array.isArray(parsed) ? parsed : [];
+    }catch(e){ legacyTransactions = []; }
+    try{
+      const imp = await store.get('cloudImported');
+      importDone = !!(imp && imp.value === '1');
+    }catch(e){}
+    try{
+      // Last settings seen on this phone, so fees calculate even before Firebase answers.
+      const s = await store.get('settings');
+      if(s && s.value) applyParsedSettings(JSON.parse(s.value));
+    }catch(e){}
+    populateSettingsUI();
     refreshAuto();
     render();
+    renderImportUI();
   }
 
-  async function saveTransactions(){
-    try{ await store.set('transactions', JSON.stringify(transactions)); }
-    catch(e){ setStatus('Could not save — try again'); }
-  }
   async function saveSettings(){
-    try{ await store.set('settings', JSON.stringify(settings)); }
-    catch(e){}
+    const json = JSON.stringify(settings);
+    try{ await store.set('settings', json); }catch(e){}
+    // Only the owner's changes reach the shared settings; Firebase rejects anyone else's.
+    // Not awaited: offline, the write waits in the queue and uploads on reconnect.
+    if(fb && role === 'owner'){
+      fb.setDoc(fb.doc(fb.db, 'settings', 'shop'), { json, updatedAt: fb.serverTimestamp() })
+        .catch(err => setStatus('Settings not saved online: ' + err.message, 'error'));
+    }
   }
 
   function applyProviderTheme(provider){
@@ -1826,8 +1882,7 @@
       baseFee: base, vatAmt: vat, stampAmt: stamp, autosaveAmt: autosave, providerFee: total,
       netProfit, manualFee: isCombo ? allLegsSameBank : wasOverridden
     };
-    transactions.unshift(tx);
-    saveTransactions();
+    cloudAddTx(tx);
 
     $('#amount').value = '';
     resetTransferBoxes();
@@ -1864,43 +1919,19 @@
   $('#autosaveFlat').addEventListener('change', async ()=>{ settings.autosaveFlat = numVal('#autosaveFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampOnWithdrawal').addEventListener('change', async ()=>{ settings.stampOnWithdrawal = $('#stampOnWithdrawal').checked; await saveSettings(); refreshAuto(); render(); });
 
-  const DELETE_LOCK_MINUTES = 230; // 3 hours 50 minutes
-  const SETTINGS_PASSWORD = '2030';
-  const SETTINGS_IDLE_MS = 30 * 60 * 1000;
+  const DELETE_LOCK_MINUTES = 230; // 3 hours 50 minutes — salesperson only; the Firebase rules enforce it too
+  // Signing in as the owner replaces the old shared settings password, so "unlocked" now
+  // just means "signed in as the owner".
   let settingsUnlocked = false;
-  let settingsIdleTimer = null;
-  let unlockedTxIds = new Set();
 
   function showSettingsContent(){
-    $('#settingsPasswordBox').style.display = 'none';
     $('#settingsContent').style.display = 'block';
     $('#settingsToggle').classList.add('open');
-    armSettingsIdleTimer();
   }
   function hideSettingsPanels(){
-    $('#settingsPasswordBox').style.display = 'none';
     $('#settingsContent').style.display = 'none';
     $('#settingsToggle').classList.remove('open');
-    clearTimeout(settingsIdleTimer);
   }
-  function isSettingsPanelOpen(){
-    return $('#settingsContent').style.display === 'block' || $('#settingsPasswordBox').style.display === 'flex';
-  }
-  function armSettingsIdleTimer(){
-    clearTimeout(settingsIdleTimer);
-    if(!isSettingsPanelOpen()) return;
-    settingsIdleTimer = setTimeout(()=>{
-      settingsUnlocked = false; // re-lock, not just collapse — a fresh password is required next time
-      unlockedTxIds.clear(); // any per-transaction delete overrides re-lock along with settings
-      hideSettingsPanels();
-      render();
-    }, SETTINGS_IDLE_MS);
-  }
-  ['mousemove','click','keydown','input','touchstart','touchmove','scroll','wheel'].forEach(evt=>{
-    $('.settings-gate').addEventListener(evt, ()=>{
-      if(isSettingsPanelOpen()) armSettingsIdleTimer();
-    }, { passive: true });
-  });
 
   function openLogDropdown(){
     $('#logContent').style.display = 'block';
@@ -2446,47 +2477,8 @@
   });
 
   $('#settingsToggle').addEventListener('click', ()=>{
-    const contentOpen = $('#settingsContent').style.display === 'block';
-    const passwordOpen = $('#settingsPasswordBox').style.display === 'flex';
-    if(contentOpen || passwordOpen){
-      hideSettingsPanels();
-      return;
-    }
-    if(settingsUnlocked){
-      showSettingsContent();
-    } else {
-      $('#settingsPasswordBox').style.display = 'flex';
-      $('#settingsToggle').classList.add('open');
-      $('#settingsPasswordInput').value = '';
-      $('#settingsPasswordStatus').textContent = '';
-      $('#settingsPasswordInput').focus();
-      armSettingsIdleTimer();
-    }
-  });
-
-  function attemptUnlock(){
-    const val = $('#settingsPasswordInput').value;
-    if(val === SETTINGS_PASSWORD){
-      settingsUnlocked = true;
-      showSettingsContent();
-      render();
-    } else {
-      $('#settingsPasswordStatus').textContent = 'Incorrect password';
-      $('#settingsPasswordInput').value = '';
-      $('#settingsPasswordInput').focus();
-    }
-  }
-  $('#settingsUnlockBtn').addEventListener('click', attemptUnlock);
-
-  $('#lockNowBtn').addEventListener('click', ()=>{
-    settingsUnlocked = false;
-    unlockedTxIds.clear();
-    hideSettingsPanels();
-    render();
-  });
-
-  $('#settingsPasswordInput').addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter') attemptUnlock();
+    if($('#settingsContent').style.display === 'block'){ hideSettingsPanels(); return; }
+    if(settingsUnlocked) showSettingsContent();
   });
 
   function armTapTwice(btn, idleLabel, armedLabel, onConfirm){
@@ -2517,29 +2509,16 @@
     hideSettingsPanels();
   });
 
-  $('#resetBtn').addEventListener('click', ()=>{
-    armTapTwice($('#resetBtn'), 'Erase all data', 'Tap again to confirm', ()=>{
-      transactions = [];
-      saveTransactions();
-      render();
-    });
-  });
-
   $('#clearLogBtn').addEventListener('click', ()=>{
     const visible = getTodayLogEntries();
     if(visible.length === 0){ setStatus('Nothing to clear'); return; }
     armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, ()=>{
-      const idsToRemove = new Set(visible.map(t=>t.id));
-      transactions = transactions.filter(t => !idsToRemove.has(t.id));
-      saveTransactions();
-      render();
+      cloudSoftDelete(visible.map(t=>t.id));
     });
   });
 
   function deleteTx(id){
-    transactions = transactions.filter(t => t.id !== id);
-    saveTransactions();
-    render();
+    cloudSoftDelete([id]);
   }
 
   function ordinal(n){
@@ -2661,21 +2640,27 @@
     return `${fmtD(state.customStart)} – ${fmtD(state.customEnd)}`;
   }
 
+  function matchesLoggedBy(t){
+    return state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter;
+  }
+
   function getFiltered(){
+    // Deleted entries never count towards totals or the PDF.
     return transactions.filter(t=>{
       const periodOk = isInPeriod(t.date, state.period);
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      return periodOk && provOk;
+      return periodOk && provOk && matchesLoggedBy(t) && !t.deleted;
     });
   }
 
   function getFilteredForLog(){
     // Transaction Log now respects the same period/date filter as Performance Overview,
     // in addition to the provider filter, so the two sections stay in sync.
+    // The owner still sees deleted entries (struck through, with who deleted them).
     return transactions.filter(t=>{
       const periodOk = isInPeriod(t.date, state.period);
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      return periodOk && provOk;
+      return periodOk && provOk && matchesLoggedBy(t) && (role === 'owner' || !t.deleted);
     });
   }
 
@@ -2688,8 +2673,9 @@
     return transactions.filter(t=>{
       const todayOk = isInPeriod(t.date, 'today');
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      const unlocked = (Date.now() - new Date(t.date).getTime()) / 60000 <= DELETE_LOCK_MINUTES;
-      return todayOk && provOk && unlocked;
+      const loggedMs = t.createdAtMs || new Date(t.date).getTime();
+      const unlocked = role === 'owner' || (Date.now() - loggedMs) / 60000 <= DELETE_LOCK_MINUTES;
+      return todayOk && provOk && matchesLoggedBy(t) && !t.deleted && unlocked;
     });
   }
 
@@ -2708,7 +2694,7 @@
     emptyEl.style.display = 'none';
     contentEl.style.display = 'block';
 
-    const inRange = transactions.filter(t => isInPeriod(t.date, state.trendPeriod));
+    const inRange = transactions.filter(t => !t.deleted && isInPeriod(t.date, state.trendPeriod));
     let moneyIn = 0, moneyOut = 0;
     inRange.forEach(t=>{
       const amt = t.amount || 0;
@@ -2725,6 +2711,7 @@
   }
 
   function render(){
+    if(fb && role === 'owner' && needsOlderTransactions() && olderState === 'idle') loadOlderTransactions();
     const filtered = getFiltered();
     let sumCustomer=0, sumBase=0, sumVat=0, sumStamp=0, sumAutosave=0, sumNet=0;
     filtered.forEach(t=>{
@@ -2746,7 +2733,7 @@
     const netEl = $('#netProfit');
     netEl.textContent = fmt(sumNet);
     netEl.classList.toggle('neg', sumNet < 0);
-    $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s');
+    $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s') + (olderState === 'loading' && needsOlderTransactions() ? ' · loading older…' : '');
     $('#sumAutosaveRow').style.display = sumAutosave > 0 ? 'flex' : 'none';
     $('#sumAutosave').innerHTML = settingsUnlocked ? '−' + fmt(sumAutosave) : LOCK_HTML;
 
@@ -2771,7 +2758,7 @@
     const logList = $('#logList');
     const allLogFiltered = getFilteredForLog();
     // Changing the period/provider filter starts the list over at the first page.
-    const filterKey = `${state.period}|${state.providerFilter}|${state.customStart}|${state.customEnd}`;
+    const filterKey = `${state.period}|${state.providerFilter}|${state.loggedByFilter}|${state.customStart}|${state.customEnd}`;
     if(filterKey !== lastLogFilterKey){ lastLogFilterKey = filterKey; logLimit = LOG_PAGE_SIZE; }
     const logFiltered = allLogFiltered.slice(0, logLimit);
     logList.innerHTML = '';
@@ -2811,7 +2798,7 @@
         }
 
         const item = document.createElement('div');
-        item.className = 'log-item';
+        item.className = 'log-item' + (t.deleted ? ' deleted' : '');
         const dateStr = logDateFormat.format(d) + ' · ' + logTimeFormat.format(d);
         const isCombo = t.type === 'WithdrawTransfer';
         const isCredit = t.type === 'Withdrawal';
@@ -2823,11 +2810,24 @@
         const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
         const typeClass = isSameBankTitle ? providerColorClass : '';
-        const minutesSinceLogged = (Date.now() - new Date(t.date).getTime()) / 60000;
-        const isDeletable = minutesSinceLogged <= DELETE_LOCK_MINUTES || unlockedTxIds.has(t.id);
-        const deleteControl = isDeletable
-          ? `<button class="del" data-id="${t.id}">delete</button>`
-          : `<button class="del-locked" data-id="${t.id}" title="Enter the settings password to unlock deleting this entry">locked</button>`;
+        const loggedMs = t.createdAtMs || d.getTime();
+        const minutesSinceLogged = (Date.now() - loggedMs) / 60000;
+        const isDeletable = !t.deleted && (role === 'owner' || minutesSinceLogged <= DELETE_LOCK_MINUTES);
+        const deleteControl = t.deleted
+          ? (role === 'owner' ? `<button class="restore" data-id="${t.id}">restore</button>` : '')
+          : isDeletable
+            ? `<button class="del" data-id="${t.id}">delete</button>`
+            : `<span class="del-locked" title="Entries can only be deleted within 3h 50m of logging">locked</span>`;
+        const bylineParts = [];
+        if(role === 'owner' && t.loggedBy) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy)));
+        if(t.imported) bylineParts.push('imported');
+        // Logged offline and uploaded later: show when Firebase actually received it.
+        else if(t.createdAtMs && !t.pending && t.createdAtMs - d.getTime() > 10 * 60000) bylineParts.push('uploaded ' + logTimeFormat.format(new Date(t.createdAtMs)));
+        if(t.pending) bylineParts.push('⏳ not uploaded yet');
+        const byline = bylineParts.length ? `<div class="byline">${bylineParts.join(' · ')}</div>` : '';
+        const deletedNote = t.deleted
+          ? `<div class="deleted-note">Deleted by ${escapeHtml(nameFor(t.deletedBy))}${t.deletedAtMs ? ' · ' + logDateFormat.format(new Date(t.deletedAtMs)) + ' ' + logTimeFormat.format(new Date(t.deletedAtMs)) : ''}</div>`
+          : '';
         item.innerHTML = `
           <div class="log-icon ${iconClass}">${iconSvg}</div>
           <div class="log-left">
@@ -2835,7 +2835,9 @@
             <div class="type ${typeClass}">${typeLabel(t)}</div>
             ${sameBankSubLabel(t) ? `<div class="samebank-sublabel ${providerColorClass}">${sameBankSubLabel(t)}</div>` : ''}
             <div class="date">${dateStr}</div>
-            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;"><span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> <span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
+            ${byline}
+            ${deletedNote}
+            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;">${settingsUnlocked ? `<span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> ` : ''}<span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
           </div>
           <div class="log-right">
             ${profitBlock}
@@ -2856,17 +2858,8 @@
       logList.querySelectorAll('.del').forEach(btn=>{
         btn.addEventListener('click', ()=> deleteTx(btn.dataset.id));
       });
-      logList.querySelectorAll('.del-locked').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const entered = prompt('Enter the settings password to unlock deleting this entry:');
-          if(entered === null) return; // cancelled
-          if(entered === SETTINGS_PASSWORD){
-            unlockedTxIds.add(btn.dataset.id);
-            renderLog();
-          } else {
-            setStatus('Incorrect password — entry stays locked.', 'error');
-          }
-        });
+      logList.querySelectorAll('.restore').forEach(btn=>{
+        btn.addEventListener('click', ()=> cloudRestore(btn.dataset.id));
       });
     }
   }
@@ -3047,7 +3040,7 @@
 
       // Line 1.5: transaction type, directly under the provider name
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(30);
-      doc.text(typeLabel(t), marginX, y);
+      doc.text(typeLabel(t) + (role === 'owner' && t.loggedBy ? '  ·  by ' + nameFor(t.loggedBy) : ''), marginX, y);
       y += 13;
 
       // Line 2: time, amount, and what was charged to the customer (wrapped)
@@ -3150,6 +3143,7 @@
       lastKnownDate = nowDate;
       $('#todayLabel').textContent = new Date().toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
     }
+    if(fb && role === 'staff' && dayKey(new Date()) !== txListenerDay) startTxListener();
     // Re-render periodically so the delete lock on log entries takes effect
     // even if the user hasn't interacted with the app since logging a transaction.
     render();
@@ -3176,8 +3170,397 @@
     renderCalcHistory();
   }
 
+  // ---------- Firebase: sign-in, roles, live sync ----------
+  // Every transaction is saved to Firestore, tagged with who logged it. The owner sees
+  // everyone's entries live; a salesperson sees only their own entries for today. Writes
+  // made offline wait on the phone and upload by themselves when the connection returns.
+  // Who may read/write what is enforced by the Firestore security rules (firestore.rules),
+  // not just by this page. These config values are public identifiers, not secrets.
+  const FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyA5ZVSiUTvfSamlj6UKdOgSglN8TdcodkI',
+    authDomain: 'ledger-3c7f0.firebaseapp.com',
+    projectId: 'ledger-3c7f0',
+    storageBucket: 'ledger-3c7f0.firebasestorage.app',
+    messagingSenderId: '185353398694',
+    appId: '1:185353398694:web:aa6f147856d3a5dba5c767'
+  };
+  const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/13.1.0/';
+  // Must match the UIDs in firestore.rules. Adding a salesperson = add their UID in both.
+  const OWNER_UID = '0xxeZTLlaAeTzTgpezc58hwDxXp2';
+  const STAFF_UIDS = ['LDtRV9smFfdcudaBjiWixXyyg9A2'];
+  // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
+  // Older entries are fetched once per session, only when All Time or an older Custom range
+  // is picked, which keeps daily reads well inside Firebase's free allowance.
+  const RECENT_DAYS = 35;
+
+  let fb = null;
+  let currentUser = null;
+  let role = null; // 'owner' | 'staff'
+  let teamNames = {};
+  let recentTx = [];
+  let olderTx = [];
+  let olderState = 'idle'; // 'idle' | 'loading' | 'loaded'
+  let txUnsub = null, settingsUnsub = null, teamUnsub = null;
+  let txListenerDay = null;
+  let pendingUploads = 0;
+
+  function dayKey(d){ return toDateInputValue(d); }
+  function nameFor(uid){ return teamNames[uid] || (uid === OWNER_UID ? 'Owner' : 'Salesperson'); }
+  function recentSinceISO(){
+    const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - RECENT_DAYS);
+    return d.toISOString();
+  }
+  function needsOlderTransactions(){
+    if(state.period === 'all') return true;
+    if(state.period !== 'custom') return false;
+    if(!state.customStart) return true;
+    return new Date(state.customStart + 'T00:00:00').toISOString() < recentSinceISO();
+  }
+
+  function docToTx(d){
+    const data = d.data({ serverTimestamps: 'estimate' });
+    const tx = Object.assign({}, data, { id: d.id });
+    tx.createdAtMs = data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : null;
+    tx.deletedAtMs = data.deletedAt && data.deletedAt.toMillis ? data.deletedAt.toMillis() : null;
+    tx.pending = d.metadata.hasPendingWrites;
+    return tx;
+  }
+  function mergeTransactions(){
+    const byId = new Map();
+    olderTx.forEach(t => byId.set(t.id, t));
+    recentTx.forEach(t => byId.set(t.id, t));
+    transactions = Array.from(byId.values()).sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+  }
+
+  function updateSyncBadge(){
+    const el = $('#syncBadge');
+    if(pendingUploads > 0) el.textContent = `⏳ ${pendingUploads} to upload`;
+    else if(!navigator.onLine) el.textContent = 'Offline';
+    else el.textContent = '';
+  }
+  window.addEventListener('online', updateSyncBadge);
+  window.addEventListener('offline', updateSyncBadge);
+
+  function startTxListener(){
+    if(txUnsub){ txUnsub(); txUnsub = null; }
+    const col = fb.collection(fb.db, 'transactions');
+    txListenerDay = dayKey(new Date());
+    // The salesperson's query must filter on loggedBy, or the rules reject it outright.
+    const q = role === 'owner'
+      ? fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'))
+      : fb.query(col, fb.where('loggedBy', '==', currentUser.uid), fb.where('day', '==', txListenerDay));
+    txUnsub = fb.onSnapshot(q, { includeMetadataChanges: true }, (snap)=>{
+      recentTx = snap.docs.map(docToTx);
+      pendingUploads = recentTx.filter(t => t.pending).length;
+      mergeTransactions();
+      updateSyncBadge();
+      render();
+    }, (err)=>{ setStatus('Sync problem: ' + err.message, 'error'); });
+  }
+
+  async function loadOlderTransactions(){
+    olderState = 'loading';
+    try{
+      const q = fb.query(fb.collection(fb.db, 'transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
+      const snap = await fb.getDocs(q);
+      olderTx = snap.docs.map(docToTx);
+      olderState = 'loaded';
+    }catch(err){
+      olderState = 'idle';
+      $('#pdfStatus').textContent = "Couldn't load older transactions — check your connection.";
+    }
+    mergeTransactions();
+    render();
+  }
+
+  function startSettingsListener(){
+    settingsUnsub = fb.onSnapshot(fb.doc(fb.db, 'settings', 'shop'), (snap)=>{
+      if(snap.metadata.hasPendingWrites) return; // our own edit echoing back
+      if(!snap.exists()){
+        // First run: publish the owner's current rates so the salesperson's phone uses them.
+        if(role === 'owner' && !snap.metadata.fromCache) saveSettings();
+        return;
+      }
+      try{
+        const json = snap.data().json;
+        applyParsedSettings(JSON.parse(json));
+        store.set('settings', json);
+      }catch(e){ return; }
+      populateSettingsUI();
+      refreshAuto();
+      render();
+    }, ()=>{});
+  }
+
+  function startTeamListener(){
+    teamUnsub = fb.onSnapshot(fb.collection(fb.db, 'staff'), (snap)=>{
+      teamNames = {};
+      snap.forEach(d=>{
+        const n = ((d.data() || {}).name || '').trim();
+        if(n) teamNames[d.id] = n;
+      });
+      updateWhoLabel();
+      renderTeamUI();
+      renderLoggedByFilter();
+      render();
+    }, ()=>{});
+  }
+
+  function stopListeners(){
+    [txUnsub, settingsUnsub, teamUnsub].forEach(u => { if(u) u(); });
+    txUnsub = settingsUnsub = teamUnsub = null;
+  }
+
+  function cloudAddTx(tx){
+    const payload = Object.assign({}, tx, {
+      loggedBy: currentUser.uid,
+      loggedByName: nameFor(currentUser.uid),
+      day: dayKey(new Date(tx.date)),
+      deleted: false,
+      createdAt: fb.serverTimestamp()
+    });
+    // Not awaited: offline, this resolves only once uploaded. The live listener shows the
+    // entry straight away either way.
+    fb.setDoc(fb.doc(fb.db, 'transactions', tx.id), payload)
+      .catch(err => setStatus('Not saved: ' + err.message, 'error'));
+  }
+
+  // "Delete" never erases: it marks the entry deleted, so the owner can still see it.
+  function cloudSoftDelete(ids){
+    const batch = fb.writeBatch(fb.db);
+    ids.forEach(id => batch.update(fb.doc(fb.db, 'transactions', id), {
+      deleted: true, deletedAt: fb.serverTimestamp(), deletedBy: currentUser.uid
+    }));
+    batch.commit().catch(err => setStatus('Could not delete: ' + err.message, 'error'));
+    markLocal(ids, { deleted: true, deletedBy: currentUser.uid, deletedAtMs: Date.now() });
+  }
+  function cloudRestore(id){
+    fb.updateDoc(fb.doc(fb.db, 'transactions', id), { deleted: false, deletedAt: null, deletedBy: null })
+      .catch(err => setStatus('Could not restore: ' + err.message, 'error'));
+    markLocal([id], { deleted: false, deletedBy: null, deletedAtMs: null });
+  }
+  // Older entries were fetched once rather than listened to, so update them by hand.
+  function markLocal(ids, changes){
+    const set = new Set(ids);
+    olderTx.forEach(t => { if(set.has(t.id)) Object.assign(t, changes); });
+    mergeTransactions();
+    render();
+  }
+
+  function updateWhoLabel(){
+    if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
+    const roleLabel = role === 'owner' ? 'Owner' : 'Salesperson';
+    const name = teamNames[currentUser.uid];
+    $('#whoLabel').textContent = name ? `${name} · ${roleLabel}` : roleLabel;
+  }
+
+  function renderTeamUI(){
+    const el = $('#teamInputs');
+    if(!el || role !== 'owner') return;
+    if(el.querySelector('input:focus')) return; // don't wipe a name being typed
+    const members = [OWNER_UID].concat(STAFF_UIDS);
+    el.innerHTML = members.map((uid, i)=>{
+      const label = uid === OWNER_UID ? 'You (owner)' : 'Salesperson' + (STAFF_UIDS.length > 1 ? ' ' + i : '');
+      return `<div class="field"><label>${label}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>`;
+    }).join('');
+    el.querySelectorAll('.team-name-input').forEach(inp=>{
+      inp.value = teamNames[inp.dataset.uid] || '';
+      inp.addEventListener('change', ()=>{
+        fb.setDoc(fb.doc(fb.db, 'staff', inp.dataset.uid), { name: inp.value.trim() })
+          .catch(err => setStatus('Name not saved: ' + err.message, 'error'));
+      });
+    });
+  }
+
+  function renderLoggedByFilter(){
+    const el = $('#loggedByFilter');
+    if(role !== 'owner' || STAFF_UIDS.length === 0){ el.style.display = 'none'; return; }
+    const opts = [['All', 'Everyone']].concat([OWNER_UID].concat(STAFF_UIDS).map(uid => [uid, nameFor(uid)]));
+    el.style.display = 'grid';
+    el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');
+    el.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        state.loggedByFilter = btn.dataset.val;
+        renderLoggedByFilter();
+        render();
+      });
+    });
+  }
+
+  function renderImportUI(){
+    const sec = $('#importSection');
+    const n = legacyTransactions.length;
+    if(role !== 'owner' || n === 0){ sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    $('#importHint').textContent = importDone
+      ? `This phone's ${n} older transactions have been uploaded. Uploading again is safe — it won't create duplicates.`
+      : `This phone still has ${n} transactions saved from before the switch to online sync. Upload them once so they're backed up and included in your totals. They'll be marked as logged by you.`;
+    $('#importBtn').textContent = importDone ? `Upload again (${n})` : `Upload ${n} transactions`;
+  }
+
+  $('#importBtn').addEventListener('click', async ()=>{
+    if(!fb || role !== 'owner') return;
+    const btn = $('#importBtn');
+    const st = $('#importStatus');
+    const list = legacyTransactions.filter(tx => tx && tx.id && tx.date);
+    const BATCH = 400; // Firestore allows up to 500 writes per batch
+    let uploaded = 0;
+    btn.disabled = true;
+    st.className = 'status';
+    try{
+      for(let i = 0; i < list.length; i += BATCH){
+        const batch = fb.writeBatch(fb.db);
+        list.slice(i, i + BATCH).forEach(tx=>{
+          const id = String(tx.id);
+          // Same id as on the phone, so uploading twice overwrites instead of duplicating.
+          batch.set(fb.doc(fb.db, 'transactions', id), Object.assign({}, tx, {
+            id, loggedBy: currentUser.uid, loggedByName: nameFor(currentUser.uid),
+            day: dayKey(new Date(tx.date)), deleted: false, createdAt: fb.serverTimestamp(), imported: true
+          }));
+        });
+        st.textContent = `Uploading… ${Math.min(i + BATCH, list.length)} of ${list.length}`;
+        await batch.commit();
+        uploaded = Math.min(i + BATCH, list.length);
+      }
+      importDone = true;
+      try{ await store.set('cloudImported', '1'); }catch(e){}
+      st.textContent = `Uploaded ${list.length} transactions ✓`;
+      st.className = 'status deepgreen';
+      olderTx = []; olderState = 'idle';
+      renderImportUI();
+      render();
+    }catch(err){
+      st.textContent = `Upload stopped after ${uploaded} (${err.message}). Tap again to continue — nothing will be duplicated.`;
+      st.className = 'status error';
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  function showGate(mode, message){
+    $('#appWrap').style.display = 'none';
+    $('#authGate').style.display = '';
+    $('#authLoading').style.display = mode === 'loading' ? '' : 'none';
+    $('#authForm').style.display = mode === 'form' ? '' : 'none';
+    $('#authBlocked').style.display = mode === 'blocked' ? '' : 'none';
+    $('#authBlockedSignOut').style.display = mode === 'blocked' ? '' : 'none';
+    if(mode === 'loading') $('#authLoading').textContent = message || 'Connecting…';
+    if(mode === 'blocked') $('#authBlocked').textContent = message || '';
+  }
+
+  function onAuthChange(user){
+    stopListeners();
+    currentUser = user;
+    recentTx = []; olderTx = []; olderState = 'idle'; transactions = [];
+    teamNames = {}; pendingUploads = 0;
+    hideSettingsPanels();
+    if(!user){
+      role = null; settingsUnlocked = false;
+      delete document.body.dataset.role;
+      showGate('form');
+      return;
+    }
+    role = user.uid === OWNER_UID ? 'owner' : (STAFF_UIDS.includes(user.uid) ? 'staff' : null);
+    if(!role){
+      settingsUnlocked = false;
+      showGate('blocked', `This account (${user.email || user.uid}) isn't set up for this ledger yet. Ask the owner to add it.`);
+      return;
+    }
+    document.body.dataset.role = role;
+    settingsUnlocked = role === 'owner';
+    state.loggedByFilter = 'All';
+    $('#authGate').style.display = 'none';
+    $('#appWrap').style.display = '';
+    updateWhoLabel();
+    updateSyncBadge();
+    renderTeamUI();
+    renderLoggedByFilter();
+    renderImportUI();
+    startSettingsListener();
+    startTeamListener();
+    startTxListener();
+    render();
+  }
+
+  function authErrorMessage(err){
+    const code = (err && err.code) || '';
+    if(['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/invalid-login-credentials'].includes(code)) return 'Wrong email or password.';
+    if(code === 'auth/network-request-failed') return 'No internet connection — connect and try again.';
+    if(code === 'auth/too-many-requests') return 'Too many attempts — wait a few minutes and try again.';
+    return (err && err.message) || 'Sign-in failed.';
+  }
+
+  $('#authForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!fb) return;
+    const btn = $('#authSubmit');
+    const st = $('#authStatus');
+    btn.disabled = true;
+    st.className = 'status';
+    st.textContent = 'Signing in…';
+    try{
+      await fb.signInWithEmailAndPassword(fb.auth, $('#authEmail').value.trim(), $('#authPassword').value);
+      $('#authPassword').value = '';
+      st.textContent = '';
+    }catch(err){
+      st.textContent = authErrorMessage(err);
+      st.className = 'status error';
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  $('#signOutBtn').addEventListener('click', ()=>{
+    if(pendingUploads > 0){
+      setStatus(`${pendingUploads} transaction${pendingUploads === 1 ? '' : 's'} not uploaded yet — connect to the internet before signing out.`, 'error');
+      return;
+    }
+    armTapTwice($('#signOutBtn'), 'Sign out', 'Confirm', ()=> fb.signOut(fb.auth));
+  });
+  $('#authBlockedSignOut').addEventListener('click', ()=>{ if(fb) fb.signOut(fb.auth); });
+
+  async function initCloud(){
+    showGate('loading');
+    try{
+      const [appMod, authMod, fsMod] = await Promise.all(
+        ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'].map(f => import(FIREBASE_SDK + f))
+      );
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      const auth = authMod.getAuth(app);
+      let db;
+      try{
+        // Keeps a copy on the phone so the app works offline and queues writes.
+        db = fsMod.initializeFirestore(app, {
+          localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() }),
+          ignoreUndefinedProperties: true
+        });
+      }catch(e){
+        db = fsMod.initializeFirestore(app, { ignoreUndefinedProperties: true });
+      }
+      // ?emulator=1 points the page at a local Firebase emulator, for testing only.
+      if(new URLSearchParams(location.search).get('emulator') === '1'){
+        authMod.connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+        fsMod.connectFirestoreEmulator(db, '127.0.0.1', 8080);
+      }
+      fb = {
+        auth, db,
+        onAuthStateChanged: authMod.onAuthStateChanged,
+        signInWithEmailAndPassword: authMod.signInWithEmailAndPassword,
+        signOut: authMod.signOut,
+        collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
+        orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs,
+        setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, writeBatch: fsMod.writeBatch,
+        serverTimestamp: fsMod.serverTimestamp
+      };
+      fb.onAuthStateChanged(auth, onAuthChange);
+    }catch(err){
+      showGate('loading', "Couldn't connect. Check your internet connection, then reload the page.");
+    }
+  }
+
   loadData();
   loadCalcState();
+  initCloud();
 })();
 </script>
 </body>

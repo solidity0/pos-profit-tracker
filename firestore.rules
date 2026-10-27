@@ -1,0 +1,52 @@
+// Firestore security rules for the Ledger app.
+// Paste into Firebase console > Firestore Database > Rules, then Publish.
+// To add a salesperson: put their Authentication UID in isStaff() here AND in
+// STAFF_UIDS in index.html.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner()  { return signedIn() && request.auth.uid == '0xxeZTLlaAeTzTgpezc58hwDxXp2'; }
+    function isStaff()  { return signedIn() && request.auth.uid in ['LDtRV9smFfdcudaBjiWixXyyg9A2']; }
+    function isMember() { return isOwner() || isStaff(); }
+
+    match /transactions/{txId} {
+      // Owner sees everything; staff see only what they logged.
+      allow read: if isOwner()
+        || (isStaff() && resource.data.loggedBy == request.auth.uid);
+
+      // Anyone on the team can log, but only as themselves, stamped with the server's time.
+      allow create: if isMember()
+        && request.resource.data.loggedBy == request.auth.uid
+        && request.resource.data.deleted == false
+        && request.resource.data.createdAt == request.time;
+
+      // Staff can't erase anything: "delete" only marks their own entry as deleted,
+      // within 3h50m of logging. The owner still sees it, with who deleted it and when.
+      allow update: if isOwner() || (isStaff()
+        && resource.data.loggedBy == request.auth.uid
+        && resource.data.deleted == false
+        && request.time < resource.data.createdAt + duration.value(230, 'm')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy'])
+        && request.resource.data.deleted == true
+        && request.resource.data.deletedBy == request.auth.uid
+        && request.resource.data.deletedAt == request.time);
+
+      // Only the owner can permanently remove a record.
+      allow delete: if isOwner();
+    }
+
+    // Fee rates and tips: everyone reads, only the owner changes.
+    match /settings/{doc} {
+      allow read: if isMember();
+      allow write: if isOwner();
+    }
+
+    // Team names: everyone reads, only the owner changes.
+    match /staff/{uid} {
+      allow read: if isMember();
+      allow write: if isOwner();
+    }
+  }
+}
