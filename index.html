@@ -867,9 +867,9 @@
       <div class="team-add">
         <div class="team-add-title">Add a salesperson</div>
         <div class="field"><label>Name</label><input type="text" id="newStaffName" autocomplete="off" placeholder="e.g. Ada Obi" /></div>
-        <div class="field"><label>Email (optional)</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
+        <div class="field"><label>Email</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
         <div class="field"><label>Username</label><input type="text" id="newStaffUsername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. ada" /></div>
-        <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email. The username is quicker at shift change: 3–30 letters, numbers, dots, dashes or underscores, not already used on Ledger. Add an email too if you want them to be able to reset a forgotten password.</div>
+        <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email. Password reset links go to the email. Usernames are 3–30 letters, numbers, dots, dashes or underscores, and can't already be used on Ledger.</div>
         <div class="field"><label>Password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this password" /></div>
         <button class="addbtn" id="addStaffBtn" type="button">Add salesperson</button>
         <div class="status" id="addStaffStatus"></div>
@@ -3641,6 +3641,9 @@
     batch.set(bdoc('staff', uid), staffData, { merge: true });
     batch.set(fb.doc(fb.db, 'users', uid), { businessId: bizId, role: 'staff' });
     if(username) batch.set(fb.doc(fb.db, 'usernames', username), { email, businessId: bizId });
+    // Changing someone's username releases their old one.
+    const previous = (teamMembers[uid] || {}).username;
+    if(username && previous && previous !== username) batch.delete(fb.doc(fb.db, 'usernames', previous));
     await batch.commit();
   }
 
@@ -3652,14 +3655,14 @@
     const password = $('#newStaffPassword').value;
     const st = $('#addStaffStatus');
     st.className = 'status error';
-    if(!name || (!realEmail && !username) || !password){ st.textContent = 'Enter their name, a username (and/or email) and a password.'; return; }
-    if(realEmail && !realEmail.includes('@')){ st.textContent = "That email address doesn't look right."; return; }
-    if(username && !USERNAME_RE.test(username)){
+    // Email is required (password resets go there); the username is their quick login.
+    if(!name || !realEmail || !username || !password){ st.textContent = 'Enter their name, email, username and a password.'; return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(realEmail)){ st.textContent = "That email address doesn't look right."; return; }
+    if(!USERNAME_RE.test(username)){
       st.textContent = 'Usernames are 3–30 characters: letters, numbers, dots, dashes or underscores, starting with a letter or number.'; return;
     }
-    // Their login is the real email when given, otherwise one made from the username.
-    const email = realEmail || `${username}@${STAFF_LOGIN_DOMAIN}`;
-    const shown = username || realEmail;
+    const email = realEmail;
+    const shown = username;
     if(username){
       try{
         const taken = await fb.getDoc(fb.doc(fb.db, 'usernames', username));
@@ -3690,11 +3693,8 @@
         catch(signInErr){
           const code = signInErr && signInErr.code;
           if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/invalid-login-credentials'){
-            const usernameLogin = !realEmail;
-            if(!usernameLogin){ resetBtn.dataset.email = email; resetBtn.style.display = ''; }
-            const e2 = new Error(usernameLogin
-              ? `The username "${shown}" is already taken. If it's this person's, enter the password they use now; otherwise choose a different username (for example ${shown}.${(bizName || 'shop').toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,10) || 'shop'}).`
-              : `That email already has a login, but not with this password. Enter the password they use now — or send them a reset email below, ask them to choose a new password, then add them again with it.`);
+            resetBtn.dataset.email = email; resetBtn.style.display = '';
+            const e2 = new Error(`That email already has a login, but not with this password. Enter the password they use now — or send them a reset email below, ask them to choose a new password, then add them again with it.`);
             e2.code = 'existing-login-wrong-password';
             throw e2;
           }
