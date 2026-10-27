@@ -429,7 +429,34 @@
   .auth-gate{ min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 24px 16px; }
   .auth-card{ width:100%; max-width: 360px; background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow-sm); text-align:center; }
   .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
-  .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+  .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  /* Role buttons: Business Owner is blue (owner/admin), Salesperson is light neutral with
+     a blue accent. Both stay fully coloured when unselected so neither looks disabled;
+     the chosen one fills in and gets a check mark. */
+  .auth-role button{ --owner: #3B82F6; --staff: #F8FAFC; --staff-accent: #60A5FA;
+    border: 1.5px solid transparent; border-radius: var(--radius-sm); padding: 11px 6px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; cursor:pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s; -webkit-tap-highlight-color: transparent; }
+  .auth-role button:active{ transform: scale(0.98); }
+  .auth-role button:focus-visible{ outline: 2px solid var(--staff-accent); outline-offset: 2px; }
+  .auth-role button.active::before{ content: '✓'; margin-right: 6px; }
+
+  .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.14); border-color: var(--owner); color: #93C5FD; }
+  .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.24); color: #BFDBFE; }
+  .auth-role button[data-val="owner"].active{ background: var(--owner); border-color: var(--owner); color: #FFFFFF; box-shadow: 0 6px 18px -6px var(--owner); }
+
+  .auth-role button[data-val="staff"]{ background: rgba(248,250,252,0.13); border-color: rgba(248,250,252,0.8); color: var(--staff); }
+  .auth-role button[data-val="staff"]:hover{ background: rgba(248,250,252,0.2); border-color: var(--staff-accent); }
+  .auth-role button[data-val="staff"].active{ background: var(--staff); border-color: var(--staff-accent); color: #1E3A8A; box-shadow: 0 0 0 3px rgba(96,165,250,0.35); }
+  .auth-role button[data-val="staff"].active::before{ color: var(--staff-accent); }
+
+  /* Light theme: same roles, darker text so they read on a white card. */
+  [data-theme="day"] .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.10); color: #1D4ED8; }
+  [data-theme="day"] .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.18); color: #1E40AF; }
+  [data-theme="day"] .auth-role button[data-val="owner"].active{ background: var(--owner); color: #FFFFFF; }
+  [data-theme="day"] .auth-role button[data-val="staff"]{ background: var(--staff); border-color: #CBD5E1; color: #0F172A; }
+  [data-theme="day"] .auth-role button[data-val="staff"]:hover{ border-color: var(--staff-accent); background: #FFFFFF; }
+  [data-theme="day"] .auth-role button[data-val="staff"].active{ background: #FFFFFF; border-color: var(--staff-accent); color: #1E40AF; box-shadow: 0 0 0 3px rgba(96,165,250,0.30); }
   .auth-card input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family:'Inter',sans-serif; font-size: 16px; padding: 12px 13px; border-radius: var(--radius-sm); outline:none; margin-bottom: 10px; box-sizing: border-box; }
   .auth-card input:focus{ border-color: var(--theme); }
   .auth-card .status{ min-height: 18px; }
@@ -465,9 +492,13 @@
 <div class="auth-gate" id="authGate">
   <div class="auth-card">
     <h1>Ledger</h1>
-    <div class="auth-sub">Sign in to log and view transactions</div>
+    <div class="auth-sub" id="authSub">Sign in to log and view transactions</div>
     <div id="authLoading" class="auth-msg">Connecting…</div>
     <form id="authForm" style="display:none;" autocomplete="on">
+      <div class="auth-role" id="authRole">
+        <button type="button" data-val="owner">Business Owner</button>
+        <button type="button" data-val="staff">Salesperson</button>
+      </div>
       <input type="email" id="authEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
       <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
       <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
@@ -3616,6 +3647,15 @@
       role = null; settingsUnlocked = false;
       delete document.body.dataset.role;
       showGate('form');
+      if(loginMismatchMsg){
+        // Keep their choice so they can just tap the other one.
+        $('#authStatus').textContent = loginMismatchMsg;
+        $('#authStatus').className = 'status error';
+        loginMismatchMsg = '';
+      }else{
+        loginChoice = null; // signed out: the next person chooses afresh
+        renderLoginChoice();
+      }
       return;
     }
     role = null; settingsUnlocked = false;
@@ -3649,6 +3689,7 @@
   }
 
   function enterApp(newRole){
+    if(rejectLoginMismatch(newRole)) return;
     role = newRole;
     document.body.dataset.role = role;
     settingsUnlocked = role === 'owner';
@@ -3674,9 +3715,49 @@
     return (err && err.message) || 'Sign-in failed.';
   }
 
+  // Business Owner / Salesperson choice on the sign-in screen. It doesn't grant anything —
+  // the account decides what someone can do — but signing in with the wrong one chosen is
+  // refused with a clear message, so nobody ends up confused about which login they used.
+  // Nothing is pre-selected or remembered: the person picks one every time they sign in.
+  let loginChoice = null;
+  let loginIntent = null;      // set only for a sign-in typed on this screen
+  let loginMismatchMsg = '';
+  function renderLoginChoice(){
+    $('#authRole').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.val === loginChoice));
+    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as the business owner'
+      : loginChoice === 'staff' ? 'Sign in as a salesperson'
+      : 'Choose how you are signing in';
+  }
+  $('#authRole').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      loginChoice = btn.dataset.val;
+      $('#authStatus').textContent = '';
+      renderLoginChoice();
+    });
+  });
+  renderLoginChoice();
+  // Returns true when the account doesn't match the option picked; signs it back out.
+  function rejectLoginMismatch(actualRole){
+    const intent = loginIntent;
+    loginIntent = null;
+    if(!intent || intent === actualRole) return false;
+    loginMismatchMsg = actualRole === 'owner'
+      ? 'This is the business owner login — choose "Business Owner" and sign in again.'
+      : 'This is a salesperson login — choose "Salesperson" and sign in again.';
+    fb.signOut(fb.auth);
+    return true;
+  }
+
   $('#authForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     if(!fb) return;
+    if(!loginChoice){
+      $('#authStatus').className = 'status error';
+      $('#authStatus').textContent = 'Choose Business Owner or Salesperson first.';
+      return;
+    }
+    loginIntent = loginChoice;
+    loginMismatchMsg = '';
     const btn = $('#authSubmit');
     const st = $('#authStatus');
     btn.disabled = true;
