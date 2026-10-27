@@ -871,6 +871,7 @@
         <div class="field"><label>Starting password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this; they can reset it any time" /></div>
         <button class="addbtn" id="addStaffBtn" type="button">Add salesperson</button>
         <div class="status" id="addStaffStatus"></div>
+        <button class="pdfbtn" id="addStaffResetBtn" type="button" style="display:none; margin-top:6px;">Send them a password reset email</button>
         <details style="margin-top:8px;">
           <summary class="hint" style="cursor:pointer; text-align:center;">They already have a login?</summary>
           <div class="hint">Find their <strong>User UID</strong> in Firebase → Authentication → Users, and paste it here with their name above.</div>
@@ -3582,7 +3583,7 @@
 
   function addStaffError(err){
     const code = (err && err.code) || '';
-    if(code === 'auth/email-already-in-use') return 'That email already has a login. If you removed them before, tap "Restore access" on their row; otherwise use "They already have a login?" below.';
+    if(code === 'auth/email-already-in-use') return 'That email already has a login. Enter the password they use, or tap "Restore access" on their row if they are only removed.';
     if(code === 'permission-denied') return 'That login already belongs to another business, so it can\'t be added here.';
     if(code === 'auth/weak-password') return 'The password must be at least 6 characters.';
     if(code === 'auth/invalid-email') return "That email address doesn't look right.";
@@ -3610,23 +3611,56 @@
     st.className = 'status error';
     if(!name || !email || !password){ st.textContent = 'Enter their name, email and a starting password.'; return; }
     const btn = $('#addStaffBtn');
+    const resetBtn = $('#addStaffResetBtn');
     btn.disabled = true;
+    resetBtn.style.display = 'none';
     st.className = 'status';
     st.textContent = 'Creating their login…';
     try{
       // A separate, in-memory Firebase instance creates the account, so the owner stays
       // signed in here (creating a user on the main instance would switch to that user).
-      const uid = await fb.createLogin(email, password);
+      let uid, existing = false;
+      try{
+        uid = await fb.createLogin(email, password);
+      }catch(err){
+        if(!err || err.code !== 'auth/email-already-in-use') throw err;
+        // The email already has a login (e.g. someone deleted permanently and now re-added).
+        // Signing in with it on the spare instance proves who it is and gives us its UID.
+        st.textContent = 'That email already has a login — checking it…';
+        try{ uid = await fb.loginUid(email, password); existing = true; }
+        catch(signInErr){
+          const code = signInErr && signInErr.code;
+          if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/invalid-login-credentials'){
+            resetBtn.dataset.email = email;
+            resetBtn.style.display = '';
+            const e2 = new Error(`That email already has a login, but not with this password. Enter the password they use now — or send them a reset email below, ask them to choose a new password, then add them again with it.`);
+            e2.code = 'existing-login-wrong-password';
+            throw e2;
+          }
+          throw signInErr;
+        }
+      }
+      if(uid === bizId){ const e3 = new Error("That's your own login — it can't be added as a salesperson."); e3.code = 'own-login'; throw e3; }
       await grantStaffAccess(uid, name, email);
       st.className = 'status deepgreen';
-      st.textContent = `${name} added ✓ They can sign in now with ${email} and the password you set.`;
+      st.textContent = existing
+        ? `${name} added back ✓ They can sign in with ${email} and their existing password.`
+        : `${name} added ✓ They can sign in now with ${email} and the password you set.`;
       $('#newStaffName').value = ''; $('#newStaffEmail').value = ''; $('#newStaffPassword').value = '';
     }catch(err){
       st.className = 'status error';
-      st.textContent = addStaffError(err);
+      st.textContent = (err && (err.code === 'existing-login-wrong-password' || err.code === 'own-login')) ? err.message : addStaffError(err);
     }finally{
       btn.disabled = false;
     }
+  });
+
+  $('#addStaffResetBtn').addEventListener('click', async ()=>{
+    const btn = $('#addStaffResetBtn');
+    try{
+      await fb.sendPasswordResetEmail(fb.auth, btn.dataset.email);
+      btn.textContent = `Reset email sent to ${btn.dataset.email} ✓`;
+    }catch(err){ btn.textContent = 'Could not send — check the email address.'; }
   });
 
   $('#addStaffByUidBtn').addEventListener('click', async ()=>{
@@ -4209,6 +4243,18 @@
           catch(e){ spareAuth = authMod.getAuth(spare); }
           if(useEmulator && !spareAuth.emulatorConfig) authMod.connectAuthEmulator(spareAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
           const cred = await authMod.createUserWithEmailAndPassword(spareAuth, email, password);
+          const uid = cred.user.uid;
+          await authMod.signOut(spareAuth);
+          return uid;
+        },
+        // Signs in to an existing login on the same throwaway instance, just to learn its UID.
+        loginUid: async (email, password)=>{
+          const spare = appMod.getApps().find(a => a.name === 'create-login') || appMod.initializeApp(FIREBASE_CONFIG, 'create-login');
+          let spareAuth;
+          try{ spareAuth = authMod.initializeAuth(spare, { persistence: authMod.inMemoryPersistence }); }
+          catch(e){ spareAuth = authMod.getAuth(spare); }
+          if(useEmulator && !spareAuth.emulatorConfig) authMod.connectAuthEmulator(spareAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+          const cred = await authMod.signInWithEmailAndPassword(spareAuth, email, password);
           const uid = cred.user.uid;
           await authMod.signOut(spareAuth);
           return uid;
