@@ -651,7 +651,7 @@
     </div>
   </div>
 
-  <div class="card owner-only" id="volumeCard">
+  <div class="card" id="volumeCard">
     <button class="log-toggle" id="volumeToggle">
       <span class="log-caret" id="volumeCaret">▶</span>
       <span>Volume Analysis</span>
@@ -684,7 +684,7 @@
 
 
   <div class="stack-col">
-  <div class="card owner-only" id="perfCard">
+  <div class="card" id="perfCard">
     <button class="summary-toggle" id="summaryToggle">
       <span class="summary-caret" id="summaryCaret">▶</span>
       <span>Performance Overview</span>
@@ -2674,7 +2674,7 @@
       const todayOk = isInPeriod(t.date, 'today');
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
       const loggedMs = t.createdAtMs || new Date(t.date).getTime();
-      const unlocked = role === 'owner' || (Date.now() - loggedMs) / 60000 <= DELETE_LOCK_MINUTES;
+      const unlocked = role === 'owner' || (t.loggedBy === currentUser.uid && (Date.now() - loggedMs) / 60000 <= DELETE_LOCK_MINUTES);
       return todayOk && provOk && matchesLoggedBy(t) && !t.deleted && unlocked;
     });
   }
@@ -2711,7 +2711,7 @@
   }
 
   function render(){
-    if(fb && role === 'owner' && needsOlderTransactions() && olderState === 'idle') loadOlderTransactions();
+    if(fb && role && needsOlderTransactions() && olderState === 'idle') loadOlderTransactions();
     const filtered = getFiltered();
     let sumCustomer=0, sumBase=0, sumVat=0, sumStamp=0, sumAutosave=0, sumNet=0;
     filtered.forEach(t=>{
@@ -2812,17 +2812,20 @@
         const typeClass = isSameBankTitle ? providerColorClass : '';
         const loggedMs = t.createdAtMs || d.getTime();
         const minutesSinceLogged = (Date.now() - loggedMs) / 60000;
-        const isDeletable = !t.deleted && (role === 'owner' || minutesSinceLogged <= DELETE_LOCK_MINUTES);
+        const ownEntry = t.loggedBy === (currentUser && currentUser.uid);
+        const isDeletable = !t.deleted && (role === 'owner' || (ownEntry && minutesSinceLogged <= DELETE_LOCK_MINUTES));
         const deleteControl = t.deleted
           ? (role === 'owner' ? `<button class="restore" data-id="${t.id}">restore</button>` : '')
+          : (role === 'staff' && !ownEntry) ? ''
           : isDeletable
             ? `<button class="del" data-id="${t.id}">delete</button>`
             : `<span class="del-locked" title="Entries can only be deleted within 3h 50m of logging">locked</span>`;
         const bylineParts = [];
-        if(role === 'owner' && t.loggedBy) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy)));
-        if(t.imported) bylineParts.push('imported');
+        // Records uploaded from a phone's old local history don't say who logged them;
+        // everything logged since the switch does.
+        if(t.loggedBy && !t.imported) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy)));
         // Logged offline and uploaded later: show when Firebase actually received it.
-        else if(t.createdAtMs && !t.pending && t.createdAtMs - d.getTime() > 10 * 60000) bylineParts.push('uploaded ' + logTimeFormat.format(new Date(t.createdAtMs)));
+        if(!t.imported && t.createdAtMs && !t.pending && t.createdAtMs - d.getTime() > 10 * 60000) bylineParts.push('uploaded ' + logTimeFormat.format(new Date(t.createdAtMs)));
         if(t.pending) bylineParts.push('⏳ not uploaded yet');
         const byline = bylineParts.length ? `<div class="byline">${bylineParts.join(' · ')}</div>` : '';
         const deletedNote = t.deleted
@@ -3040,7 +3043,7 @@
 
       // Line 1.5: transaction type, directly under the provider name
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(30);
-      doc.text(typeLabel(t) + (role === 'owner' && t.loggedBy ? '  ·  by ' + nameFor(t.loggedBy) : ''), marginX, y);
+      doc.text(typeLabel(t) + (t.loggedBy && !t.imported ? '  ·  by ' + nameFor(t.loggedBy) : ''), marginX, y);
       y += 13;
 
       // Line 2: time, amount, and what was charged to the customer (wrapped)
@@ -3143,7 +3146,6 @@
       lastKnownDate = nowDate;
       $('#todayLabel').textContent = new Date().toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
     }
-    if(fb && role === 'staff' && dayKey(new Date()) !== txListenerDay) startTxListener();
     // Re-render periodically so the delete lock on log entries takes effect
     // even if the user hasn't interacted with the app since logging a transaction.
     render();
@@ -3172,7 +3174,8 @@
 
   // ---------- Firebase: sign-in, roles, live sync ----------
   // Every transaction is saved to Firestore, tagged with who logged it. The owner sees
-  // everyone's entries live; a salesperson sees only their own entries for today. Writes
+  // and the salesperson both see the shop's entries live, but only the owner sees costs,
+  // per-entry profit and Settings, and a salesperson can only delete their own. Writes
   // made offline wait on the phone and upload by themselves when the connection returns.
   // Who may read/write what is enforced by the Firestore security rules (firestore.rules),
   // not just by this page. These config values are public identifiers, not secrets.
@@ -3201,7 +3204,6 @@
   let olderTx = [];
   let olderState = 'idle'; // 'idle' | 'loading' | 'loaded'
   let txUnsub = null, settingsUnsub = null, teamUnsub = null;
-  let txListenerDay = null;
   let pendingUploads = 0;
 
   function dayKey(d){ return toDateInputValue(d); }
@@ -3244,11 +3246,9 @@
   function startTxListener(){
     if(txUnsub){ txUnsub(); txUnsub = null; }
     const col = fb.collection(fb.db, 'transactions');
-    txListenerDay = dayKey(new Date());
-    // The salesperson's query must filter on loggedBy, or the rules reject it outright.
-    const q = role === 'owner'
-      ? fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'))
-      : fb.query(col, fb.where('loggedBy', '==', currentUser.uid), fb.where('day', '==', txListenerDay));
+    // Owner and salesperson both see the whole shop's transactions (the salesperson
+    // sends the daily report); what they can change differs, and the rules enforce that.
+    const q = fb.query(col, fb.where('date', '>=', recentSinceISO()), fb.orderBy('date', 'desc'));
     txUnsub = fb.onSnapshot(q, { includeMetadataChanges: true }, (snap)=>{
       recentTx = snap.docs.map(docToTx);
       pendingUploads = recentTx.filter(t => t.pending).length;
@@ -3374,7 +3374,7 @@
 
   function renderLoggedByFilter(){
     const el = $('#loggedByFilter');
-    if(role !== 'owner' || STAFF_UIDS.length === 0){ el.style.display = 'none'; return; }
+    if(!role || STAFF_UIDS.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([OWNER_UID].concat(STAFF_UIDS).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
     el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');
