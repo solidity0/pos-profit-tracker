@@ -1,0 +1,14 @@
+{
+  "name": "ledger-tests",
+  "private": true,
+  "description": "Tests for Ledger: security rules and the whole app in a browser, against local Firebase emulators.",
+  "scripts": {
+    "test": "./run.sh"
+  },
+  "dependencies": {
+    "firebase": "13.1.0",
+    "firebase-tools": "^15.34.1",
+    "jspdf": "2.5.1",
+    "playwright": "^1.48.0"
+  }
+}

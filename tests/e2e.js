@@ -1,0 +1,421 @@
+// Browser tests for the whole app, against the local emulators. Run via ./run.sh (see README.md).
+const { chromium } = require('playwright');
+const path = require('path'); const fs = require('fs');
+const emu = require('./emulator.cjs');
+const FB = path.join(__dirname, 'node_modules/firebase/');
+const JSPDF = path.join(__dirname, 'node_modules/jspdf/dist/jspdf.umd.min.js');
+const OUT = path.join(__dirname, 'out'); fs.mkdirSync(OUT, { recursive: true });
+const PAGE = 'http://127.0.0.1:8000/index.html?emulator=1';
+let failures = 0;
+const check = (label, ok, extra='') => { if(!ok) failures++; console.log(`${ok?'PASS':'FAIL'}  ${label}${extra?'  ['+extra+']':''}`); };
+async function ctx(b, name){
+  // Service workers are tested separately (pwa.js); here they'd get in the way of the routes below.
+  const c = await b.newContext({ viewport:{width:390,height:844}, colorScheme:'light', serviceWorkers:'block', acceptDownloads:true });
+  await c.route('https://www.gstatic.com/firebasejs/**', r => { const f = path.basename(new URL(r.request().url()).pathname); r.fulfill({ path: FB + f, contentType:'text/javascript' }); });
+  await c.route('https://cdnjs.cloudflare.com/ajax/libs/jspdf/**', r => r.fulfill({ path: JSPDF, contentType:'text/javascript' }));
+  await c.route('https://fonts.googleapis.com/**', r => r.abort());
+  await c.addInitScript(()=>{ window.__appShown = false; document.addEventListener('DOMContentLoaded', ()=>{ const el = document.getElementById('appWrap'); new MutationObserver(()=>{ if(el.style.display !== 'none') window.__appShown = true; }).observe(el, { attributes:true, attributeFilter:['style'] }); }); });
+  const p = await c.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(name+': '+e.message));
+  p.on('console', m => { if(m.type()==='error' && !/net::ERR|Failed to load resource/.test(m.text())) p.errs.push(name+' console: '+m.text().slice(0,200)); });
+  return { c, p };
+}
+async function signIn(p, email, pw, as){ await p.goto(PAGE); await p.waitForSelector('#authForm', { state:'visible' });
+  await p.click(`#authRole button[data-val="${as || (email.startsWith('owner') ? 'owner' : 'staff')}"]`);
+  await p.fill('#authEmail', email); await p.fill('#authPassword', pw); await p.click('#authSubmit'); }
+async function logTx(p, type, amount, fee){
+  await p.click(`#typeSeg button[data-val="${type}"]`); await p.fill('#amount', amount); await p.fill('#customerFee', fee); await p.click('#addBtn');
+}
+const logCount = p => p.$$eval('#logList .log-item:not(.deleted)', e => e.length);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms){ try{ if(await fn()) return true; }catch(e){} await wait(200); } return false; }
+
+(async()=>{
+  await emu.reset(emu.TEST_ACCOUNTS);
+  const b = await chromium.launch();
+  // ---------- the original ledger, before businesses ----------
+  const admin = emu.adminWrite;
+  const tenDaysAgo = new Date(Date.now() - 10*86400e3).toISOString();
+  await admin('staff/LDtRV9smFfdcudaBjiWixXyyg9A2', { name:{ stringValue:'Test Staff' } });
+  await admin('transactions/oldtop-1', { id:{stringValue:'oldtop-1'}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:false }, date:{ stringValue: tenDaysAgo }, createdAt:{ timestampValue: tenDaysAgo }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:'4000'}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'60'}, netProfit:{integerValue:'40'} });
+
+  // a salesperson signing in before the owner has moved the ledger
+  const Early = await ctx(b, 'early'); const ep = Early.p;
+  await signIn(ep, 'staff@test.com', 'secret123');
+  check('salesperson before the move is told to wait for the owner', await until(async()=> /moving to the new version/.test(await ep.textContent('#authBlocked'))), await ep.textContent('#authBlocked'));
+  await Early.c.close();
+
+  // ---------- owner ----------
+  const O = await ctx(b, 'owner'); const op = O.p;
+  const now = Date.now();
+  const legacy = [
+    { id:'legacy-1', date:new Date(now-60*86400e3).toISOString(), provider:'Moniepoint', type:'Withdrawal', amount:50000, customerFee:500, baseFee:100, vatAmt:0, stampAmt:0, autosaveAmt:40, providerFee:140, netProfit:360 },
+    { id:'legacy-2', date:new Date(now-3*86400e3).toISOString(), provider:'Opay', type:'Transfer', amount:20000, customerFee:300, baseFee:20, vatAmt:1.5, stampAmt:50, autosaveAmt:0, providerFee:71.5, netProfit:228.5 },
+    { id:'legacy-3', date:new Date(now-1*86400e3).toISOString(), provider:'Moniepoint', type:'Withdrawal', amount:10000, customerFee:200, baseFee:50, vatAmt:0, stampAmt:0, autosaveAmt:40, providerFee:90, netProfit:110 }
+  ];
+  await op.addInitScript(l => { if(!localStorage.getItem('seeded')){ localStorage.setItem('ledger_transactions', JSON.stringify(l)); localStorage.setItem('seeded','1'); } }, legacy);
+  await signIn(op, 'owner@test.com', 'wrong-pass');
+  check('wrong password is rejected with a clear message', await until(async()=> (await op.textContent('#authStatus')) === 'Wrong email or password.'), await op.textContent('#authStatus'));
+  await op.fill('#authPassword','secret123'); await op.click('#authSubmit');
+  check('original owner is asked to name their business', await until(()=> op.isVisible('#setupForm')) && /moves into it/.test(await op.textContent('#setupIntro')));
+  await op.fill('#setupBizName', 'Triumph Ventures'); await op.fill('#setupOwnerName', 'Uweribe'); await op.click('#setupSubmit');
+  check('setup without ticking the terms box is refused', await until(async()=> /Tick the box to agree/.test(await op.textContent('#authStatus'))) && !(await op.isVisible('#appWrap')), await op.textContent('#authStatus'));
+  await op.check('#setupTerms'); await op.click('#setupSubmit');
+  check('owner signs in and sees the app', await until(()=> op.isVisible('#appWrap'), 20000));
+  check('header shows the business', await until(async()=> /^Triumph Ventures · /.test(await op.textContent('#whoLabel'))), await op.textContent('#whoLabel'));
+  check('owner sees Performance Overview + Settings', await op.isVisible('#perfCard') && await op.isVisible('#settingsCard'));
+  // team names + import
+  await fetch('http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/staff/LDtRV9smFfdcudaBjiWixXyyg9A2', { method:'PATCH', headers:{ Authorization:'Bearer owner', 'Content-Type':'application/json' }, body: JSON.stringify({ fields:{ name:{ stringValue:'Test Staff' } } }) });
+  await op.click('#settingsToggle');
+  check('settings open without a password', await op.isVisible('#settingsContent'));
+  check('import offers the 3 old transactions', await until(async()=> (await op.textContent('#importBtn')) === 'Upload 3 transactions'), await op.textContent('#importBtn'));
+  const names = await op.$$('#teamInputs input');
+  await names[0].fill('Uweribe'); await names[0].dispatchEvent('change');
+  await op.click('#importBtn');
+  check('old transactions upload', await until(async()=> /Uploaded 3 transactions/.test(await op.textContent('#importStatus'))), await op.textContent('#importStatus'));
+  await op.click('#importBtn');
+  await until(async()=> /Uploaded 3/.test(await op.textContent('#importStatus')));
+  check('header shows owner name', await until(async()=> (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner'), await op.textContent('#whoLabel'));
+  await op.click('#settingsDoneBtn');
+
+  // ---------- staff ----------
+  const St = await ctx(b, 'staff'); const sp = St.p;
+  await signIn(sp, 'staff@test.com', 'secret123', 'owner');
+  check('salesperson login with "Business Owner" chosen is refused', await until(async()=> /salesperson login — choose "Salesperson"/.test(await sp.textContent('#authStatus'))), await sp.textContent('#authStatus'));
+  check('...and stays on the sign-in screen', await sp.isVisible('#authForm') && !(await sp.isVisible('#appWrap')));
+  check('...and the app never appeared, not even briefly', (await sp.evaluate(()=> window.__appShown)) === false);
+  await signIn(sp, 'staff@test.com', 'secret123');
+  check('staff signs in', await until(()=> sp.isVisible('#appWrap')));
+  check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · Salesperson'), await sp.textContent('#whoLabel'));
+  check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
+  check('staff sees Performance Overview + Volume, not Settings', await sp.isVisible('#perfCard') && await sp.isVisible('#volumeCard') && !(await sp.isVisible('#settingsCard')));
+  await logTx(sp, 'Withdrawal', '20000', '300');
+  await logTx(sp, 'Transfer', '15000', '250');
+  check('staff sees its 2 entries', await until(async()=> (await logCount(sp)) === 2), String(await logCount(sp)));
+  const staffRowText = await sp.textContent('#logList .log-item');
+  check('staff log shows profit but hides cost', !/cost/.test(staffRowText) && /profit\s*₦/i.test(staffRowText), staffRowText.replace(/\s+/g,' ').slice(0,140));
+
+  // ---------- owner sees them live ----------
+  await op.click('#logToggle');
+  check('owner sees staff entries live (+ 1 imported from yesterday? no: today only)', await until(async()=> (await logCount(op)) === 2), String(await logCount(op)));
+  const ownerRow = (await op.textContent('#logList .log-item')).replace(/\s+/g,' ');
+  check('owner row says who logged it and shows cost', /by Test Staff/.test(ownerRow) && /cost/.test(ownerRow), ownerRow.slice(0,160));
+  await op.click('#summaryToggle');
+  check('owner totals today = 2 transactions', await until(async()=> (await op.textContent('#txCount')).startsWith('2 transactions')), await op.textContent('#txCount'));
+
+  // ---------- staff deletes, owner still sees it ----------
+  await sp.click('#logList .del');
+  check('staff no longer sees deleted entry', await until(async()=> (await logCount(sp)) === 1));
+  check('owner sees it struck through with who deleted it', await until(async()=> /Deleted by Test Staff/.test(await op.textContent('#logList'))));
+  check('owner totals drop to 1', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction')), await op.textContent('#txCount'));
+  await op.click('#logList .restore');
+  check('owner restore brings it back for staff', await until(async()=> (await logCount(sp)) === 2));
+
+  // ---------- offline logging ----------
+  await St.c.setOffline(true);
+  await logTx(sp, 'Withdrawal', '5000', '150');
+  check('offline: entry shows on staff phone at once', await until(async()=> (await logCount(sp)) === 3));
+  check('offline: badge says waiting to upload', await until(async()=> /⏳ 1 to upload/.test(await sp.textContent('#syncBadge'))), await sp.textContent('#syncBadge'));
+  await wait(1500);
+  check('offline: owner does not have it yet', (await logCount(op)) === 2, String(await logCount(op)));
+  await St.c.setOffline(false);
+  check('back online: owner receives it', await until(async()=> (await logCount(op)) === 3, 30000), String(await logCount(op)));
+  check('owner sees it was logged offline', await until(async()=> /logged offline · uploaded/.test(await op.textContent('#logList'))));
+  check('back online: badge clears', await until(async()=> (await sp.textContent('#syncBadge')) === '', 15000), await sp.textContent('#syncBadge'));
+
+  // ---------- owner filters ----------
+  await op.click('#periodTabs button[data-val="all"]');
+  check('All Time includes the 60-day-old imported entry and the moved old ledger', await until(async()=> (await op.textContent('#txCount')).startsWith('7 transactions')), await op.textContent('#txCount'));
+  await op.click('#loggedByFilter button:has-text("Test Staff")');
+  check('Logged-by filter: Test Staff = 4 (incl. moved entry)', await until(async()=> (await op.textContent('#txCount')).startsWith('4 transactions')), await op.textContent('#txCount'));
+  await op.click('#loggedByFilter button:has-text("Uweribe")');
+  check('Logged-by filter: owner = 3 imported', await until(async()=> (await op.textContent('#txCount')).startsWith('3 transactions')), await op.textContent('#txCount'));
+  await op.click('#loggedByFilter button:has-text("Everyone")');
+
+  // ---------- staff view of the whole shop ----------
+  await sp.click('#summaryToggle');
+  await sp.click('#periodTabs button[data-val="all"]');
+  check("staff All Time counts only the staff member's own entries", await until(async()=> (await sp.textContent('#txCount')).startsWith('4 transactions')), await sp.textContent('#txCount'));
+  check('staff sees net profit, VAT and stamp duty amounts', /₦/.test(await sp.textContent('#netProfit')) && /^−₦/.test(await sp.textContent('#sumVat')) && /^−₦/.test(await sp.textContent('#sumStamp')), (await sp.textContent('#sumVat')) + ' / ' + (await sp.textContent('#sumStamp')));
+  check('staff sees the Moniepoint/OPay fee amount', /^−₦/.test(await sp.textContent('#sumBaseFee')), await sp.textContent('#sumBaseFee'));
+  check('staff: auto-save row is hidden', !(await sp.isVisible('#sumAutosaveRow')));
+  check('owner: auto-save row is shown', await until(()=> op.isVisible('#sumAutosaveRow')));
+  await sp.click('#logToggle');
+  await until(async()=> /Withdrawal/.test(await sp.textContent('#logList')));
+  const importedRows = await sp.$$eval('#logList .log-item', els => els.filter(e => /₦10,000|₦20,000\.|₦50,000/.test(e.textContent) && !/by /.test(e.textContent) ).length);
+  const importedLabelled = await sp.$$eval('#logList .log-item', els => els.filter(e => /imported/.test(e.textContent)).length);
+  check('imported rows show without "by"/"imported" labels', importedLabelled === 0, `labelled=${importedLabelled}`);
+  const staffDeletable = await sp.$$eval('#logList .log-item', els => els.filter(e => e.querySelector('.del')).map(e => /by Test Staff/.test(e.textContent)));
+  check('staff can only delete their own entries', staffDeletable.length === 3 && staffDeletable.every(Boolean), JSON.stringify(staffDeletable));
+  await sp.click('#periodTabs button[data-val="today"]');
+  await sp.click('#logToggle');
+
+  // ---------- settings sync to staff ----------
+  await op.click('#settingsToggle');
+  await op.fill('#mp_transfer', '30'); await op.dispatchEvent('#mp_transfer','change');
+  await sp.click('#typeSeg button[data-val="Transfer"]'); await sp.fill('#amount','5000');
+  check('owner rate change reaches staff (₦30 + 7.5% VAT = ₦32.25, auto-save ₦0)', await until(async()=> (await sp.$eval('#machineTotal', e=>e.textContent)) === '₦32.25', 10000), await sp.textContent('#machineTotal'));
+  await op.click('#settingsDoneBtn');
+
+  await op.screenshot({ path: OUT + '/owner.png', fullPage: false });
+  await sp.click('#logToggle').catch(()=>{});
+  await sp.evaluate(()=> document.querySelector('#txLogCard').scrollIntoView());
+  await sp.screenshot({ path: OUT + '/staff.png' });
+  await op.evaluate(()=> document.querySelector('#txLogCard').scrollIntoView());
+  await op.screenshot({ path: OUT + '/owner-log.png' });
+
+  // ---------- owner adds a salesperson from Settings ----------
+  await op.click('#settingsToggle');
+  await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'start123');
+  await op.click('#addStaffBtn');
+  check('owner adds a salesperson from Settings', await until(async()=> /New Person added/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  check('owner is still signed in as owner after adding', (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner', await op.textContent('#whoLabel'));
+  check('new person appears in Team list', await until(async()=> (await op.$$eval('#teamInputs .team-name-input', els => els.map(e=>e.value))).includes('New Person')));
+  await op.fill('#newStaffName', 'Again'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'wrongpass');
+  await op.click('#addStaffBtn');
+  check('re-adding an existing login with the wrong password explains what to do', await until(async()=> /already has a login, but not with this password/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  check('...and offers a password reset email', await op.isVisible('#addStaffResetBtn'));
+  await op.fill('#newStaffName', ''); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffPassword', '');
+  const N = await ctx(b, 'newperson'); const np = N.p;
+  await signIn(np, 'new@test.com', 'start123');
+  check('new salesperson can sign in straight away', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson'), await np.textContent('#whoLabel'));
+  check('new salesperson cannot see Settings', !(await np.isVisible('#settingsCard')));
+  await logTx(np, 'Withdrawal', '7000', '200');
+  check("owner sees the new person's entry live", await until(async()=> /by New Person/.test(await op.textContent('#logList'))));
+  await wait(1000);
+  if(!(await sp.isVisible('#logList'))) await sp.click('#logToggle');
+  check("a salesperson's log shows another salesperson's entry", await until(async()=> /by New Person/.test(await sp.textContent('#logList'))));
+  if(!(await sp.isVisible('#summaryContent'))) await sp.click('#summaryToggle');
+  await sp.click('#periodTabs button[data-val="today"]');
+  const spToday = await sp.textContent('#txCount'); const opNames = await sp.$$eval('#logList .log-item', els => els.filter(e => /by New Person/.test(e.textContent) && !e.querySelector('.del')).length);
+  check("...but can't delete it, and it isn't in their totals", opNames >= 1 && /^3 transactions/.test(spToday), `${spToday} / undeletable=${opNames}`);
+  check('a salesperson has no logged-by filter', !(await sp.isVisible('#loggedByFilter')));
+  check('logged-by filter lists the new person', await until(async()=> (await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))).includes('New Person')));
+
+  // ---------- remove / restore access ----------
+  const staffRowRemove = await op.$('#teamInputs .team-row:has(input[data-uid="LDtRV9smFfdcudaBjiWixXyyg9A2"]) .team-remove');
+  await staffRowRemove.click(); await wait(500); await staffRowRemove.click();
+  check('removed salesperson is locked out while signed in', await until(async()=> /access to this ledger has been removed/.test(await sp.textContent('#authBlocked')), 15000), await sp.textContent('#authBlocked'));
+  check('...and the app is hidden from them', !(await sp.isVisible('#appWrap')));
+  check('owner sees "access removed" on their row', await until(async()=> /access removed/.test(await op.textContent('#teamInputs'))));
+  await sp.reload();
+  check('removed salesperson stays blocked after reload', await until(async()=> /doesn't have access|has been removed/.test(await sp.textContent('#authBlocked'))), await sp.textContent('#authBlocked'));
+  await op.click('#teamInputs .team-restore');
+  await wait(1000);
+  await sp.reload();
+  check('restored salesperson gets back in', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · Salesperson', 15000), await sp.textContent('#whoLabel'));
+  // ---------- salesperson with a username ----------
+  await op.fill('#newStaffName', 'Uche'); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffUsername', 'Uche'); await op.fill('#newStaffPassword', 'start123');
+  await op.click('#addStaffBtn');
+  check('adding a salesperson without an email is refused', await until(async()=> /Enter their name, email, username and a password/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  await op.fill('#newStaffEmail', 'uche@test.com'); await op.fill('#newStaffUsername', 'u!');
+  await op.click('#addStaffBtn');
+  check('a badly formed username is refused', await until(async()=> /Usernames are 3–30 characters/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  await op.fill('#newStaffUsername', 'Uche'); await op.click('#addStaffBtn');
+  check('owner adds a salesperson with a username', await until(async()=> /Uche added ✓ They can sign in now with uche/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  check('Team list shows the username and email', await until(async()=> /username: uche · uche@test\.com/.test(await op.textContent('#teamInputs'))), await op.textContent('#teamInputs'));
+  await op.fill('#newStaffName', 'Other'); await op.fill('#newStaffEmail', 'other@test.com'); await op.fill('#newStaffUsername', 'uche'); await op.fill('#newStaffPassword', 'notTheirs1');
+  await op.click('#addStaffBtn');
+  check('a username already in use is reported as taken', await until(async()=> /username "uche" is already taken/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  check("...and no login was created for the other email", (await (await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/ledger-3c7f0/accounts:lookup', { method:'POST', headers:{ Authorization:'Bearer owner', 'Content-Type':'application/json' }, body: JSON.stringify({ email:['other@test.com'] }) })).json()).users === undefined);
+  await op.fill('#newStaffName', ''); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffUsername', ''); await op.fill('#newStaffPassword', '');
+  // give an existing email-login salesperson a username too (no delete needed)
+  await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newp'); await op.fill('#newStaffPassword', 'start123');
+  await op.click('#addStaffBtn');
+  check('an email-login salesperson can be given a username', await until(async()=> /New Person added back/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  check('changing their username releases the old one', (await fetch('http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/usernames/newperson', { headers:{ Authorization:'Bearer owner' } })).status === 404);
+  check('their Team row shows both username and email', await until(async()=> /username: newp · new@test\.com/.test(await op.textContent('#teamInputs'))), await op.textContent('#teamInputs'));
+  const NP2 = await ctx(b, 'newp'); const n2 = NP2.p;
+  await n2.goto(PAGE); await n2.waitForSelector('#authForm', { state:'visible' });
+  await n2.click('#authRole button[data-val="staff"]'); await n2.fill('#authEmail', 'newp'); await n2.click('#authForgot');
+  check('"Forgot password?" on a username with an email sends the reset to that email', await until(async()=> /reset link is on its way/.test(await n2.textContent('#authStatus'))), await n2.textContent('#authStatus'));
+  await n2.fill('#authPassword', 'start123'); await n2.click('#authSubmit');
+  check('...and they can sign in with the username', await until(async()=> (await n2.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson', 15000), await n2.textContent('#whoLabel'));
+  await NP2.c.close();
+  await op.fill('#newStaffName', ''); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffUsername', ''); await op.fill('#newStaffPassword', '');
+  const U = await ctx(b, 'uche'); const up = U.p;
+  await up.goto(PAGE); await up.waitForSelector('#authForm', { state:'visible' });
+  await up.click('#authRole button[data-val="staff"]'); await up.fill('#authEmail', 'uche'); await up.click('#authForgot');
+  check('"Forgot password?" with the username sends the link to their email', await until(async()=> /reset link is on its way/.test(await up.textContent('#authStatus'))), await up.textContent('#authStatus'));
+  await up.fill('#authEmail', 'UCHE'); await up.fill('#authPassword', 'start123'); await up.click('#authSubmit');
+  check('salesperson signs in with just their username', await until(async()=> (await up.textContent('#whoLabel')) === 'Triumph Ventures · Uche · Salesperson', 15000), await up.textContent('#whoLabel'));
+  check('there is no "Change my password" card on the home page', !(await up.$('#passwordCard')));
+  await U.c.close();
+
+  // ---------- removed people leave the filter; permanent delete ----------
+  const npRemove = await op.$('#teamInputs .team-row:has(input[value="New Person"]) .team-remove') || await op.$$eval('#teamInputs .team-row', rows => null);
+  const npRow = async () => op.$('#teamInputs .team-row:has(.team-meta:has-text("new@test.com"))');
+  await (await (await npRow()).$('.team-remove')).click(); await wait(500); await (await (await npRow()).$('.team-remove')).click();
+  check('removed person disappears from the logged-by filter', await until(async()=> !(await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))).includes('New Person')), JSON.stringify(await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))));
+  check('removed person can be deleted permanently (button shown)', await until(async()=> !!(await (await npRow()).$('.team-delete'))));
+  await (await (await npRow()).$('.team-delete')).click(); await wait(500); await (await (await npRow()).$('.team-delete')).click();
+  check('permanently deleted person leaves the Team list', await until(async()=> !(await npRow())));
+  check("their past entry still shows their name", /by New Person/.test(await op.textContent('#logList')));
+  await np.reload();
+  check('permanently deleted person is blocked', await until(async()=> /doesn't have access|has been removed/.test(await np.textContent('#authBlocked')), 15000), await np.textContent('#authBlocked'));
+  // ...and can be added back later with the same email
+  await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newp'); await op.fill('#newStaffPassword', 'start123');
+  await op.click('#addStaffBtn');
+  check('a permanently deleted person can be added back with their email', await until(async()=> /New Person added back/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
+  check('...and is in the Team list again', await until(async()=> !!(await npRow())));
+  await np.reload();
+  check('...and can sign in again', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson', 15000), await np.textContent('#whoLabel'));
+  check('owner stayed signed in as owner', (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner', await op.textContent('#whoLabel'));
+  await op.click('#settingsDoneBtn');
+
+  // ---------- old-ledger recopy ----------
+  await op.click('#settingsToggle');
+  check('owner sees the old-ledger section', await op.isVisible('#legacySection'));
+  await op.click('#legacyRecopyBtn');
+  check('recopy with nothing new copies nothing', await until(async()=> /Nothing missing/.test(await op.textContent('#legacyStatus'))), await op.textContent('#legacyStatus'));
+  await admin('transactions/oldtop-2', { id:{stringValue:'oldtop-2'}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, deleted:{ booleanValue:false }, date:{ stringValue: tenDaysAgo }, createdAt:{ timestampValue: tenDaysAgo }, provider:{stringValue:'Opay'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:'1000'}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'10'}, providerFee:{integerValue:'10'}, netProfit:{integerValue:'90'} });
+  await op.click('#legacyRecopyBtn');
+  check('recopy picks up an entry logged on the old version', await until(async()=> /Copied 1 missing entry/.test(await op.textContent('#legacyStatus'))), await op.textContent('#legacyStatus'));
+  await op.fill('#bizNameInput', 'Triumph Ventures Ltd'); await op.dispatchEvent('#bizNameInput', 'change');
+  check('owner can rename the business', await until(async()=> /^Triumph Ventures Ltd · /.test(await op.textContent('#whoLabel'))), await op.textContent('#whoLabel'));
+  check("salesperson sees the new business name", await until(async()=> /^Triumph Ventures/.test(await sp.textContent('#whoLabel'))), await sp.textContent('#whoLabel'));
+  await op.fill('#bizNameInput', 'Triumph Ventures'); await op.dispatchEvent('#bizNameInput', 'change');
+  await until(async()=> /^Triumph Ventures · /.test(await op.textContent('#whoLabel')));
+  await op.click('#settingsDoneBtn');
+
+  // ---------- reports and backups ----------
+  if(!(await sp.isVisible('#summaryContent'))) await sp.click('#summaryToggle');
+  await sp.click('#periodTabs button[data-val="all"]');
+  await wait(800);
+  {
+    const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#sharePdfBtn') ]);
+    const raw = fs.readFileSync(await dl.path(), 'latin1');
+    check("salesperson's PDF covers only their own entries", /by Test Staff/.test(raw) && !/Uweribe/.test(raw));
+  }
+  check('salesperson has no Excel download', !(await sp.isVisible('#csvBtn')));
+  {
+    await op.click('#periodTabs button[data-val="all"]'); await wait(500);
+    const shown = parseInt(await op.textContent('#txCount'));
+    const [dl] = await Promise.all([ op.waitForEvent('download'), op.click('#csvBtn') ]);
+    const csv = fs.readFileSync(await dl.path(), 'utf8'); const rows = csv.trim().split('\r\n');
+    check('Excel download has a header and one row per entry shown', rows[0].replace('\ufeff','').startsWith('Date,Time,Provider,Type,Logged by,Amount') && rows.length - 1 === shown, `${rows.length - 1} rows vs ${shown}`);
+    check('...named after the business', /^triumph-ventures-.*\.csv$/.test(dl.suggestedFilename()), dl.suggestedFilename());
+  }
+  await logTx(sp, 'Transfer', '1234', '50');
+  await until(async()=> /1,234/.test(await sp.textContent('#logList')));
+  await sp.click('#logList .del');
+  await until(async()=> /Deleted by Test Staff/.test(await op.textContent('#logList')));
+  await op.click('#settingsToggle');
+  {
+    const [dl] = await Promise.all([ op.waitForEvent('download'), op.click('#backupBtn') ]);
+    const csv = fs.readFileSync(await dl.path(), 'utf8');
+    check('full backup includes old entries (60 days)', /legacy-1/.test(csv));
+    check('full backup includes deleted entries', /,yes,Test Staff,/.test(csv));
+  }
+  await op.click('#settingsDoneBtn');
+
+  // ---------- a wrong phone clock can't backdate an entry ----------
+  const Clk = await ctx(b, 'clock'); const kp = Clk.p;
+  await kp.addInitScript(() => { const shift = -2*86400e3; const RD = Date; class D extends RD { constructor(...a){ if(a.length) super(...a); else super(RD.now() + shift); } static now(){ return RD.now() + shift; } } window.Date = D; });
+  await signIn(kp, 'staff@test.com', 'secret123');
+  await until(()=> kp.isVisible('#appWrap'), 20000);
+  const beforeClock = await logCount(op);
+  await logTx(kp, 'Withdrawal', '7777', '100');
+  check('entry from a phone 2 days behind reaches the owner', await until(async()=> (await logCount(op)) === beforeClock + 1, 15000));
+  const clockItem = op.locator('#logList .log-item:has-text("7,777")').first();
+  check("...dated by the server, not the phone", await until(async()=> /phone clock was 2 days behind/.test(await clockItem.textContent())), await clockItem.textContent().catch(()=>''));
+  await Clk.c.close();
+
+  // ---------- a new business owner signs up ----------
+  const Ada = await ctx(b, 'ada'); const ap = Ada.p;
+  await ap.goto(PAGE); await ap.waitForSelector('#authForm', { state:'visible' });
+  check('sign-in screen offers "Create a business account"', await ap.isVisible('#showSignup'));
+  await ap.click('#showSignup');
+  await ap.fill('#signupBizName', 'Ada Stores'); await ap.fill('#signupOwnerName', 'Ada'); await ap.fill('#signupEmail', 'owner@test.com'); await ap.fill('#signupPassword', 'secret123'); await ap.check('#signupTerms'); await ap.click('#signupSubmit');
+  check('signing up with an email that already has an account is refused', await until(async()=> /already has an account/.test(await ap.textContent('#authStatus'))), await ap.textContent('#authStatus'));
+  check('sign-up form links the Terms of Use and Privacy Policy', !!(await ap.$('#signupForm a[href="terms.html"]')) && !!(await ap.$('#signupForm a[href="privacy.html"]')));
+  await ap.uncheck('#signupTerms'); await ap.fill('#signupEmail', 'ada@test.com'); await ap.click('#signupSubmit');
+  check('sign-up without ticking the terms box is refused', await until(async()=> /Tick the box to agree/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authStatus'));
+  await ap.check('#signupTerms'); await ap.click('#signupSubmit');
+  check('a new owner is asked to confirm their email first', await until(async()=> await ap.isVisible('#verifyForm') && /ada@test\.com/.test(await ap.textContent('#verifyMsg')), 15000) && !(await ap.isVisible('#appWrap')));
+  await ap.click('#verifyDone');
+  check('...and can\'t continue before opening the link', await until(async()=> /Not confirmed yet/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authStatus'));
+  await ap.reload();
+  check('reopening the app goes back to the confirm-your-email step', await until(()=> ap.isVisible('#verifyForm'), 15000));
+  check('the confirmation email was sent', await emu.verifyEmail('ada@test.com'));
+  await ap.click('#verifyDone');
+  check('new owner gets their own business', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 20000), await ap.textContent('#whoLabel'));
+  check('a new business starts with auto-save at ₦0', await until(async()=> (await ap.$eval('#autosaveFlat', e=>e.value)) === '0'), await ap.$eval('#autosaveFlat', e=>e.value));
+  await ap.click('#summaryToggle'); await ap.click('#periodTabs button[data-val="all"]');
+  check("new business starts empty (can't see Triumph's data)", await until(async()=> (await ap.textContent('#txCount')).startsWith('0 transactions')), await ap.textContent('#txCount'));
+  const triumphBefore = await logCount(op);
+  await logTx(ap, 'Withdrawal', '9000', '200');
+  check('new owner can log in their own business', await until(async()=> (await ap.textContent('#txCount')).startsWith('1 transaction')), await ap.textContent('#txCount'));
+  await wait(1500);
+  check("Triumph doesn't see Ada's transaction", (await logCount(op)) === triumphBefore, `${triumphBefore} -> ${await logCount(op)}`);
+  await ap.click('#settingsToggle');
+  check("Ada's team has only Ada", await until(async()=> (await ap.$$('#teamInputs .team-row')).length === 1));
+  await ap.fill('#newStaffName', 'Taken'); await ap.click('#addStaffBtn >> xpath=..//summary'); await ap.fill('#newStaffUid', 'LDtRV9smFfdcudaBjiWixXyyg9A2'); await ap.click('#addStaffByUidBtn');
+  check("Ada can't take Triumph's salesperson", await until(async()=> /belongs to another business/.test(await ap.textContent('#addStaffStatus'))), await ap.textContent('#addStaffStatus'));
+  check("Ada doesn't see the old-ledger section", !(await ap.isVisible('#legacySection')));
+  check("Ada doesn't see the platform admin section", !(await ap.isVisible('#adminSection')));
+  await ap.click('#settingsDoneBtn');
+
+  // ---------- platform admin ----------
+  await op.click('#settingsToggle');
+  check('platform admin sees the admin section', await op.isVisible('#adminSection'));
+  await op.click('#adminRefreshBtn');
+  check('admin list shows both businesses', await until(async()=> /2 businesses/.test(await op.textContent('#adminStatus'))), await op.textContent('#adminStatus'));
+  const adaRow = async () => op.$('#adminList .admin-biz:has-text("Ada Stores")');
+  check("admin list shows Ada's owner email", /ada@test\.com/.test(await (await adaRow()).textContent()));
+  await (await (await adaRow()).$('.admin-suspend')).click(); await wait(500); await (await (await adaRow()).$('.admin-suspend')).click();
+  check('admin suspends Ada Stores', await until(async()=> /Suspended/.test(await (await adaRow()).textContent())));
+  check('Ada is locked out straight away', await until(async()=> /has been suspended/.test(await ap.textContent('#authBlocked')), 15000), await ap.textContent('#authBlocked'));
+  check("...and can't see the app", !(await ap.isVisible('#appWrap')));
+  await ap.reload();
+  check('Ada stays locked out after reload', await until(async()=> /has been suspended/.test(await ap.textContent('#authBlocked'))), await ap.textContent('#authBlocked'));
+  await (await (await adaRow()).$('.admin-restore')).click();
+  check('admin restores Ada Stores', await until(async()=> /Active/.test(await (await adaRow()).textContent())));
+  await wait(800); await ap.reload();
+  check('restored Ada gets back in', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 15000), await ap.textContent('#whoLabel'));
+  await op.click('#settingsDoneBtn');
+  await Ada.c.close();
+
+  // ---------- legal pages + copyright ----------
+  const L = await ctx(b, 'legal'); const lp = L.p;
+  await lp.goto('http://127.0.0.1:8000/terms.html');
+  check('Terms of Use page names the operator and contact', /Terms of Use/.test(await lp.textContent('h1')) && /Triumph Enterprise/.test(await lp.textContent('body')) && !!(await lp.$('a[href="mailto:victoryuweribe25@gmail.com"]')) && !/\[Operator name\]|\[contact email\]/.test(await lp.textContent('body')));
+  await lp.goto('http://127.0.0.1:8000/privacy.html');
+  check('Privacy Policy page loads', /Privacy Policy/.test(await lp.textContent('h1')) && /NDPA|Nigeria Data Protection/.test(await lp.textContent('body')));
+  check('copyright shows in the app footer', /© 2026 Triumph Enterprise · Ledger · All rights reserved/.test(await op.textContent('#appWrap .legal-footer')));
+  await L.c.close();
+
+  // ---------- login choice ----------
+  const W = await ctx(b, 'wrongchoice'); const wp = W.p;
+  await signIn(wp, 'owner@test.com', 'secret123', 'staff');
+  check('owner login with "Salesperson" chosen is refused', await until(async()=> /business owner login — choose "Business Owner"/.test(await wp.textContent('#authStatus'))), await wp.textContent('#authStatus'));
+  check('...and the app never appeared, not even briefly', (await wp.evaluate(()=> window.__appShown)) === false);
+  await wp.reload(); await wp.waitForSelector('#authForm', { state:'visible' });
+  check('nothing is pre-selected when the sign-in screen opens', !(await wp.$('#authRole button.active')) && /Choose how/.test(await wp.textContent('#authSub')), await wp.textContent('#authSub'));
+  await wp.fill('#authEmail','owner@test.com'); await wp.fill('#authPassword','secret123'); await wp.click('#authSubmit');
+  check('signing in without choosing is refused', await until(async()=> /Choose Business Owner or Salesperson first/.test(await wp.textContent('#authStatus'))) && !(await wp.isVisible('#appWrap')), await wp.textContent('#authStatus'));
+  await wp.click('#authRole button[data-val="owner"]'); await wp.fill('#authEmail','owner@test.com'); await wp.fill('#authPassword','secret123'); await wp.click('#authSubmit');
+  check('choosing Business Owner then lets the owner in', await until(async()=> (await wp.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner'), await wp.textContent('#whoLabel'));
+  await wp.reload();
+  check('a saved sign-in reopens without asking again', await until(()=> wp.isVisible('#appWrap')));
+
+  // ---------- stranger ----------
+  const X = await ctx(b, 'stranger'); const xp = X.p;
+  await signIn(xp, 'stranger@test.com', 'secret123');
+  check('unknown account is blocked', await until(async()=> /doesn't have access to (a|this) ledger/.test(await xp.textContent('#authBlocked'))));
+  check('...and never sees the app', !(await xp.isVisible('#appWrap')));
+
+  // ---------- sign out ----------
+  await sp.click('#signOutBtn'); check('sign out asks to confirm', (await sp.textContent('#signOutBtn')) === 'Confirm'); await wait(600); await sp.click('#signOutBtn');
+  check('staff signs out back to the sign-in form', await until(()=> sp.isVisible('#authForm')));
+  check('after signing out, no option is selected for the next person', !(await sp.$('#authRole button.active')));
+  // ---------- settings never carry over between businesses on the same phone ----------
+  await op.click('#signOutBtn'); await wait(600); await op.click('#signOutBtn');
+  await op.waitForSelector('#authForm', { state:'visible' });
+  await op.click('#authRole button[data-val="owner"]'); await op.fill('#authEmail', 'ada@test.com'); await op.fill('#authPassword', 'secret123'); await op.click('#authSubmit');
+  check('a second owner signs in on the same phone', await until(async()=> (await op.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 15000), await op.textContent('#whoLabel'));
+  check("...and starts with their own rates, not the previous business's", await until(async()=> (await op.$eval('#mp_transfer', e=>e.value)) === '20' && (await op.$eval('#autosaveFlat', e=>e.value)) === '0'), `${await op.$eval('#mp_transfer', e=>e.value)} / ${await op.$eval('#autosaveFlat', e=>e.value)}`);
+  const errs = [...op.errs, ...sp.errs, ...xp.errs];
+  check('no page errors', errs.length === 0, errs.join(' | ').slice(0,400));
+  console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
+  await b.close(); process.exit(failures?1:0);
+})().catch(e=>{ console.error('CRASH', e); process.exit(2); });

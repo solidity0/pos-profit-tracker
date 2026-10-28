@@ -27,9 +27,11 @@ service cloud.firestore {
       // Its own team can always read the business document (so the app can tell them it's
       // suspended); the admin can read and list them all.
       allow read: if isOwnerOf(b) || isStaffOf(b) || isAdmin();
-      // Anyone can create a business, but only as its owner, under their own UID, having
-      // accepted the Terms of Use and Privacy Policy, and never pre-suspended or un-suspendable.
+      // Anyone can create a business, but only as its owner, under their own UID, with a
+      // confirmed email (the platform admin is exempt), having accepted the Terms of Use and Privacy Policy, and never
+      // pre-suspended or un-suspendable.
       allow create: if isOwnerOf(b) && request.resource.data.ownerUid == b
+        && (request.auth.token.email_verified == true || isAdmin())
         && request.resource.data.termsAcceptedAt == request.time
         && request.resource.data.termsVersion is string
         && !('suspended' in request.resource.data);
