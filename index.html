@@ -529,6 +529,7 @@
   .log-item.deleted{ opacity: 0.55; }
   .log-item.deleted .type{ text-decoration: line-through; }
   .log-left .byline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:600; }
+  .log-left .byline-name{ color: var(--text); font-weight:700; }
   .log-left .deleted-note{ font-size: 11px; color: var(--loss); margin-top: 3px; font-weight:700; }
   .log-right .restore{ background:none; border:none; color: var(--profit); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:600; }
   .team-row{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 12px 10px; margin-top: 10px; }
@@ -3031,7 +3032,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)));
+        if(t.loggedBy && !t.imported) bylineParts.push('by <span class="byline-name">' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
