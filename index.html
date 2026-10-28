@@ -2755,11 +2755,11 @@
   function comboAmountLine(t, useFmt, wrap){
     const rawFmt = useFmt || fmt;
     const f = wrap ? (n) => `<span class="fig">${rawFmt(n)}</span>` : rawFmt;
-    // On screen, money in (withdrawn) is green and money out (sent) is red.
+    // On screen, money in (withdrawn) is green and money out (sent, or paid for a bill) is red.
     const tint = (cls, text) => wrap ? `<span class="${cls}">${text}</span>` : text;
     if(t.type !== 'WithdrawTransfer'){
       const phrase = (t.type === 'Bill' ? 'paid' : 'amount') + ' ' + f(t.amount);
-      return t.type === 'Withdrawal' ? tint('flow-in', phrase) : t.type === 'Transfer' ? tint('flow-out', phrase) : phrase;
+      return t.type === 'Withdrawal' ? tint('flow-in', phrase) : (t.type === 'Transfer' || t.type === 'Bill') ? tint('flow-out', phrase) : phrase;
     }
     if(Array.isArray(t.transferAmounts) && t.transferAmounts.length > 0){
       const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
