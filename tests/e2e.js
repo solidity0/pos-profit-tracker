@@ -14,6 +14,8 @@ async function ctx(b, name){
   await c.route('https://www.gstatic.com/firebasejs/**', r => { const f = path.basename(new URL(r.request().url()).pathname); r.fulfill({ path: FB + f, contentType:'text/javascript' }); });
   await c.route('https://cdnjs.cloudflare.com/ajax/libs/jspdf/**', r => r.fulfill({ path: JSPDF, contentType:'text/javascript' }));
   await c.route('https://fonts.googleapis.com/**', r => r.abort());
+  // Performance Overview's Filter / Summary / Reports panels start open in these tests.
+  await c.addInitScript(()=>{ try{ if(!localStorage.getItem('ledger_perfOpen')) localStorage.setItem('ledger_perfOpen', JSON.stringify({ perfFilters:true, perfTotals:true, perfReports:true })); }catch(e){} });
   await c.addInitScript(()=>{ window.__appShown = false; document.addEventListener('DOMContentLoaded', ()=>{ const el = document.getElementById('appWrap'); new MutationObserver(()=>{ if(el.style.display !== 'none') window.__appShown = true; }).observe(el, { attributes:true, attributeFilter:['style'] }); }); });
   const p = await c.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(name+': '+e.message));
   p.on('console', m => { if(m.type()==='error' && !/net::ERR|Failed to load resource/.test(m.text())) p.errs.push(name+' console: '+m.text().slice(0,200)); });
@@ -276,6 +278,23 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.fill('#bizNameInput', 'Triumph Ventures'); await op.dispatchEvent('#bizNameInput', 'change');
   await until(async()=> /^Triumph Ventures · /.test(await op.textContent('#whoLabel')));
   await op.click('#settingsDoneBtn');
+
+  // ---------- Performance Overview panels open and close ----------
+  {
+    const P = await ctx(b, 'panels'); const pp = P.p;
+    await pp.addInitScript(()=>{ try{ if(!sessionStorage.getItem('x')){ localStorage.removeItem('ledger_perfOpen'); sessionStorage.setItem('x','1'); } }catch(e){} });
+    await signIn(pp, 'owner@test.com', 'secret123');
+    await until(()=> pp.isVisible('#appWrap'), 20000);
+    await pp.click('#summaryToggle');
+    check('Filter, Summary and Reports start closed', !(await pp.isVisible('#periodTabs')) && !(await pp.isVisible('#netProfit')) && !(await pp.isVisible('#csvBtn')) && await pp.isVisible('#perfTotals .perf-section-toggle'));
+    await pp.click('#perfTotals .perf-section-toggle');
+    check('tapping Summary opens just Summary', await pp.isVisible('#netProfit') && !(await pp.isVisible('#periodTabs')));
+    await pp.reload(); await until(()=> pp.isVisible('#appWrap'), 20000); await pp.click('#summaryToggle');
+    check('the phone remembers which panels were open', await until(()=> pp.isVisible('#netProfit')) && !(await pp.isVisible('#csvBtn')));
+    await pp.click('#perfTotals .perf-section-toggle');
+    check('tapping it again closes it', !(await pp.isVisible('#netProfit')));
+    await P.c.close();
+  }
 
   // ---------- reports and backups ----------
   if(!(await sp.isVisible('#summaryContent'))) await sp.click('#summaryToggle');
