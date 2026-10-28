@@ -202,8 +202,8 @@
     /* Visual reorder only — DOM order is unchanged, so mobile stacking is unaffected. */
     #txLogCard{ order: 1; margin-bottom: 18px; }
     #volumeCard{ order: 2; margin-bottom: 0; }
-    #safetyCard{ order: 1; margin-bottom: 18px; }
-    #perfCard{ order: 2; margin-bottom: 0; }
+    #perfCard{ order: 1; margin-bottom: 18px; }
+    #safetyCard{ order: 2; margin-bottom: 0; }
   }
 
 
@@ -515,6 +515,7 @@
   .auth-card .terms-check input{ width:18px; height:18px; padding:0; margin: 2px 0 0; flex-shrink:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .terms-check a, .legal-footer a{ color: var(--theme-soft); }
   .legal-footer{ text-align:center; font-size: 11px; color: var(--muted); margin: 18px 0 6px; line-height: 1.7; }
+  .legal-footer a{ white-space: nowrap; }
   .admin-biz{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 12px; }
   .admin-biz.suspended{ border-color: var(--loss); }
   .admin-biz .admin-name{ font-weight:700; color: var(--text); font-size: 13px; }
@@ -1057,7 +1058,7 @@
 
   </div>
 
-  <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved · <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
+  <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved<br><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
 
 </div>
 
