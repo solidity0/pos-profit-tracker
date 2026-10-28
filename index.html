@@ -213,12 +213,6 @@
     #txLogCard{ order: 1; margin-bottom: 18px; }
     #volumeCard{ order: 2; margin-bottom: 0; }
     #perfCard{ order: 1; margin-bottom: 18px; }
-    /* Open, the Performance Overview widens to fit its three panels side by side. */
-    .dashboard-row > .stack-col:has(#summaryContent[style*="block"]){ flex: 2.6 0 880px; min-width: 880px; max-width: 1080px; }
-    .perf-sections{ display:grid; grid-template-columns: 1.2fr 1fr 0.95fr; gap: 14px; }
-    #perfReports .pdfbtn{ white-space: nowrap; padding-left: 8px; padding-right: 8px; }
-    .perf-section{ margin-bottom: 0; }
-    .perf-sections{ align-items: start; }
     #safetyCard{ order: 2; margin-bottom: 0; }
   }
 
@@ -284,8 +278,8 @@
   .summary-caret{ font-size: 10px; transition: transform 0.15s; }
   .summary-caret.open{ transform: rotate(90deg); }
   .summary-content{ margin-top: 14px; }
-  /* Performance Overview in three panels: filters, the summary, and report downloads.
-     Stacked on phones; side by side on a computer. */
+  /* Performance Overview in three drop-down panels, stacked one under another: filters,
+     the summary, and report downloads. */
   .perf-section{ background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
   .perf-section:last-child{ margin-bottom: 0; }
   .perf-section{ padding: 0; overflow: hidden; }
