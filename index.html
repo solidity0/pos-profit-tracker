@@ -1703,7 +1703,7 @@
 
     // Hide the main Service Fee field while "Kept as service fee/charge" is checked, since
     // that box is standing in for it — it reappears the moment that's unchecked (or
-    // auto-hidden above). No value syncing between them, just visibility.
+    // auto-hidden above). When adding, the kept amount is used as the fee charged.
     $('#customerFeeFieldWrap').style.display = keptStillChecked ? 'none' : '';
 
     // Drive the same "Remaining" box shown above the checkboxes — it now reflects what's
@@ -2057,7 +2057,7 @@
 
   $('#addBtn').addEventListener('click', async ()=>{
     const amount = numVal('#amount');
-    const customerFee = numVal('#customerFee');
+    let customerFee = numVal('#customerFee');
     const wasOverridden = $('#overrideFee').checked;
     const isCombo = state.type === 'WithdrawTransfer';
     const legs = isCombo ? getTransferLegs().filter(l => l.amount > 0) : null;
@@ -2067,6 +2067,9 @@
 
     const legAmounts = isCombo ? getRemainingLegAmounts(Math.max(leftoverForBill, 0)) : null;
     const billLegs = (isCombo && leftoverForBill > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
+    // "Kept as service fee/charge" stands in for the (hidden) Service Fee box: the amount kept
+    // is what the customer was charged.
+    if(isCombo && leftoverForBill > 0 && legAmounts.keptChecked) customerFee = legAmounts.kept;
 
     let bd;
     if(isCombo){
