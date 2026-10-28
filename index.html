@@ -202,8 +202,8 @@
     /* Visual reorder only — DOM order is unchanged, so mobile stacking is unaffected. */
     #txLogCard{ order: 1; margin-bottom: 18px; }
     #volumeCard{ order: 2; margin-bottom: 0; }
-    #safetyCard{ order: 1; margin-bottom: 18px; }
-    #perfCard{ order: 2; margin-bottom: 0; }
+    #perfCard{ order: 1; margin-bottom: 18px; }
+    #safetyCard{ order: 2; margin-bottom: 0; }
   }
 
 
@@ -349,6 +349,11 @@
   .badge.moniepoint{ color: var(--mp-soft); }
   .badge.opay{ color: var(--op-soft); }
   .log-left .type{ font-size: 11.34px; color: var(--text); font-weight:500; }
+  /* Money into the terminal (withdrawals) is light green; money out (transfers) light red. */
+  :root{ --flow-in: #6EE7B7; --flow-out: #FCA5A5; }
+  [data-theme="day"]{ --flow-in: #059669; --flow-out: #DC2626; }
+  .log-left .type.flow-in, .log-left .flow-in{ color: var(--flow-in); }
+  .log-left .type.flow-out, .log-left .flow-out{ color: var(--flow-out); }
   .log-left .samebank-sublabel{ font-size: 11.34px; font-weight:500; margin-top:1px; }
   .log-left .type.samebank-mp, .log-left .samebank-sublabel.samebank-mp{ color: var(--mp-soft); }
   .log-left .type.samebank-op, .log-left .samebank-sublabel.samebank-op{ color: var(--op-soft); }
@@ -510,6 +515,7 @@
   .auth-card .terms-check input{ width:18px; height:18px; padding:0; margin: 2px 0 0; flex-shrink:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
   .terms-check a, .legal-footer a{ color: var(--theme-soft); }
   .legal-footer{ text-align:center; font-size: 11px; color: var(--muted); margin: 18px 0 6px; line-height: 1.7; }
+  .legal-footer a{ white-space: nowrap; }
   .admin-biz{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 12px; }
   .admin-biz.suspended{ border-color: var(--loss); }
   .admin-biz .admin-name{ font-weight:700; color: var(--text); font-size: 13px; }
@@ -1052,7 +1058,7 @@
 
   </div>
 
-  <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved · <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
+  <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved<br><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
 
 </div>
 
@@ -2749,8 +2755,11 @@
   function comboAmountLine(t, useFmt, wrap){
     const rawFmt = useFmt || fmt;
     const f = wrap ? (n) => `<span class="fig">${rawFmt(n)}</span>` : rawFmt;
+    // On screen, money in (withdrawn) is green and money out (sent) is red.
+    const tint = (cls, text) => wrap ? `<span class="${cls}">${text}</span>` : text;
     if(t.type !== 'WithdrawTransfer'){
-      return (t.type === 'Bill' ? 'paid' : 'amount') + ' ' + f(t.amount);
+      const phrase = (t.type === 'Bill' ? 'paid' : 'amount') + ' ' + f(t.amount);
+      return t.type === 'Withdrawal' ? tint('flow-in', phrase) : t.type === 'Transfer' ? tint('flow-out', phrase) : phrase;
     }
     if(Array.isArray(t.transferAmounts) && t.transferAmounts.length > 0){
       const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
@@ -2775,13 +2784,13 @@
       })();
       const sameBankTag = (i) => (Array.isArray(t.transferSameBank) && t.transferSameBank[i]) ? ' same bank transfer' : '';
       if(t.transferAmounts.length === 1){
-        return `withdrew ${f(t.amount)}${cashPart} + sent ${f(t.transferAmounts[0])}${sameBankTag(0)}${leftoverPart}`;
+        return `${tint('flow-in', 'withdrew ' + f(t.amount))}${cashPart} + ${tint('flow-out', 'sent ' + f(t.transferAmounts[0]) + sameBankTag(0))}${leftoverPart}`;
       }
       const list = t.transferAmounts.map((a, i) => f(a) + sameBankTag(i)).join(' + ');
-      return `withdrew ${f(t.amount)}${cashPart} + sent ${list} (${t.transferAmounts.length} transfers)${leftoverPart}`;
+      return `${tint('flow-in', 'withdrew ' + f(t.amount))}${cashPart} + ${tint('flow-out', 'sent ' + list + ' (' + t.transferAmounts.length + ' transfers)')}${leftoverPart}`;
     }
     // backward compatibility with pre-multi-transfer records
-    return `withdrew ${f(t.amount)} + sent ${f(t.transferAmount != null ? t.transferAmount : t.amount)}`;
+    return `${tint('flow-in', 'withdrew ' + f(t.amount))} + ${tint('flow-out', 'sent ' + f(t.transferAmount != null ? t.transferAmount : t.amount))}`;
   }
 
   function hasLeftoverHandling(t){
@@ -3035,7 +3044,7 @@
         const profitBlock = `<div class="profit-label">${t.netProfit<0?'loss':'profit'}</div><div class="profit ${t.netProfit<0?'neg':''}">${fmt(t.netProfit)}</div>`;
         const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
-        const typeClass = isSameBankTitle ? providerColorClass : '';
+        const typeClass = isSameBankTitle ? providerColorClass : (t.type === 'Withdrawal' ? 'flow-in' : t.type === 'Transfer' ? 'flow-out' : '');
         const loggedMs = t.createdAtMs || d.getTime();
         const minutesSinceLogged = (Date.now() - loggedMs) / 60000;
         const ownEntry = t.loggedBy === (currentUser && currentUser.uid);
