@@ -518,9 +518,11 @@
   .admin-biz.suspended .admin-status{ color: var(--loss); }
   .who{ min-width:0; display:flex; flex-direction:column; gap: 5px; }
   .who-sep{ display:none; }
-  .who-biz{ font-family:'Space Grotesk',sans-serif; font-size: 15px; font-weight:700; color: var(--text); letter-spacing:-0.01em; line-height:1.25; overflow-wrap:anywhere; }
+  .who{ --who-biz-size: 15px; }
+  .who-biz{ font-family:'Space Grotesk',sans-serif; font-size: var(--who-biz-size); font-weight:700; color: var(--text); letter-spacing:-0.01em; line-height:1.25; overflow-wrap:anywhere; }
   .who-person{ display:flex; align-items:center; flex-wrap:wrap; gap: 6px 8px; font-size: 12.5px; color: var(--muted-strong); font-weight:600; }
-  .role-chip{ font-size: 9.5px; font-weight:800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--mp-tint); color: var(--mp-soft); border: 1px solid rgba(59,124,255,0.35); white-space:nowrap; }
+  /* The role tag reads 1.5% larger than the business name above it. */
+  .role-chip{ font-size: calc(var(--who-biz-size) * 1.015); font-weight:800; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 12px; line-height: 1.2; border-radius: 999px; background: var(--mp-tint); color: var(--mp-soft); border: 1px solid rgba(59,124,255,0.35); white-space:nowrap; }
   .role-chip.staff{ background: rgba(248,250,252,0.08); color: var(--text); border-color: var(--line-soft); }
   .sync-badge{ font-size: 10px; font-weight:700; color: var(--accent); white-space:nowrap; }
   .signout-btn{ background:none; border: 1.5px solid var(--line-soft); color: var(--muted-strong); border-radius: 10px; height: 34px; padding: 0 11px; font-family:'Inter',sans-serif; font-size: 12px; font-weight:600; cursor:pointer; white-space:nowrap; }
@@ -577,6 +579,7 @@
       <input type="text" id="signupBizName" placeholder="Business name" autocomplete="organization" required />
       <input type="text" id="signupOwnerName" placeholder="Your name" autocomplete="name" required />
       <input type="email" id="signupEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
+      <input type="text" id="signupUsername" placeholder="Username (optional, for quicker sign-in)" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
       <input type="password" id="signupPassword" placeholder="Password (6+ characters)" autocomplete="new-password" required />
       <label class="terms-check"><input type="checkbox" id="signupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <button class="addbtn" id="signupSubmit" type="submit">Create business account</button>
@@ -927,6 +930,10 @@
 
       <h3>Business</h3>
       <div class="field"><label>Business name</label><input type="text" id="bizNameInput" autocomplete="off" placeholder="Business name" /></div>
+      <div class="field"><label>Your username</label><input type="text" id="ownerUsernameInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. uweribe" /></div>
+      <button class="pdfbtn" id="ownerUsernameBtn" type="button" style="margin-top:0;">Save username</button>
+      <div class="status" id="ownerUsernameStatus"></div>
+      <div class="hint" style="text-align:center;">Sign in with this or your email. 3–30 letters, numbers, dots, dashes or underscores, not already used on Ledger. Leave it empty and save to remove it.</div>
 
       <h3>Team</h3>
       <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name. After removing someone you can delete them permanently, which takes them off this list for good.</div>
@@ -3476,6 +3483,23 @@
   // which receives no mail). Anything typed with an "@" is used as a normal email.
   const STAFF_LOGIN_DOMAIN = 'ledger-3c7f0.firebaseapp.com';
   const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,29}$/;
+  let ownerUsername = '';  // the business owner's own username (businesses/{id}.ownerUsername)
+  // Returns why a username can't be used by this owner, or '' if it's free (or already theirs).
+  async function ownerUsernameProblem(u){
+    if(!USERNAME_RE.test(u)) return 'Usernames are 3–30 letters, numbers, dots, dashes or underscores, starting with a letter or number.';
+    const snap = await fb.getDoc(fb.doc(fb.db, 'usernames', u));
+    if(snap.exists() && !(currentUser && snap.data().businessId === currentUser.uid && snap.data().email === currentUser.email)) return `The username "${u}" is already taken. Choose a different one.`;
+    return '';
+  }
+  // Gives the signed-in owner a username (or removes theirs when u is empty), releasing the old one.
+  async function saveOwnerUsername(u){
+    const batch = fb.writeBatch(fb.db);
+    if(u) batch.set(fb.doc(fb.db, 'usernames', u), { email: currentUser.email, businessId: currentUser.uid });
+    if(ownerUsername && ownerUsername !== u) batch.delete(fb.doc(fb.db, 'usernames', ownerUsername));
+    batch.update(fb.doc(fb.db, 'businesses', currentUser.uid), { ownerUsername: u });
+    await batch.commit();
+    ownerUsername = u;
+  }
   function isUsernameLogin(email){ return (email || '').toLowerCase().endsWith('@' + STAFF_LOGIN_DOMAIN); }
   function displayLogin(email){ return isUsernameLogin(email) ? email.split('@')[0] : (email || ''); }
   // usernames/{name} → { email, businessId }: lets a username sign in to whichever login it
@@ -4012,6 +4036,8 @@
         decided = true;
         bizId = user.uid;
         bizName = (snap.data().name || '').trim();
+        ownerUsername = snap.data().ownerUsername || '';
+        if(document.activeElement !== $('#ownerUsernameInput')) $('#ownerUsernameInput').value = ownerUsername;
         if(role !== 'owner') enterApp('owner'); else updateWhoLabel();
         return;
       }
@@ -4298,8 +4324,13 @@
     const email = $('#signupEmail').value.trim();
     const password = $('#signupPassword').value;
     const st = $('#authStatus');
-    if(!name || !ownerName || !email || !password){ st.className = 'status error'; st.textContent = 'Fill in all four boxes.'; return; }
+    if(!name || !ownerName || !email || !password){ st.className = 'status error'; st.textContent = 'Enter the business name, your name, your email and a password.'; return; }
     if(!$('#signupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
+    const username = $('#signupUsername').value.trim().toLowerCase();
+    if(username){
+      const problem = await ownerUsernameProblem(username).catch(()=> '');
+      if(problem){ st.className = 'status error'; st.textContent = problem; return; }
+    }
     const btn = $('#signupSubmit');
     btn.disabled = true;
     st.className = 'status';
@@ -4309,7 +4340,7 @@
     try{
       const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, password);
       currentUser = cred.user;
-      savePending({ name, ownerName });
+      savePending({ name, ownerName, username });
       await fb.sendEmailVerification(cred.user);
       $('#signupPassword').value = '';
       st.textContent = '';
@@ -4338,6 +4369,8 @@
         st.textContent = 'Setting up your business…';
         pendingSignup = pending;
         await createBusiness(pending.name, pending.ownerName, st, false);
+        // The username was free when they signed up; if someone took it since, they can pick another in Settings.
+        if(pending.username){ try{ if(!(await ownerUsernameProblem(pending.username))) await saveOwnerUsername(pending.username); }catch(e){} }
         clearPending();
         st.textContent = '';
         if(!role) findBusiness(currentUser);
@@ -4457,6 +4490,25 @@
     if(!v || !fb || role !== 'owner') return;
     fb.updateDoc(fb.doc(fb.db, 'businesses', bizId), { name: v })
       .catch(err => setStatus('Business name not saved: ' + err.message, 'error'));
+  });
+
+  $('#ownerUsernameBtn').addEventListener('click', async ()=>{
+    if(!fb || role !== 'owner' || !currentUser) return;
+    const st = $('#ownerUsernameStatus'); const btn = $('#ownerUsernameBtn');
+    const u = $('#ownerUsernameInput').value.trim().toLowerCase();
+    $('#ownerUsernameInput').value = u;
+    if(u === ownerUsername){ st.className = 'status'; st.textContent = u ? `"${u}" is already your username.` : ''; return; }
+    btn.disabled = true; st.className = 'status'; st.textContent = 'Saving…';
+    try{
+      const problem = u ? await ownerUsernameProblem(u) : '';
+      if(problem){ st.className = 'status error'; st.textContent = problem; return; }
+      await saveOwnerUsername(u);
+      st.className = 'status deepgreen';
+      st.textContent = u ? `Saved ✓ You can now sign in with "${u}" or your email.` : 'Username removed. Sign in with your email.';
+    }catch(err){
+      st.className = 'status error';
+      st.textContent = (err && err.code) === 'permission-denied' ? `The username "${u}" is already taken. Choose a different one.` : 'Not saved: ' + ((err && err.message) || 'error');
+    }finally{ btn.disabled = false; }
   });
 
   $('#authForgot').addEventListener('click', async ()=>{
