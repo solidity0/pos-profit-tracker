@@ -196,6 +196,9 @@
       flex: 1.1 1 340px;
       max-width: 510px;
     }
+    /* Withdrawal form height (measured by the page); longer forms scroll inside. */
+    #entryBody{ max-height: var(--entry-body-h, none); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
+    #entryBody::-webkit-scrollbar{ display:none; width:0; height:0; }
     .dashboard-row > .stack-col{
       display: flex;
       flex-direction: column;
@@ -1257,6 +1260,7 @@
   $('#textSizeToggle').addEventListener('click', async ()=>{
     const next = appScale < 1 ? 1 : 0.85;
     applyAppScale(next);
+    requestAnimationFrame(sizeEntryBody);
     try{ await store.set('appScale', String(next)); }catch(e){}
   });
 
@@ -1716,7 +1720,20 @@
     }
   }
 
+  // On a computer the Log a Transaction card keeps the height of the Withdrawal form; longer
+  // forms (Withdraw+Transfer) scroll inside it. Phones are left as they are.
+  const desktopQuery = window.matchMedia('(min-width: 1024px)');
+  function sizeEntryBody(){
+    const body = $('#entryBody');
+    if(!body || !desktopQuery.matches || state.type !== 'Withdrawal' || $('#status').textContent) return;
+    const h = body.scrollHeight;
+    if(h > 200) document.documentElement.style.setProperty('--entry-body-h', h + 'px');
+  }
+  desktopQuery.addEventListener('change', ()=> requestAnimationFrame(sizeEntryBody));
+  window.addEventListener('resize', ()=> requestAnimationFrame(sizeEntryBody));
+
   function refreshAuto(){
+    requestAnimationFrame(sizeEntryBody);
     const isBill = state.type === 'Bill';
     const isCombo = state.type === 'WithdrawTransfer';
     const isWithdrawal = state.type === 'Withdrawal';
