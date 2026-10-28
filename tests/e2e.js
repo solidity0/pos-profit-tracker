@@ -279,6 +279,20 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await until(async()=> /^Triumph Ventures · /.test(await op.textContent('#whoLabel')));
   await op.click('#settingsDoneBtn');
 
+  // ---------- Withdraw+Transfer: the amount kept counts as the fee charged ----------
+  {
+    await op.click('#typeSeg button[data-val="WithdrawTransfer"]');
+    await op.fill('#amount', '5200');
+    await op.fill('#transferAmountsGrid .field:first-child .transfer-amount-input', '5000');
+    await until(()=> op.isVisible('#remainingHandlingBalanceCheck'));
+    await op.check('#remainingHandlingBalanceCheck');
+    check('ticking "kept as service fee" hides the Service Fee box', !(await op.isVisible('#customerFee')));
+    await op.click('#addBtn');
+    const row = op.locator('#logList .log-item:has-text("withdrew ₦5,200")').first();
+    check('the kept ₦200 is recorded as the fee charged', await until(async()=> /charged ₦200/.test(await row.textContent()) && !/loss/i.test(await row.textContent())), (await row.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,200));
+    await op.click('#typeSeg button[data-val="Withdrawal"]');
+  }
+
   // ---------- Performance Overview panels open and close ----------
   {
     const P = await ctx(b, 'panels'); const pp = P.p;
