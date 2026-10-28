@@ -286,7 +286,23 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     const raw = fs.readFileSync(await dl.path(), 'latin1');
     check("salesperson's PDF covers only their own entries", /by Test Staff/.test(raw) && !/Uweribe/.test(raw));
   }
-  check('salesperson has no Excel download', !(await sp.isVisible('#csvBtn')));
+  check('salesperson sees Share PDF and Excel, but not Download PDF', await sp.isVisible('#sharePdfBtn') && await sp.isVisible('#csvBtn') && !(await sp.isVisible('#downloadPdfBtn')));
+  check('owner sees Download PDF', await op.isVisible('#downloadPdfBtn'));
+  {
+    const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#csvBtn') ]);
+    const rows = fs.readFileSync(await dl.path(), 'utf8').replace('\ufeff','').trim().split('\r\n');
+    const head = rows[0].split(',');
+    check("salesperson's spreadsheet has only their own entries", rows.length > 1 && rows.slice(1).every(r => r.split(',')[head.indexOf('Logged by')] === 'Test Staff'), rows.slice(1).map(r => r.split(',')[4]).join('|'));
+    check("...without the owner-only columns", !head.includes('Auto-save') && !head.includes('Total cost') && head.includes('Net profit'), rows[0]);
+  }
+  // Deleted entries leave the owner's log two hours after they were deleted.
+  {
+    const ago = h => new Date(Date.now() - h*3600e3).toISOString();
+    const delTx = (id, amount, h) => admin(`businesses/0xxeZTLlaAeTzTgpezc58hwDxXp2/transactions/${id}`, { id:{stringValue:id}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:true }, deletedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, deletedAt:{ timestampValue: ago(h) }, date:{ stringValue: new Date().toISOString() }, createdAt:{ timestampValue: ago(h + 0.05) }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:String(amount)}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'20'}, netProfit:{integerValue:'80'} });
+    await delTx('del-1h', 6111, 1); await delTx('del-3h', 6333, 3);
+    check('an entry deleted an hour ago is still shown to the owner', await until(async()=> /6,111/.test(await op.textContent('#logList'))));
+    check('an entry deleted three hours ago is gone from the log', !/6,333/.test(await op.textContent('#logList')));
+  }
   {
     await op.click('#periodTabs button[data-val="all"]'); await wait(500);
     const shown = parseInt(await op.textContent('#txCount'));
