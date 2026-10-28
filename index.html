@@ -867,10 +867,10 @@
       <div class="team-add">
         <div class="team-add-title">Add a salesperson</div>
         <div class="field"><label>Name</label><input type="text" id="newStaffName" autocomplete="off" placeholder="e.g. Ada Obi" /></div>
-        <div class="field"><label>Email</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
         <div class="field"><label>Username</label><input type="text" id="newStaffUsername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. ada" /></div>
-        <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email. Password reset links go to the email. Usernames are 3–30 letters, numbers, dots, dashes or underscores, and can't already be used on Ledger.</div>
         <div class="field"><label>Password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this password" /></div>
+        <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email below. Password reset links go to that email. Usernames are 3–30 letters, numbers, dots, dashes or underscores, and can't already be used on Ledger.</div>
+        <div class="field"><label>Email</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
         <button class="addbtn" id="addStaffBtn" type="button">Add salesperson</button>
         <div class="status" id="addStaffStatus"></div>
         <button class="pdfbtn" id="addStaffResetBtn" type="button" style="display:none; margin-top:6px;">Send them a password reset email</button>
@@ -974,19 +974,6 @@
 
   </div>
 
-  <div class="card" id="passwordCard">
-    <button class="log-toggle" id="passwordToggle" type="button">
-      <span class="log-caret" id="passwordCaret">▶</span>
-      <span>Change my password</span>
-    </button>
-    <form id="passwordForm" style="display:none; margin-top:14px;">
-      <div class="field"><label>Current password</label><input type="password" id="pwCurrent" autocomplete="current-password" /></div>
-      <div class="field"><label>New password (6+ characters)</label><input type="password" id="pwNew" autocomplete="new-password" /></div>
-      <button class="addbtn" id="pwSubmit" type="submit">Change password</button>
-      <div class="status" id="pwStatus"></div>
-    </form>
-  </div>
-
   <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved · <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
 
 </div>
@@ -1049,7 +1036,7 @@
   let settings = {
     stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
     billFee: 0, bettingFee: 0,
-    autosaveEnabled: true, autosaveFlat: 40,
+    autosaveEnabled: true, autosaveFlat: 0,
     rates: {
       Moniepoint: { pct: 0.5, flat: 100, threshold: 20000, transfer: 20, vatRate: 7.5 },
       Opay:       { pct: 0.5, flat: 100, threshold: 20000, transfer: 20, vatRate: 7.5 }
@@ -1067,6 +1054,9 @@
       'For transfers, airtime/data, and bill payments: if a transaction is still pending, wait for it to fail or reverse before retrying — never repeat a transaction that has not yet resolved.'
     ]
   };
+  // Every business starts from these, never from another business's settings left on the phone.
+  const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
+  function settingsCacheKey(){ return 'settings:' + (bizId || 'none'); }
   const feeTiers = [100, 500, 1000, 2000, 5000, 10000, 15000, 20000];
   const comboRanges = [
     { id: 'r1', label: '1,000 – 3,000' },
@@ -1684,7 +1674,7 @@
   }
 
   function populateSettingsUI(){
-    const setFmt = (sel, val) => { $(sel).value = val ? Number(val).toLocaleString('en-US') : ''; };
+    const setFmt = (sel, val) => { $(sel).value = (val || val === 0) ? Number(val).toLocaleString('en-US') : ''; };
     $('#mp_pct').value = settings.rates.Moniepoint.pct;
     setFmt('#mp_flat', settings.rates.Moniepoint.flat);
     setFmt('#mp_threshold', settings.rates.Moniepoint.threshold);
@@ -1719,11 +1709,6 @@
       const imp = await store.get('cloudImported');
       importDone = !!(imp && imp.value === '1');
     }catch(e){}
-    try{
-      // Last settings seen on this phone, so fees calculate even before Firebase answers.
-      const s = await store.get('settings');
-      if(s && s.value) applyParsedSettings(JSON.parse(s.value));
-    }catch(e){}
     populateSettingsUI();
     refreshAuto();
     render();
@@ -1732,7 +1717,7 @@
 
   async function saveSettings(){
     const json = JSON.stringify(settings);
-    try{ await store.set('settings', json); }catch(e){}
+    try{ await store.set(settingsCacheKey(), json); }catch(e){}
     // Only the owner's changes reach the shared settings; Firebase rejects anyone else's.
     // Not awaited: offline, the write waits in the queue and uploads on reconnect.
     if(fb && role === 'owner'){
@@ -3481,7 +3466,7 @@
       try{
         const json = snap.data().json;
         applyParsedSettings(JSON.parse(json));
-        store.set('settings', json);
+        store.set(settingsCacheKey(), json);
       }catch(e){ return; }
       populateSettingsUI();
       refreshAuto();
@@ -4001,6 +3986,19 @@
     showGate('blocked', message);
   }
 
+  async function loadBusinessSettings(){
+    // Start clean, then use this business's last-known settings (if this phone has them)
+    // so fees calculate straight away; the live copy from Firebase follows.
+    settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    try{
+      const cached = await store.get(settingsCacheKey());
+      if(cached && cached.value) applyParsedSettings(JSON.parse(cached.value));
+    }catch(e){}
+    populateSettingsUI();
+    refreshAuto();
+    render();
+  }
+
   function enterApp(newRole){
     if(rejectLoginMismatch(newRole)) return;
     role = newRole;
@@ -4016,7 +4014,7 @@
     renderImportUI();
     renderLegacyUI();
     renderAdminUI();
-    startSettingsListener();
+    loadBusinessSettings().then(startSettingsListener);
     startTeamListener();
     startTxListener();
     render();
@@ -4265,40 +4263,6 @@
     }
   });
 
-  $('#passwordToggle').addEventListener('click', ()=>{
-    const f = $('#passwordForm');
-    const open = f.style.display === 'none';
-    f.style.display = open ? '' : 'none';
-    $('#passwordCaret').classList.toggle('open', open);
-  });
-  $('#passwordForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    if(!fb || !currentUser) return;
-    const st = $('#pwStatus');
-    const current = $('#pwCurrent').value, next = $('#pwNew').value;
-    st.className = 'status error';
-    if(!current || !next){ st.textContent = 'Enter your current password and a new one.'; return; }
-    if(next.length < 6){ st.textContent = 'The new password must be at least 6 characters.'; return; }
-    const btn = $('#pwSubmit'); btn.disabled = true;
-    st.className = 'status'; st.textContent = 'Changing…';
-    try{
-      // Firebase asks for the current password again before changing it.
-      await fb.reauthenticateWithCredential(currentUser, fb.EmailAuthProvider.credential(currentUser.email, current));
-      await fb.updatePassword(currentUser, next);
-      st.className = 'status deepgreen';
-      st.textContent = 'Password changed ✓ Use the new one next time you sign in.';
-      $('#pwCurrent').value = ''; $('#pwNew').value = '';
-    }catch(err){
-      const code = (err && err.code) || '';
-      st.className = 'status error';
-      st.textContent = ['auth/invalid-credential','auth/wrong-password','auth/invalid-login-credentials'].includes(code) ? 'Your current password is wrong.'
-        : code === 'auth/weak-password' ? 'The new password must be at least 6 characters.'
-        : code === 'auth/network-request-failed' ? 'No internet connection — connect and try again.'
-        : code === 'auth/too-many-requests' ? 'Too many attempts — wait a few minutes and try again.'
-        : 'Could not change the password: ' + ((err && err.message) || code);
-    }finally{ btn.disabled = false; }
-  });
-
   $('#signOutBtn').addEventListener('click', ()=>{
     if(pendingUploads > 0){
       setStatus(`${pendingUploads} transaction${pendingUploads === 1 ? '' : 's'} not uploaded yet — connect to the internet before signing out.`, 'error');
@@ -4339,9 +4303,6 @@
         signOut: authMod.signOut,
         createUserWithEmailAndPassword: authMod.createUserWithEmailAndPassword,
         sendPasswordResetEmail: authMod.sendPasswordResetEmail,
-        reauthenticateWithCredential: authMod.reauthenticateWithCredential,
-        updatePassword: authMod.updatePassword,
-        EmailAuthProvider: authMod.EmailAuthProvider,
         // Creates a login on a throwaway in-memory instance and returns its UID.
         createLogin: async (email, password)=>{
           const spare = appMod.getApps().find(a => a.name === 'create-login') || appMod.initializeApp(FIREBASE_CONFIG, 'create-login');
