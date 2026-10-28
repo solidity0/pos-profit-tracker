@@ -114,10 +114,6 @@
   .card{ background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
   .scroll-panel{ max-height: 65vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
   .scroll-panel::-webkit-scrollbar{ display: none; width: 0; height: 0; }
-  /* The Log a Transaction form scrolls inside its own card (like the Transaction Log), so the
-     page doesn't have to scroll through it. The title stays put. Taller on a computer. */
-  #entryBody{ max-height: 70vh; max-height: 70dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; margin: 0 -6px; padding: 0 6px 4px; }
-  #entryBody::-webkit-scrollbar{ display:none; width:0; height:0; }
   .card h2{ font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text); margin: 0 0 16px; font-weight: 700; display:flex; align-items:center; justify-content:center; }
   #entryCard .autofee label, #entryCard .autofee .toggle, #entryCard .autobox-label{ color: var(--text-dim); }
   .log-toggle{ width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; font-family:'Inter',sans-serif; padding: 0 0 4px; margin: 0; }
@@ -200,7 +196,6 @@
       flex: 1.1 1 340px;
       max-width: 510px;
     }
-    #entryBody{ max-height: calc(100vh - 270px); min-height: 320px; }
     .dashboard-row > .stack-col{
       display: flex;
       flex-direction: column;
