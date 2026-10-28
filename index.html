@@ -536,7 +536,7 @@
   .log-item.deleted{ opacity: 0.55; }
   .log-item.deleted .type{ text-decoration: line-through; }
   .log-left .byline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:600; }
-  .log-left .byline-name{ color: var(--text); font-weight:700; }
+  .log-left .byline-name{ color: var(--text); font-weight:700; opacity: 0.7; } /* 30% softer than full white */
   .log-left .deleted-note{ font-size: 11px; color: var(--loss); margin-top: 3px; font-weight:700; }
   .log-right .restore{ background:none; border:none; color: var(--profit); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:600; }
   .team-row{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 12px 10px; margin-top: 10px; }
@@ -3044,7 +3044,7 @@
         const profitBlock = `<div class="profit-label">${t.netProfit<0?'loss':'profit'}</div><div class="profit ${t.netProfit<0?'neg':''}">${fmt(t.netProfit)}</div>`;
         const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
-        const typeClass = isSameBankTitle ? providerColorClass : (t.type === 'Withdrawal' ? 'flow-in' : t.type === 'Transfer' ? 'flow-out' : '');
+        const typeClass = isSameBankTitle ? providerColorClass : (t.type === 'Withdrawal' ? 'flow-in' : (t.type === 'Transfer' || t.type === 'Bill') ? 'flow-out' : '');
         const loggedMs = t.createdAtMs || d.getTime();
         const minutesSinceLogged = (Date.now() - loggedMs) / 60000;
         const ownEntry = t.loggedBy === (currentUser && currentUser.uid);
