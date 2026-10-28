@@ -516,16 +516,17 @@
   .admin-biz .admin-meta{ color: var(--muted); margin-top: 3px; overflow-wrap:anywhere; }
   .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
   .admin-biz.suspended .admin-status{ color: var(--loss); }
-  .who{ min-width:0; display:flex; flex-direction:column; gap: 5px; }
+  /* Business name and the person/role row are centred on each other. */
+  .who{ min-width:0; display:flex; flex-direction:column; align-items:center; text-align:center; gap: 6px; }
   .who-sep{ display:none; }
   .who{ --who-biz-size: 15px; }
   .who-biz{ font-family:'Space Grotesk',sans-serif; font-size: var(--who-biz-size); font-weight:700; color: var(--text); letter-spacing:-0.01em; line-height:1.25; overflow-wrap:anywhere; }
-  .who-person{ display:flex; align-items:center; flex-wrap:wrap; gap: 6px 10px; font-size: 12.5px; color: var(--muted-strong); font-weight:600; }
-  /* The role tag reads 1.5% larger than the business name above it. It's a fixed-height pill
-     with the capitals optically centred, and its left edge lines up with the name. */
+  .who-person{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap: 6px 10px; font-size: 12.5px; color: var(--muted-strong); font-weight:600; }
+  /* The role tag: a pill a little smaller than the business name, its capitals optically
+     centred, sitting centred under the name. */
   .role-chip{ display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
-    height: calc(var(--who-biz-size) * 1.015 * 1.9); padding: 0 0.75em; margin-top: 1px;
-    font-family:'Inter',sans-serif; font-size: calc(var(--who-biz-size) * 1.015); font-weight:800; line-height: 1; letter-spacing: 0.05em; text-transform: uppercase;
+    height: 2em; padding: 0 0.79em 0 0.85em; /* less on the right: letter-spacing adds space after the last letter */
+    font-family:'Inter',sans-serif; font-size: calc(var(--who-biz-size) * 0.8); font-weight:800; line-height: 1; letter-spacing: 0.06em; text-transform: uppercase;
     border-radius: 999px; background: var(--mp-tint); color: var(--mp-soft); border: 1px solid rgba(59,124,255,0.35); white-space:nowrap; }
   @supports (text-box: trim-both cap alphabetic){ .role-chip{ text-box: trim-both cap alphabetic; } }
   .role-chip.staff{ background: rgba(248,250,252,0.08); color: var(--text); border-color: var(--line-soft); }
