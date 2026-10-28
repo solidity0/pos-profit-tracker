@@ -98,7 +98,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#logToggle');
   check('owner sees staff entries live (+ 1 imported from yesterday? no: today only)', await until(async()=> (await logCount(op)) === 2), String(await logCount(op)));
   const ownerRow = (await op.textContent('#logList .log-item')).replace(/\s+/g,' ');
-  check('owner row says who logged it and shows cost', /by Test Staff/.test(ownerRow) && /cost/.test(ownerRow), ownerRow.slice(0,160));
+  check('owner row says who logged it and shows cost', /by: Test Staff/.test(ownerRow) && /cost/.test(ownerRow), ownerRow.slice(0,160));
   await op.click('#summaryToggle');
   check('owner totals today = 2 transactions', await until(async()=> (await op.textContent('#txCount')).startsWith('2 transactions')), await op.textContent('#txCount'));
 
@@ -141,10 +141,10 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('owner: auto-save row is shown', await until(()=> op.isVisible('#sumAutosaveRow')));
   await sp.click('#logToggle');
   await until(async()=> /Withdrawal/.test(await sp.textContent('#logList')));
-  const importedRows = await sp.$$eval('#logList .log-item', els => els.filter(e => /₦10,000|₦20,000\.|₦50,000/.test(e.textContent) && !/by /.test(e.textContent) ).length);
+  const importedRows = await sp.$$eval('#logList .log-item', els => els.filter(e => /₦10,000|₦20,000\.|₦50,000/.test(e.textContent) && !/by: /.test(e.textContent) ).length);
   const importedLabelled = await sp.$$eval('#logList .log-item', els => els.filter(e => /imported/.test(e.textContent)).length);
   check('imported rows show without "by"/"imported" labels', importedLabelled === 0, `labelled=${importedLabelled}`);
-  const staffDeletable = await sp.$$eval('#logList .log-item', els => els.filter(e => e.querySelector('.del')).map(e => /by Test Staff/.test(e.textContent)));
+  const staffDeletable = await sp.$$eval('#logList .log-item', els => els.filter(e => e.querySelector('.del')).map(e => /by: Test Staff/.test(e.textContent)));
   check('staff can only delete their own entries', staffDeletable.length === 3 && staffDeletable.every(Boolean), JSON.stringify(staffDeletable));
   await sp.click('#periodTabs button[data-val="today"]');
   await sp.click('#logToggle');
@@ -180,13 +180,13 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('new salesperson can sign in straight away', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson'), await np.textContent('#whoLabel'));
   check('new salesperson cannot see Settings', !(await np.isVisible('#settingsCard')));
   await logTx(np, 'Withdrawal', '7000', '200');
-  check("owner sees the new person's entry live", await until(async()=> /by New Person/.test(await op.textContent('#logList'))));
+  check("owner sees the new person's entry live", await until(async()=> /by: New Person/.test(await op.textContent('#logList'))));
   await wait(1000);
   if(!(await sp.isVisible('#logList'))) await sp.click('#logToggle');
-  check("a salesperson's log shows another salesperson's entry", await until(async()=> /by New Person/.test(await sp.textContent('#logList'))));
+  check("a salesperson's log shows another salesperson's entry", await until(async()=> /by: New Person/.test(await sp.textContent('#logList'))));
   if(!(await sp.isVisible('#summaryContent'))) await sp.click('#summaryToggle');
   await sp.click('#periodTabs button[data-val="today"]');
-  const spToday = await sp.textContent('#txCount'); const opNames = await sp.$$eval('#logList .log-item', els => els.filter(e => /by New Person/.test(e.textContent) && !e.querySelector('.del')).length);
+  const spToday = await sp.textContent('#txCount'); const opNames = await sp.$$eval('#logList .log-item', els => els.filter(e => /by: New Person/.test(e.textContent) && !e.querySelector('.del')).length);
   check("...but can't delete it, and it isn't in their totals", opNames >= 1 && /^3 transactions/.test(spToday), `${spToday} / undeletable=${opNames}`);
   check('a salesperson has no logged-by filter', !(await sp.isVisible('#loggedByFilter')));
   check('logged-by filter lists the new person', await until(async()=> (await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))).includes('New Person')));
@@ -249,7 +249,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('removed person can be deleted permanently (button shown)', await until(async()=> !!(await (await npRow()).$('.team-delete'))));
   await (await (await npRow()).$('.team-delete')).click(); await wait(500); await (await (await npRow()).$('.team-delete')).click();
   check('permanently deleted person leaves the Team list', await until(async()=> !(await npRow())));
-  check("their past entry still shows their name", /by New Person/.test(await op.textContent('#logList')));
+  check("their past entry still shows their name", /by: New Person/.test(await op.textContent('#logList')));
   await np.reload();
   check('permanently deleted person is blocked', await until(async()=> /doesn't have access|has been removed/.test(await np.textContent('#authBlocked')), 15000), await np.textContent('#authBlocked'));
   // ...and can be added back later with the same email

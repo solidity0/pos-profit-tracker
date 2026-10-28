@@ -3037,7 +3037,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('by <span class="byline-name">' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + '</span>');
+        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
