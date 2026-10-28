@@ -199,6 +199,7 @@
     /* Withdrawal form height (measured by the page); longer forms scroll inside. */
     #entryBody{ max-height: var(--entry-body-h, none); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
     #entryBody::-webkit-scrollbar{ display:none; width:0; height:0; }
+    #entryBody.is-combo{ max-height: calc(var(--entry-body-h, 100000px) * 1.07); } /* Withdraw+Transfer: 7% taller */
     .dashboard-row > .stack-col{
       display: flex;
       flex-direction: column;
@@ -1725,6 +1726,7 @@
   const desktopQuery = window.matchMedia('(min-width: 1024px)');
   function sizeEntryBody(){
     const body = $('#entryBody');
+    if(body) body.classList.toggle('is-combo', state.type === 'WithdrawTransfer');
     if(!body || !desktopQuery.matches || state.type !== 'Withdrawal' || $('#status').textContent) return;
     const h = body.scrollHeight;
     if(h > 200) document.documentElement.style.setProperty('--entry-body-h', h + 'px');
