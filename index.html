@@ -215,10 +215,10 @@
     #perfCard{ order: 1; margin-bottom: 18px; }
     /* Open, the Performance Overview widens to fit its three panels side by side. */
     .dashboard-row > .stack-col:has(#summaryContent[style*="block"]){ flex: 2.6 0 880px; min-width: 880px; max-width: 1080px; }
-    .perf-sections{ display:grid; grid-template-columns: 1.2fr 1fr 0.95fr; gap: 14px; align-items: stretch; }
+    .perf-sections{ display:grid; grid-template-columns: 1.2fr 1fr 0.95fr; gap: 14px; }
     #perfReports .pdfbtn{ white-space: nowrap; padding-left: 8px; padding-right: 8px; }
     .perf-section{ margin-bottom: 0; }
-    #perfReports{ justify-content: flex-start; }
+    .perf-sections{ align-items: start; }
     #safetyCard{ order: 2; margin-bottom: 0; }
   }
 
@@ -288,16 +288,22 @@
      Stacked on phones; side by side on a computer. */
   .perf-section{ background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
   .perf-section:last-child{ margin-bottom: 0; }
-  .perf-section-title{ font-family:'Space Grotesk',sans-serif; font-size: 10.5px; font-weight:700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px 2px; }
-  .perf-section > :last-child{ margin-bottom: 0; }
+  .perf-section{ padding: 0; overflow: hidden; }
+  .perf-section-toggle{ width:100%; display:flex; align-items:center; justify-content:space-between; gap: 10px; background:none; border:none; padding: 14px 16px; cursor:pointer; color: var(--muted); -webkit-tap-highlight-color: transparent; }
+  .perf-section-toggle:hover .perf-section-title, .perf-section.open .perf-section-title{ color: var(--text); }
+  .perf-section-title{ font-family:'Space Grotesk',sans-serif; font-size: 11.5px; font-weight:700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-strong); }
+  .perf-caret{ font-size: 10px; transition: transform 0.15s; }
+  .perf-section.open .perf-caret{ transform: rotate(90deg); }
+  .perf-section-body{ padding: 0 14px 14px; }
+  .perf-section-body[hidden]{ display:none !important; }
+  .perf-section-body > :last-child{ margin-bottom: 0; }
   #perfFilters .tabs{ margin-bottom: 10px; }
   #perfFilters .provider-filter{ margin-bottom: 10px; }
-  #perfFilters .provider-filter:last-child, #perfFilters #loggedByFilter[style*="none"]{ margin-bottom: 0; }
+  #perfFilters .provider-filter:last-child{ margin-bottom: 0; }
   #perfFilters:has(#loggedByFilter[style*="none"]) #providerFilter{ margin-bottom: 0; }
   #perfTotals .rline:first-of-type{ padding-top: 2px; }
   #perfTotals .netline{ padding-top: 6px; }
-  #perfReports{ display:flex; flex-direction:column; gap: 8px; }
-  #perfReports .perf-section-title{ margin-bottom: 2px; }
+  #perfReportsBody{ display:flex; flex-direction:column; gap: 8px; }
   #perfReports .pdfbtn{ margin-top: 0; background: var(--surface); }
   #perfReports .status:empty{ display:none; }
   .provider-filter button{ flex:none; background: var(--surface-2); border: 1.5px solid var(--theme); color: var(--text); padding: 10px 6px; border-radius: var(--radius-sm); cursor:pointer; font-family: 'Inter', sans-serif; font-weight:700; font-size:12px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
@@ -882,7 +888,8 @@
     <div class="summary-content" id="summaryContent" style="display:none;">
      <div class="perf-sections">
      <section class="perf-section" id="perfFilters">
-      <div class="perf-section-title">Filter</div>
+      <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="perfFiltersBody"><span class="perf-section-title">Filter</span><span class="perf-caret">▶</span></button>
+      <div class="perf-section-body" id="perfFiltersBody" hidden>
       <div class="tabs" id="periodTabs" style="grid-template-columns: repeat(5, 1fr);">
         <button data-val="today" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span>Today</span></button>
         <button data-val="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg><span>This Week</span></button>
@@ -909,10 +916,12 @@
         <button data-val="Opay">OPay</button>
       </div>
       <div class="provider-filter" id="loggedByFilter" style="display:none;"></div>
+      </div>
      </section>
 
      <section class="perf-section" id="perfTotals">
-      <div class="perf-section-title">Summary</div>
+      <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="perfTotalsBody"><span class="perf-section-title">Summary</span><span class="perf-caret">▶</span></button>
+      <div class="perf-section-body" id="perfTotalsBody" hidden>
       <div class="rline neg"><span>VAT</span><span class="amt" id="sumVat">−₦0</span></div>
       <div class="rline neg"><span>Stamp duty</span><span class="amt" id="sumStamp">−₦0</span></div>
       <div class="rline neg"><span>Moniepoint/OPay fee</span><span class="amt" id="sumBaseFee">−₦0</span></div>
@@ -924,10 +933,12 @@
         <span class="val" id="netProfit">₦0</span>
       </div>
       <div class="txcount" id="txCount">0 transactions</div>
+      </div>
      </section>
 
      <section class="perf-section" id="perfReports">
-      <div class="perf-section-title">Reports</div>
+      <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="perfReportsBody"><span class="perf-section-title">Reports</span><span class="perf-caret">▶</span></button>
+      <div class="perf-section-body" id="perfReportsBody" hidden>
       <button class="pdfbtn owner-only" id="downloadPdfBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
         Download PDF
@@ -941,6 +952,7 @@
         Download Excel (CSV)
       </button>
       <div class="status" id="pdfStatus"></div>
+      </div>
      </section>
      </div>
     </div>
@@ -2187,6 +2199,26 @@
     $('#logCaret').classList.add('open');
     if(logNeedsRender) renderLog();
   }
+  // Filter / Summary / Reports inside Performance Overview open and close on their own; this
+  // phone remembers which ones were left open.
+  (function(){
+    const KEY = LS_PREFIX + 'perfOpen';
+    let open = {};
+    try{ open = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }catch(e){}
+    document.querySelectorAll('.perf-section').forEach(sec=>{
+      const btn = sec.querySelector('.perf-section-toggle');
+      const body = sec.querySelector('.perf-section-body');
+      const set = (isOpen)=>{ body.hidden = !isOpen; sec.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', String(isOpen)); };
+      set(!!open[sec.id]);
+      btn.addEventListener('click', ()=>{
+        const isOpen = body.hidden;
+        set(isOpen);
+        open[sec.id] = isOpen;
+        try{ localStorage.setItem(KEY, JSON.stringify(open)); }catch(e){}
+      });
+    });
+  })();
+
   $('#summaryToggle').addEventListener('click', ()=>{
     const content = $('#summaryContent');
     const caret = $('#summaryCaret');
