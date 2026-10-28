@@ -1,8 +1,25 @@
 Copyright (c) 2026 Triumph Enterprise. All rights reserved.
 
-This repository contains the source code of Ledger. It is published so the app can be
-served from GitHub Pages; that does not grant any licence to use it.
+Ledger (the "Software") - including its source code, user interface, design, text, graphics,
+icons and documentation - is the property of Triumph Enterprise. It was first published in
+August 2026 at https://solidity0.github.io/pos-profit-tracker/, and its development history
+is recorded in this repository.
 
-No part of this software, its design or its content may be copied, modified, distributed,
-sold, or used to create derivative works without the prior written permission of the
-copyright holder.
+This repository is public only so the app can be served from GitHub Pages. Being able to see
+the code does not grant any licence or right to use it.
+
+Without the prior written permission of Triumph Enterprise you may not:
+  - copy, reproduce or download the Software, in whole or in part, for any purpose other than
+    using the app at its official address;
+  - modify it, translate it, or create derivative works from it;
+  - publish, host, distribute, sell, rent, sublicense or otherwise make it available to others;
+  - use it, or any substantial part of its design or code, to build or market another product.
+
+The Software is protected by the Copyright Act 2022 of the Federal Republic of Nigeria and by
+international copyright treaties, including the Berne Convention. Unauthorised use may result
+in legal action, and in takedown requests to any host or platform where a copy appears.
+
+"Ledger" as used with this Software, and the Triumph Enterprise name, may not be used to
+identify any other product or service.
+
+Permission requests: victoryuweribe25@gmail.com
