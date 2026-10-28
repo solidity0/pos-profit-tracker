@@ -82,16 +82,22 @@
   h1,h2,h3, .display{ font-family: 'Space Grotesk', sans-serif; }
   .num{ font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
   .wrap{ max-width: 560px; margin: 0 auto; padding: 28px 18px 8px; zoom: var(--app-zoom); }
-  .text-size-toggle{ min-width:30px; height:30px; padding:0 8px; border-radius:9px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; transition: background 0.15s, border-color 0.15s; }
+  .text-size-toggle{ min-width:34px; height:34px; padding:0 8px; border-radius:10px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; transition: background 0.15s, border-color 0.15s; }
   .text-size-toggle:hover{ border-color: var(--theme); color: var(--theme-soft); }
   .text-size-toggle[aria-pressed="true"]{ background: var(--theme); border-color: var(--theme); color: var(--theme-text); }
 
-  header.top{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
-  header.top .brand{ display:flex; align-items:center; gap:10px; }
-  header.top h1{ font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -0.02em; color: var(--text); }
-  header.top .today{ font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight:600; }
-  .top-right{ display:flex; align-items:center; gap: 12px; }
-  .theme-toggle{ width:30px; height:30px; border-radius:9px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition: background 0.15s, border-color 0.15s; }
+  /* Header: brand and controls on one row; who is signed in, the date and the upload
+     status on a second, quieter row. */
+  header.top{ margin-bottom: 18px; }
+  .top-bar{ display:flex; align-items:center; justify-content:space-between; gap: 12px; }
+  header.top .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+  header.top h1{ font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.03em; color: var(--text); }
+  .top-right{ display:flex; align-items:center; gap: 8px; flex-shrink:0; }
+  .top-context{ display:flex; align-items:center; justify-content:space-between; gap: 12px; margin-top: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: 16px; box-shadow: var(--shadow-sm); }
+  .top-context:has(#whoLabel:empty){ display:none; }
+  .top-meta{ display:flex; flex-direction:column; align-items:flex-end; gap: 4px; flex-shrink:0; text-align:right; }
+  header.top .today{ font-size: 12px; color: var(--muted-strong); font-weight:600; white-space:nowrap; }
+  .theme-toggle{ width:34px; height:34px; border-radius:9px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition: background 0.15s, border-color 0.15s; border-radius:10px; }
   .theme-toggle:hover{ border-color: var(--theme); color: var(--theme-soft); }
   .theme-toggle svg{ width:15px; height:15px; }
 
@@ -430,11 +436,75 @@
   .status-line.error{ color: var(--loss); font-weight:700; }
   #customerFee{ border-color: var(--deepgreen) !important; background: var(--deepgreen-tint) !important; color: var(--deepgreen); font-weight:600; }
   #customerFee::placeholder{ color: var(--deepgreen); opacity:0.6; }
-  /* Sign-in screen + cloud sync UI */
-  .auth-gate{ min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 24px 16px; }
-  .auth-card{ width:100%; max-width: 360px; background: var(--surface); border: 1.75px solid var(--line-soft); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow-sm); text-align:center; }
-  .auth-card h1{ font-size: 24px; margin: 0 0 4px; letter-spacing:-0.02em; }
-  .auth-card .auth-sub{ font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  /* Sign-in screen: a soft glow behind a frosted card, the app's mark, a segmented
+     owner/salesperson choice, fields with icons, and the legal links under the card. */
+  .auth-gate{ position:relative; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 36px 16px 22px; overflow:hidden; isolation:isolate; }
+  .auth-gate::before{ content:''; position:absolute; z-index:-1; inset: -25% -30% auto -30%; height: 75%; pointer-events:none;
+    background: radial-gradient(45% 50% at 35% 45%, rgba(59,124,255,0.30), transparent 70%), radial-gradient(35% 40% at 75% 35%, rgba(23,196,160,0.14), transparent 70%); }
+  [data-theme="day"] .auth-gate::before{ opacity: 0.55; }
+  .auth-card{ width:100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: 24px; padding: 28px 22px 22px; box-shadow: var(--shadow); text-align:center; }
+  @supports (background: color-mix(in srgb, red 50%, transparent)){
+    .auth-card{ background: color-mix(in srgb, var(--surface) 84%, transparent); border-color: color-mix(in srgb, var(--line-soft) 60%, transparent); -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%); }
+  }
+  .brand-mark{ display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:52px; height:52px; border-radius:16px; color:#fff;
+    background: linear-gradient(145deg, #4F8BFF 0%, #1D4ED8 100%); box-shadow: 0 10px 24px -10px rgba(37,99,235,0.9), inset 0 1px 0 rgba(255,255,255,0.25); }
+  .brand-mark svg{ width:56%; height:56%; }
+  .brand-mark.sm{ width:34px; height:34px; border-radius:11px; box-shadow: 0 6px 14px -8px rgba(37,99,235,0.9), inset 0 1px 0 rgba(255,255,255,0.25); }
+  .auth-brand{ display:flex; flex-direction:column; align-items:center; gap: 10px; margin-bottom: 20px; }
+  .auth-card h1{ font-size: 26px; margin: 0; letter-spacing:-0.03em; line-height:1.1; }
+  .auth-tagline{ font-size: 12.5px; color: var(--muted); margin-top: -4px; }
+  .auth-card .auth-sub{ font-size: 11px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em; font-weight:700; }
+  .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 16px; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 16px; }
+  /* Business Owner is blue, Salesperson is light with a blue accent. Neither looks disabled
+     before one is chosen; the chosen one fills in. */
+  .auth-role button{ --owner: #3B82F6; --staff: #F8FAFC; --staff-accent: #60A5FA;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-height: 64px; padding: 10px 6px;
+    border: 1.5px solid transparent; border-radius: 12px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; cursor:pointer;
+    transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s, transform 0.08s; -webkit-tap-highlight-color: transparent; }
+  .auth-role button svg{ width:20px; height:20px; }
+  .auth-role button:active{ transform: scale(0.97); }
+  .auth-role button:focus-visible{ outline: 2px solid var(--staff-accent); outline-offset: 2px; }
+  .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.12); color: #93C5FD; }
+  .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.2); }
+  .auth-role button[data-val="owner"].active{ background: var(--owner); color: #FFFFFF; box-shadow: 0 8px 20px -8px var(--owner); }
+  .auth-role button[data-val="staff"]{ background: rgba(248,250,252,0.07); color: var(--staff); }
+  .auth-role button[data-val="staff"] svg{ color: var(--staff-accent); }
+  .auth-role button[data-val="staff"]:hover{ background: rgba(248,250,252,0.12); }
+  .auth-role button[data-val="staff"].active{ background: var(--staff); border-color: var(--staff-accent); color: #1E3A8A; box-shadow: 0 0 0 3px rgba(96,165,250,0.3); }
+  [data-theme="day"] .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.1); color: #1D4ED8; }
+  [data-theme="day"] .auth-role button[data-val="owner"].active{ background: var(--owner); color: #FFFFFF; }
+  [data-theme="day"] .auth-role button[data-val="staff"]{ background: #FFFFFF; border-color: #DCE3EC; color: #0F172A; }
+  [data-theme="day"] .auth-role button[data-val="staff"].active{ border-color: var(--staff-accent); color: #1E40AF; box-shadow: 0 0 0 3px rgba(96,165,250,0.28); }
+  .auth-card input{ width:100%; height: 52px; background: var(--surface-2); border: 1px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family:'Inter',sans-serif; font-size: 16px; padding: 0 15px; border-radius: 14px; outline:none; margin-bottom: 10px; box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; }
+  .auth-card input::placeholder{ color: var(--muted); }
+  .auth-card input:focus{ border-color: var(--mp); box-shadow: 0 0 0 4px var(--mp-tint); }
+  .auth-field{ position:relative; display:block; margin-bottom: 10px; }
+  .auth-field input{ margin-bottom: 0; padding-left: 44px; }
+  .auth-field > svg{ position:absolute; left: 15px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--muted); pointer-events:none; }
+  .auth-field:focus-within > svg{ color: var(--mp-soft); }
+  .auth-field.has-toggle input{ padding-right: 48px; }
+  .pw-toggle{ position:absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border:none; background:none; color: var(--muted); border-radius: 10px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+  .pw-toggle:hover{ color: var(--text); }
+  .pw-toggle svg{ width: 19px; height: 19px; }
+  .auth-row-end{ display:flex; justify-content:flex-end; margin: -2px 2px 14px; }
+  .auth-link{ background:none; border:none; padding: 4px 0; cursor:pointer; font-family:'Inter',sans-serif; font-size: 12.5px; font-weight:600; color: var(--mp-soft); }
+  .auth-link:hover{ text-decoration: underline; }
+  .auth-card .addbtn{ height: 52px; padding: 0 16px; border-radius: 14px; background: linear-gradient(135deg, #4F8BFF, #2563EB); color:#fff; box-shadow: 0 10px 24px -12px #2563EB; display:flex; align-items:center; justify-content:center; gap: 8px; }
+  .auth-card .addbtn:disabled{ opacity: 0.65; }
+  #authSubmit::after{ content:'→'; font-size: 16px; transition: transform 0.15s; }
+  #authSubmit:hover::after{ transform: translateX(3px); }
+  .auth-card .pdfbtn{ height: 48px; padding: 0 16px; margin-top: 0; border-radius: 14px; background: transparent; border: 1px solid var(--line-soft); }
+  .auth-card .pdfbtn:hover{ border-color: var(--mp); }
+  .auth-card .calc-history-clear{ font-size: 12.5px; text-decoration:none; color: var(--muted-strong); }
+  .auth-card .calc-history-clear:hover{ color: var(--text); text-decoration: underline; }
+  .auth-or{ display:flex; align-items:center; gap: 12px; margin: 20px 0 12px; font-size: 12px; color: var(--muted); }
+  .auth-or::before, .auth-or::after{ content:''; flex:1; height:1px; background: var(--line-soft); opacity: 0.7; }
+  .auth-card .status{ min-height: 18px; margin-top: 10px; font-size: 12.5px; }
+  .auth-msg{ font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .auth-msg strong{ color: var(--text); }
+  .auth-gate > .legal-footer{ margin-top: 18px; max-width: 380px; }
+  .auth-gate > .legal-footer a{ color: var(--mp-soft); }
+  .auth-card .status:empty{ min-height: 0; margin: 0; }
   .terms-check{ display:flex; align-items:flex-start; gap:9px; text-align:left; font-size: 12px; color: var(--muted-strong); line-height:1.5; margin: 2px 0 12px; cursor:pointer; }
   .terms-check span{ flex:1; min-width:0; }
   .auth-card .terms-check input{ width:18px; height:18px; padding:0; margin: 2px 0 0; flex-shrink:0; accent-color: var(--theme); -webkit-appearance: checkbox; appearance: checkbox; }
@@ -446,46 +516,20 @@
   .admin-biz .admin-meta{ color: var(--muted); margin-top: 3px; overflow-wrap:anywhere; }
   .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
   .admin-biz.suspended .admin-status{ color: var(--loss); }
-  .auth-divider{ border-top: 1.5px solid var(--line-soft); margin: 18px 0 14px; }
-  .auth-role{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-  /* Role buttons: Business Owner is blue (owner/admin), Salesperson is light neutral with
-     a blue accent. Both stay fully coloured when unselected so neither looks disabled;
-     the chosen one fills in and gets a check mark. */
-  .auth-role button{ --owner: #3B82F6; --staff: #F8FAFC; --staff-accent: #60A5FA;
-    border: 1.5px solid transparent; border-radius: var(--radius-sm); padding: 11px 6px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 13px; cursor:pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s; -webkit-tap-highlight-color: transparent; }
-  .auth-role button:active{ transform: scale(0.98); }
-  .auth-role button:focus-visible{ outline: 2px solid var(--staff-accent); outline-offset: 2px; }
-  .auth-role button.active::before{ content: '✓'; margin-right: 6px; }
-
-  .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.14); border-color: var(--owner); color: #93C5FD; }
-  .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.24); color: #BFDBFE; }
-  .auth-role button[data-val="owner"].active{ background: var(--owner); border-color: var(--owner); color: #FFFFFF; box-shadow: 0 6px 18px -6px var(--owner); }
-
-  .auth-role button[data-val="staff"]{ background: rgba(248,250,252,0.13); border-color: rgba(248,250,252,0.8); color: var(--staff); }
-  .auth-role button[data-val="staff"]:hover{ background: rgba(248,250,252,0.2); border-color: var(--staff-accent); }
-  .auth-role button[data-val="staff"].active{ background: var(--staff); border-color: var(--staff-accent); color: #1E3A8A; box-shadow: 0 0 0 3px rgba(96,165,250,0.35); }
-  .auth-role button[data-val="staff"].active::before{ color: var(--staff-accent); }
-
-  /* Light theme: same roles, darker text so they read on a white card. */
-  [data-theme="day"] .auth-role button[data-val="owner"]{ background: rgba(59,130,246,0.10); color: #1D4ED8; }
-  [data-theme="day"] .auth-role button[data-val="owner"]:hover{ background: rgba(59,130,246,0.18); color: #1E40AF; }
-  [data-theme="day"] .auth-role button[data-val="owner"].active{ background: var(--owner); color: #FFFFFF; }
-  [data-theme="day"] .auth-role button[data-val="staff"]{ background: var(--staff); border-color: #CBD5E1; color: #0F172A; }
-  [data-theme="day"] .auth-role button[data-val="staff"]:hover{ border-color: var(--staff-accent); background: #FFFFFF; }
-  [data-theme="day"] .auth-role button[data-val="staff"].active{ background: #FFFFFF; border-color: var(--staff-accent); color: #1E40AF; box-shadow: 0 0 0 3px rgba(96,165,250,0.30); }
-  .auth-card input{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family:'Inter',sans-serif; font-size: 16px; padding: 12px 13px; border-radius: var(--radius-sm); outline:none; margin-bottom: 10px; box-sizing: border-box; }
-  .auth-card input:focus{ border-color: var(--theme); }
-  .auth-card .status{ min-height: 18px; }
-  .auth-msg{ font-size: 13px; color: var(--muted); line-height: 1.6; }
-  .who{ font-size: 10.5px; color: var(--muted); font-weight:600; margin-top: 2px; }
+  .who{ min-width:0; display:flex; flex-direction:column; gap: 5px; }
+  .who-sep{ display:none; }
+  .who-biz{ font-family:'Space Grotesk',sans-serif; font-size: 15px; font-weight:700; color: var(--text); letter-spacing:-0.01em; line-height:1.25; overflow-wrap:anywhere; }
+  .who-person{ display:flex; align-items:center; flex-wrap:wrap; gap: 6px 8px; font-size: 12.5px; color: var(--muted-strong); font-weight:600; }
+  .role-chip{ font-size: 9.5px; font-weight:800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--mp-tint); color: var(--mp-soft); border: 1px solid rgba(59,124,255,0.35); white-space:nowrap; }
+  .role-chip.staff{ background: rgba(248,250,252,0.08); color: var(--text); border-color: var(--line-soft); }
   .sync-badge{ font-size: 10px; font-weight:700; color: var(--accent); white-space:nowrap; }
-  .signout-btn{ background:none; border: 1.5px solid var(--line-soft); color: var(--muted); border-radius: 9px; height: 30px; padding: 0 9px; font-family:'Inter',sans-serif; font-size: 11px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .signout-btn{ background:none; border: 1.5px solid var(--line-soft); color: var(--muted-strong); border-radius: 10px; height: 34px; padding: 0 11px; font-family:'Inter',sans-serif; font-size: 12px; font-weight:600; cursor:pointer; white-space:nowrap; }
   .signout-btn:hover{ border-color: var(--loss); color: var(--loss); }
   body[data-role="staff"] .owner-only{ display:none !important; }
   .log-item.deleted{ opacity: 0.55; }
   .log-item.deleted .type{ text-decoration: line-through; }
   .log-left .byline{ font-size: 11px; color: var(--muted-strong); margin-top: 3px; font-weight:600; }
+  .log-left .byline-name{ color: var(--text); font-weight:700; }
   .log-left .deleted-note{ font-size: 11px; color: var(--loss); margin-top: 3px; font-weight:700; }
   .log-right .restore{ background:none; border:none; color: var(--profit); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:600; }
   .team-row{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 12px 10px; margin-top: 10px; }
@@ -508,22 +552,25 @@
 <body>
 <div class="auth-gate" id="authGate">
   <div class="auth-card">
-    <h1>Ledger</h1>
+    <div class="auth-brand">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2.5" fill="currentColor" opacity=".95"/><rect x="5" y="3.5" width="2.6" height="17" rx="1" fill="#93C5FD"/><path d="M10 8h6M10 11.5h4M10 15h6" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+      <h1>Ledger</h1>
+      <div class="auth-tagline">POS profit tracker for Moniepoint &amp; OPay agents</div>
+    </div>
     <div class="auth-sub" id="authSub">Sign in to log and view transactions</div>
     <div id="authLoading" class="auth-msg">Connecting…</div>
     <form id="authForm" style="display:none;" autocomplete="on">
       <div class="auth-role" id="authRole">
-        <button type="button" data-val="owner">Business Owner</button>
-        <button type="button" data-val="staff">Salesperson</button>
+        <button type="button" data-val="owner" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18"/></svg>Business Owner</button>
+        <button type="button" data-val="staff" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Salesperson</button>
       </div>
-      <input type="text" id="authEmail" placeholder="Email or username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required />
-      <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" required />
+      <label class="auth-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg><input type="text" id="authEmail" placeholder="Email or username" aria-label="Email or username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required /></label>
+      <label class="auth-field has-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg><input type="password" id="authPassword" placeholder="Password" aria-label="Password" autocomplete="current-password" required /><button type="button" class="pw-toggle" id="authPwToggle" aria-label="Show password" aria-pressed="false"></button></label>
+      <div class="auth-row-end"><button class="auth-link" id="authForgot" type="button">Forgot password?</button></div>
       <button class="addbtn" id="authSubmit" type="submit">Sign in</button>
-      <button class="calc-history-clear" id="authForgot" type="button" style="margin-top:12px; font-size:12px;">Forgot password?</button>
-      <div class="auth-divider"></div>
-      <div class="auth-msg">New business owner?</div>
-      <button class="pdfbtn" id="showSignup" type="button" style="margin-top:8px;">Create a business account</button>
-      <div class="hint" style="text-align:center; margin-top:8px;">Salespeople don't create accounts — your business owner adds you.</div>
+      <div class="auth-or">New business owner?</div>
+      <button class="pdfbtn" id="showSignup" type="button">Create a business account</button>
+      <div class="hint" style="text-align:center; margin-top:10px;">Salespeople don't create accounts — your business owner adds you.</div>
     </form>
     <form id="signupForm" style="display:none;" autocomplete="on">
       <div class="auth-msg" style="margin-bottom:12px;"><strong>Create a business account</strong><br>For business owners only. You'll get your own private ledger and can add your salespeople from Settings.</div>
@@ -552,24 +599,29 @@
     <div id="authBlocked" class="auth-msg" style="display:none;"></div>
     <button class="pdfbtn" id="authBlockedSignOut" type="button" style="display:none;">Sign out</button>
     <div class="status" id="authStatus"></div>
-    <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved<br><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
   </div>
+  <div class="legal-footer">© <span class="copyright-year">2026</span> Triumph Enterprise · Ledger · All rights reserved<br><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
 </div>
 <div class="wrap" id="appWrap" style="display:none;">
 
   <header class="top">
-    <div class="brand">
-      <div>
+    <div class="top-bar">
+      <div class="brand">
+        <span class="brand-mark sm"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2.5" fill="currentColor" opacity=".95"/><rect x="5" y="3.5" width="2.6" height="17" rx="1" fill="#93C5FD"/><path d="M10 8h6M10 11.5h4M10 15h6" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round"/></svg></span>
         <h1>Ledger</h1>
-        <div class="who" id="whoLabel"></div>
+      </div>
+      <div class="top-right">
+        <button class="text-size-toggle" id="textSizeToggle" aria-label="Toggle compact view" aria-pressed="false">Aa</button>
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
+        <button class="signout-btn" id="signOutBtn" type="button">Sign out</button>
       </div>
     </div>
-    <div class="top-right">
-      <span class="sync-badge" id="syncBadge"></span>
-      <div class="today" id="todayLabel"></div>
-      <button class="signout-btn" id="signOutBtn" type="button">Sign out</button>
-      <button class="text-size-toggle" id="textSizeToggle" aria-label="Toggle compact view" aria-pressed="false">Aa</button>
-      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
+    <div class="top-context">
+      <div class="who" id="whoLabel"></div>
+      <div class="top-meta">
+        <div class="today" id="todayLabel"></div>
+        <span class="sync-badge" id="syncBadge"></span>
+      </div>
     </div>
   </header>
 
@@ -2980,7 +3032,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('by ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)));
+        if(t.loggedBy && !t.imported) bylineParts.push('by <span class="byline-name">' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
@@ -3633,8 +3685,11 @@
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
     const roleLabel = role === 'owner' ? 'Owner' : 'Salesperson';
     const name = teamNames[currentUser.uid];
-    const who = name ? `${name} · ${roleLabel}` : roleLabel;
-    $('#whoLabel').textContent = bizName ? `${bizName} · ${who}` : who;
+    // Reads as "Business · Name · Role" (the separators are hidden; the layout splits it in two rows).
+    const sep = '<span class="who-sep"> · </span>';
+    const chip = `<span class="role-chip ${role}">${roleLabel}</span>`;
+    const person = `<span class="who-person">${name ? `<span class="who-name">${escapeHtml(name)}</span>${sep}` : ''}${chip}</span>`;
+    $('#whoLabel').innerHTML = bizName ? `<span class="who-biz">${escapeHtml(bizName)}</span>${sep}${person}` : person;
     const bizInput = $('#bizNameInput');
     if(bizInput && document.activeElement !== bizInput) bizInput.value = bizName;
   }
@@ -4155,7 +4210,7 @@
   let loginIntent = null;      // set only for a sign-in typed on this screen
   let loginMismatchMsg = '';
   function renderLoginChoice(){
-    $('#authRole').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.val === loginChoice));
+    $('#authRole').querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.val === loginChoice); b.setAttribute('aria-pressed', String(b.dataset.val === loginChoice)); });
     $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as the business owner'
       : loginChoice === 'staff' ? 'Sign in as a salesperson'
       : 'Choose how you are signing in';
@@ -4168,6 +4223,18 @@
     });
   });
   renderLoginChoice();
+  // Show / hide the password while typing it.
+  const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3.1 3.8M6.4 7.6A16.6 16.6 0 0 0 2.5 12s3.5 6.5 9.5 6.5a9.2 9.2 0 0 0 4.2-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  function setPwVisible(show){
+    $('#authPassword').type = show ? 'text' : 'password';
+    $('#authPwToggle').innerHTML = show ? EYE_OFF : EYE;
+    $('#authPwToggle').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    $('#authPwToggle').setAttribute('aria-pressed', String(show));
+  }
+  setPwVisible(false);
+  $('#authPwToggle').addEventListener('click', ()=>{ setPwVisible($('#authPassword').type === 'password'); $('#authPassword').focus(); });
+  $('#authForm').addEventListener('submit', ()=> setPwVisible(false), true);
   // Returns true when the account doesn't match the option picked; signs it back out.
   function rejectLoginMismatch(actualRole){
     const intent = loginIntent;
