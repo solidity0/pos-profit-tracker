@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Triumph Enterprise. All rights reserved. See LICENSE.
 // Ledger service worker: lets the app open without internet.
 // Pages are fetched fresh when online (so updates arrive straight away) and served from the
 // cache when offline. Libraries (Firebase SDK, jsPDF, fonts) are versioned URLs, so they're
