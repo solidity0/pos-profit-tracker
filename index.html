@@ -2964,13 +2964,20 @@
   // deleted; then it leaves the log. It stays in the database and in the full backup.
   const DELETED_VISIBLE_MS = 2 * 60 * 60 * 1000;
   function deletedStillShown(t){ return !!t.deletedAtMs && Date.now() - t.deletedAtMs < DELETED_VISIBLE_MS; }
-  // Refresh the log when a deleted entry's two hours run out.
-  setInterval(()=>{
+  // Refresh the log when a deleted entry's two hours have run out since the log was last
+  // drawn. Checked every minute and whenever the app comes back to the screen (a phone
+  // pauses the app in the background, so a timer alone can miss the moment).
+  var logRenderedAt = 0; // var: renderLog may run before this line is reached
+  function dropExpiredDeleted(){
     if(role !== 'owner') return;
     const now = Date.now();
-    if(!transactions.some(t => t.deleted && t.deletedAtMs && now - t.deletedAtMs >= DELETED_VISIBLE_MS && now - t.deletedAtMs < DELETED_VISIBLE_MS + 90000)) return;
+    const expiredSinceRender = t => t.deleted && t.deletedAtMs && now - t.deletedAtMs >= DELETED_VISIBLE_MS && logRenderedAt - t.deletedAtMs < DELETED_VISIBLE_MS;
+    if(!transactions.some(expiredSinceRender)) return;
     if($('#logContent').style.display === 'block') renderLog(); else logNeedsRender = true;
-  }, 60000);
+  }
+  setInterval(dropExpiredDeleted, 60000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) dropExpiredDeleted(); });
+  window.addEventListener('focus', dropExpiredDeleted);
   function getFilteredForLog(){
     // Transaction Log now respects the same period/date filter as Performance Overview,
     // in addition to the provider filter, so the two sections stay in sync.
@@ -3080,6 +3087,7 @@
 
   function renderLog(){
     logNeedsRender = false;
+    logRenderedAt = Date.now();
     const clearBtn = LOG_CLEAR_BTN;
     const shareBtn = LOG_SHARE_BTN;
     const logList = $('#logList');
