@@ -196,6 +196,10 @@
       flex: 1.1 1 340px;
       max-width: 510px;
     }
+    /* On a computer the form scrolls inside its own card (like the Transaction Log), so the
+       page itself doesn't have to scroll. The title stays put. */
+    #entryBody{ max-height: calc(100vh - 270px); min-height: 320px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; margin: 0 -6px; padding: 0 6px 4px; }
+    #entryBody::-webkit-scrollbar{ display:none; width:0; height:0; }
     .dashboard-row > .stack-col{
       display: flex;
       flex-direction: column;
@@ -669,6 +673,7 @@
   <div class="dashboard-row">
   <div class="card" id="entryCard" data-provider="Moniepoint">
     <h2><span class="provider-avatar letter" id="providerAvatar">M</span>Log a Transaction</h2>
+    <div class="entry-body" id="entryBody">
 
     <div class="segmented" id="providerSeg">
       <button data-val="Moniepoint" class="active"><span class="provider-avatar letter">M</span><span>Moniepoint</span></button>
@@ -785,6 +790,7 @@
     <button class="addbtn" id="addBtn">Add Transaction</button>
     <div class="hint owner-only">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
+    </div>
   </div>
 
   <div class="card" id="calcCard">
