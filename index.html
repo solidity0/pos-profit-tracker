@@ -583,7 +583,9 @@
   .team-add .field{ margin-bottom: 10px; }
   .team-add-title{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:700; text-align:center; margin-bottom: 8px; }
   #loggedByFilter{ grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
-  #loggedByFilter button.active{ border-color: var(--accent); color:#ffffff; background: var(--accent); }
+  /* Chosen person: grey with a touch of black. */
+  #loggedByFilter button.active{ border-color: #52525B; color:#ffffff; background: #52525B; }
+  [data-theme="day"] #loggedByFilter button.active{ border-color: #3F4652; background: #3F4652; }
   .disclaimer{ font-size: 11px; color: var(--muted); line-height: 1.65; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
 </style>
 </head>
