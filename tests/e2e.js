@@ -320,6 +320,22 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check("...dated by the server, not the phone", await until(async()=> /phone clock was 2 days behind/.test(await clockItem.textContent())), await clockItem.textContent().catch(()=>''));
   await Clk.c.close();
 
+  // ---------- the owner's own username ----------
+  await op.click('#settingsToggle');
+  await op.fill('#ownerUsernameInput', 'uche'); await op.click('#ownerUsernameBtn');
+  check("owner can't take a salesperson's username", await until(async()=> /already taken/.test(await op.textContent('#ownerUsernameStatus'))), await op.textContent('#ownerUsernameStatus'));
+  await op.fill('#ownerUsernameInput', 'no good!'); await op.click('#ownerUsernameBtn');
+  check('a badly formed owner username is refused', await until(async()=> /3–30 letters/.test(await op.textContent('#ownerUsernameStatus'))), await op.textContent('#ownerUsernameStatus'));
+  await op.fill('#ownerUsernameInput', 'Uweribe'); await op.click('#ownerUsernameBtn');
+  check('owner saves a username', await until(async()=> /Saved ✓/.test(await op.textContent('#ownerUsernameStatus'))) && (await op.$eval('#ownerUsernameInput', e=>e.value)) === 'uweribe', await op.textContent('#ownerUsernameStatus'));
+  await op.click('#settingsDoneBtn');
+  {
+    const OU = await ctx(b, 'owner-username'); const up = OU.p;
+    await signIn(up, 'uweribe', 'secret123', 'owner');
+    check('owner signs in with their username', await until(async()=> /^Triumph Ventures · /.test(await up.textContent('#whoLabel')), 20000), await up.textContent('#whoLabel'));
+    await OU.c.close();
+  }
+
   // ---------- a new business owner signs up ----------
   const Ada = await ctx(b, 'ada'); const ap = Ada.p;
   await ap.goto(PAGE); await ap.waitForSelector('#authForm', { state:'visible' });
@@ -330,7 +346,9 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('sign-up form links the Terms of Use and Privacy Policy', !!(await ap.$('#signupForm a[href="terms.html"]')) && !!(await ap.$('#signupForm a[href="privacy.html"]')));
   await ap.uncheck('#signupTerms'); await ap.fill('#signupEmail', 'ada@test.com'); await ap.click('#signupSubmit');
   check('sign-up without ticking the terms box is refused', await until(async()=> /Tick the box to agree/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authStatus'));
-  await ap.check('#signupTerms'); await ap.click('#signupSubmit');
+  await ap.check('#signupTerms'); await ap.fill('#signupUsername', 'uweribe'); await ap.click('#signupSubmit');
+  check('sign-up with a taken username is refused', await until(async()=> /already taken/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#verifyForm')), await ap.textContent('#authStatus'));
+  await ap.fill('#signupUsername', 'AdaStores'); await ap.click('#signupSubmit');
   check('a new owner is asked to confirm their email first', await until(async()=> await ap.isVisible('#verifyForm') && /ada@test\.com/.test(await ap.textContent('#verifyMsg')), 15000) && !(await ap.isVisible('#appWrap')));
   await ap.click('#verifyDone');
   check('...and can\'t continue before opening the link', await until(async()=> /Not confirmed yet/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authStatus'));
@@ -339,6 +357,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('the confirmation email was sent', await emu.verifyEmail('ada@test.com'));
   await ap.click('#verifyDone');
   check('new owner gets their own business', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 20000), await ap.textContent('#whoLabel'));
+  check('the username chosen at sign-up is saved', await until(async()=> (await ap.$eval('#ownerUsernameInput', e=>e.value)) === 'adastores'), await ap.$eval('#ownerUsernameInput', e=>e.value));
   check('a new business starts with auto-save at ₦0', await until(async()=> (await ap.$eval('#autosaveFlat', e=>e.value)) === '0'), await ap.$eval('#autosaveFlat', e=>e.value));
   await ap.click('#summaryToggle'); await ap.click('#periodTabs button[data-val="all"]');
   check("new business starts empty (can't see Triumph's data)", await until(async()=> (await ap.textContent('#txCount')).startsWith('0 transactions')), await ap.textContent('#txCount'));
@@ -411,7 +430,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // ---------- settings never carry over between businesses on the same phone ----------
   await op.click('#signOutBtn'); await wait(600); await op.click('#signOutBtn');
   await op.waitForSelector('#authForm', { state:'visible' });
-  await op.click('#authRole button[data-val="owner"]'); await op.fill('#authEmail', 'ada@test.com'); await op.fill('#authPassword', 'secret123'); await op.click('#authSubmit');
+  await op.click('#authRole button[data-val="owner"]'); await op.fill('#authEmail', 'adastores'); await op.fill('#authPassword', 'secret123'); await op.click('#authSubmit');
   check('a second owner signs in on the same phone', await until(async()=> (await op.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 15000), await op.textContent('#whoLabel'));
   check("...and starts with their own rates, not the previous business's", await until(async()=> (await op.$eval('#mp_transfer', e=>e.value)) === '20' && (await op.$eval('#autosaveFlat', e=>e.value)) === '0'), `${await op.$eval('#mp_transfer', e=>e.value)} / ${await op.$eval('#autosaveFlat', e=>e.value)}`);
   const errs = [...op.errs, ...sp.errs, ...xp.errs];
