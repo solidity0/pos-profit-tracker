@@ -312,6 +312,24 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('leaving Custom clears its message', await until(async()=> (await op.textContent('#customDateStatus')) === ''));
   }
 
+  // ---------- Volume Analysis follows the Filter ----------
+  {
+    const money = async () => [await op.textContent('#trendMoneyIn'), await op.textContent('#trendMoneyOut')].map(t => parseFloat(t.replace(/[^\d.]/g,'')) || 0);
+    check('Volume Analysis has no date buttons of its own', !(await op.$('#trendPeriodTabs')));
+    await op.click('#periodTabs button[data-val="all"]'); await op.click('#providerFilter button[data-val="All"]'); await wait(400);
+    const all = await money();
+    await op.click('#providerFilter button[data-val="Moniepoint"]'); await wait(400); const mp = await money();
+    await op.click('#providerFilter button[data-val="Opay"]'); await wait(400); const opay = await money();
+    check('Volume Analysis follows the provider filter', all[0] > 0 && all[0] === mp[0] + opay[0] && all[1] === mp[1] + opay[1] && (mp[0] !== all[0] || opay[0] !== all[0]), JSON.stringify({all, mp, opay}));
+    await op.click('#providerFilter button[data-val="All"]');
+    const ymd = n => { const d = new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+    await op.click('#periodTabs button[data-val="custom"]');
+    await op.fill('#customStartDate', ymd(3000)); await op.fill('#customEndDate', ymd(2999)); await wait(500);
+    const none = await money();
+    check("...and the Filter's dates (custom too)", none[0] === 0 && none[1] === 0, JSON.stringify(none));
+    await op.click('#periodTabs button[data-val="today"]');
+  }
+
   // ---------- calculator: full screen, back, sums ----------
   {
     await op.click('#calcToggle');

@@ -994,11 +994,6 @@
       <div class="perf-section-body" id="volumeBody" hidden>
       <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
       <div id="volumeContent" style="display:none;">
-      <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
-        <button data-val="today" class="active">Today</button>
-        <button data-val="week">Week</button>
-        <button data-val="month">Month</button>
-      </div>
       <div class="trend-grid">
         <div class="trend-box">
           <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
@@ -1011,7 +1006,7 @@
           <div class="trend-amt" id="trendMoneyOut">₦0</div>
         </div>
       </div>
-      <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
+      <div class="hint" style="text-align:center; margin-top:2px;">For the dates and provider chosen in Filter. Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
       </div>
       </div>
      </section>
@@ -1276,7 +1271,7 @@
     });
   }
 
-  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', loggedByFilter: 'All', trendPeriod: 'today', customStart: null, customEnd: null };
+  let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', loggedByFilter: 'All', customStart: null, customEnd: null };
   let selectedCombosBillers = new Set();
   let transactions = [];
   let settings = {
@@ -2162,14 +2157,6 @@
     // Let an open date picker hand over its value first.
     if(document.activeElement && document.activeElement.type === 'date') document.activeElement.blur();
     setTimeout(()=> applyCustomDates(true), 0);
-  });
-  $('#trendPeriodTabs').querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      $('#trendPeriodTabs').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      state.trendPeriod = btn.dataset.val;
-      renderVolumeAnalysis();
-    });
   });
   $('#providerFilter').querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -3270,7 +3257,8 @@
     emptyEl.style.display = 'none';
     contentEl.style.display = 'block';
 
-    const inRange = transactions.filter(t => !t.deleted && isInPeriod(t.date, state.trendPeriod) && (role !== 'staff' || matchesLoggedBy(t)));
+    // Follows the Filter above (dates, provider and who logged it), like Summary.
+    const inRange = getFiltered();
     let moneyIn = 0, moneyOut = 0;
     inRange.forEach(t=>{
       const amt = t.amount || 0;
