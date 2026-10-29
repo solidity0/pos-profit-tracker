@@ -315,8 +315,8 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // ---------- calculator: full screen, back, sums ----------
   {
     await op.click('#calcToggle');
-    const isFull = () => op.evaluate(()=>{ const r = document.getElementById('calcCard').getBoundingClientRect(); return r.top === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; });
-    check('on a phone the calculator opens straight in full screen with a Back button', await isFull() && await op.isVisible('#calcBackBtn'));
+    const full = await op.evaluate(()=>{ const r = document.getElementById('calcCard').getBoundingClientRect(); return r.top === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; });
+    check('calculator opens full screen with a Back button', full && await op.isVisible('#calcBackBtn'));
     const press = async ks => { for(const k of ks) await op.click(`#calcBody .calc-btn[data-calc="${k}"]`); };
     const shown = async () => (await op.textContent('#calcDisplay')).replace(/\s+/g,' ').trim();
     await press(['clear','5','0','%','3','=']); check('a digit after % starts a new number', (await shown()) === '3', await shown());
@@ -325,9 +325,9 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await press(['clear','5','0','+','1','0','%','=']); check('50 + 10% = 55', (await shown()) === '55', await shown());
     await press(['clear','1','0','/','0','=']); check('dividing by zero shows Error', (await shown()) === 'Error', await shown());
     await op.click('#calcBackBtn');
-    check('Back returns to the home page', !(await op.isVisible('#calcBody')) && !(await isFull()) && await op.isVisible('#entryCard'));
+    check('Back returns to the home page', !(await op.isVisible('#calcBody')) && await op.isVisible('#calcToggle') && await op.isVisible('#entryCard'));
     await op.click('#calcToggle'); await op.goBack();
-    check("the phone's own back button closes it too", await until(async()=> !(await isFull()) && !(await op.isVisible('#calcBody')) && await op.isVisible('#appWrap')));
+    check("the phone's own back button closes it too", await until(async()=> !(await op.isVisible('#calcBody')) && await op.isVisible('#appWrap')));
   }
   {
     const PC = await ctx(b, 'pc-calc'); const pc = PC.p;
@@ -335,13 +335,12 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await signIn(pc, 'owner@test.com', 'secret123');
     await until(()=> pc.isVisible('#appWrap'), 20000);
     await pc.click('#calcToggle');
-    check('on a computer the calculator opens as a dropdown', await pc.isVisible('#calcBody') && !(await pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'))));
-    await pc.click('#calcExpandBtn');
-    check('...and goes full screen from its button', await pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full')) && await pc.isVisible('#calcBackBtn'));
+    const full = await pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
+    check('on a computer the calculator opens full screen too', full && await pc.isVisible('#calcBody') && await pc.isVisible('#calcBackBtn'));
     await pc.keyboard.type('7*6'); await pc.keyboard.press('Enter');
     check('...the keyboard works in it', (await pc.textContent('#calcDisplay')).trim() === '42', await pc.textContent('#calcDisplay'));
     await pc.keyboard.press('Escape');
-    check('...and Esc goes back to the dropdown', await until(async()=> !(await pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'))) && await pc.isVisible('#calcBody')));
+    check('...and Esc closes it', await until(async()=> !(await pc.isVisible('#calcBody')) && await pc.isVisible('#calcToggle')));
     await PC.c.close();
   }
 
