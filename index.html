@@ -2475,6 +2475,12 @@
       $('#calcBody').style.display = 'none';
       $('#calcCaret').classList.remove('open');
       card.classList.remove('calc-open-inline');
+    } else if(card.dataset.directFull){
+      // Opened straight in full screen (phone): Back closes it.
+      delete card.dataset.directFull;
+      $('#calcBody').style.display = 'none';
+      $('#calcCaret').classList.remove('open');
+      card.classList.remove('calc-open-inline');
     } else {
       // Back to the open dropdown in the page.
       $('#calcBody').style.display = 'block';
@@ -2521,7 +2527,11 @@
   document.addEventListener('webkitfullscreenchange', updateFsButton);
   updateFsButton();
 
-  $('#calcToggle').addEventListener('click', toggleCalculatorDropdown);
+  // On a phone the calculator opens straight in full screen; on a computer as a dropdown.
+  $('#calcToggle').addEventListener('click', ()=>{
+    if(window.matchMedia('(max-width: 1023px)').matches){ $('#calcCard').dataset.directFull = '1'; openCalculator(false); }
+    else toggleCalculatorDropdown();
+  });
   $('#calcExpandBtn').addEventListener('click', ()=>{
     openCalculator(false);
     // Where the browser allows it (e.g. Android), also hide its own bars.
