@@ -364,10 +364,13 @@
   .calc-topbar-title{ font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color: var(--muted); }
   .calc-topbar-spacer{ justify-self:end; }
   #calcCard.calc-full #calcBody{ display:flex !important; flex-direction:column; flex:1; min-height:0; width:100%; max-width:560px; margin: 6px auto 0; }
+  /* The keypad keeps a fixed size at the bottom. A long sum grows the display upwards,
+     squeezing the history (which then scrolls) rather than the keys. */
+  #calcCard.calc-full #calcHistoryWrap{ flex: 0 1000 auto; min-height: 34px; overflow-y: auto; overscroll-behavior: contain; }
   #calcCard.calc-full .calc-history{ max-height: 30vh; }
-  #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 26px; }
-  #calcCard.calc-full .calc-display{ font-size: clamp(30px, 6vh, 44px); max-height: 26vh; padding: 16px; }
-  #calcCard.calc-full .calc-grid{ flex:1; min-height: 0; grid-auto-rows: 1fr; gap: 10px; }
+  #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 26px; flex: none; margin-top: auto; }
+  #calcCard.calc-full .calc-display{ flex: 0 1 auto; min-height: 84px; max-height: none; font-size: clamp(30px, 6vh, 44px); padding: 16px; }
+  #calcCard.calc-full .calc-grid{ flex: none; height: min(52vh, 460px); grid-auto-rows: 1fr; gap: 10px; }
   #calcCard.calc-full .calc-btn{ aspect-ratio:auto; min-height: 0; font-size: clamp(24px, 4.6vh, 40px); }
   .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); aspect-ratio: 1.02; padding: 0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 32px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
   .calc-btn:active{ transform: scale(0.94); }
