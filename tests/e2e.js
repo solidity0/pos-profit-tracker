@@ -335,10 +335,12 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await signIn(pc, 'owner@test.com', 'secret123');
     await until(()=> pc.isVisible('#appWrap'), 20000);
     await pc.click('#calcToggle');
-    const inCard = await pc.evaluate(()=> !document.getElementById('calcCard').classList.contains('calc-full'));
-    check('on a computer the calculator opens in its card, not full screen', inCard && await pc.isVisible('#calcBody') && !(await pc.isVisible('#calcBackBtn')));
-    await pc.click('#calcToggle');
-    check('...and closes from its title again', !(await pc.isVisible('#calcBody')));
+    const full = await pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
+    check('on a computer the calculator opens full screen too', full && await pc.isVisible('#calcBody') && await pc.isVisible('#calcBackBtn'));
+    await pc.keyboard.type('7*6'); await pc.keyboard.press('Enter');
+    check('...the keyboard works in it', (await pc.textContent('#calcDisplay')).trim() === '42', await pc.textContent('#calcDisplay'));
+    await pc.keyboard.press('Escape');
+    check('...and Esc closes it', await until(async()=> !(await pc.isVisible('#calcBody')) && await pc.isVisible('#calcToggle')));
     await PC.c.close();
   }
 
