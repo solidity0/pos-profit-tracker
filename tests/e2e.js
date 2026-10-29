@@ -499,6 +499,20 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('copyright shows in the app footer', /© 2026 Triumph Enterprise · Ledger · All rights reserved/.test(await op.textContent('#appWrap .legal-footer')));
   await L.c.close();
 
+  // ---------- calculator from the sign-in screen ----------
+  {
+    const G = await ctx(b, 'guest-calc'); const gp = G.p;
+    await gp.goto(PAGE); await gp.waitForSelector('#authForm', { state:'visible' });
+    check('the sign-in screen has a Calculator button', await gp.isVisible('#authCalcBtn'));
+    await gp.click('#authCalcBtn');
+    check('...which opens the calculator full screen without signing in', await until(()=> gp.isVisible('#calcBody')) && !(await gp.isVisible('#appWrap')));
+    for(const k of ['1','2','+','3','=']) await gp.click(`#calcBody .calc-btn[data-calc="${k}"]`);
+    check('...and it works', (await gp.textContent('#calcDisplay')).trim() === '15', await gp.textContent('#calcDisplay'));
+    await gp.click('#calcBackBtn');
+    check('Back returns to the sign-in screen', await until(()=> gp.isVisible('#authForm')) && !(await gp.isVisible('#calcBody')));
+    await G.c.close();
+  }
+
   // ---------- login choice ----------
   const W = await ctx(b, 'wrongchoice'); const wp = W.p;
   await signIn(wp, 'owner@test.com', 'secret123', 'staff');
