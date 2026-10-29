@@ -210,6 +210,12 @@
     #calcCard.calc-open-inline:not(.calc-full) .calc-btn{ aspect-ratio:auto; min-height:0; }
     #txLogCard:has(#logContent[style*="block"]){ height: var(--entry-card-h, auto); display:flex; flex-direction:column; }
     #txLogCard:has(#logContent[style*="block"]) #logContent{ flex:1; min-height:0; max-height:none; }
+    /* Settings open as a dropdown of the same height, scrolling inside; the full-screen
+       button (top left) opens them full screen. */
+    #settingsCard.settings-open-inline:not(.settings-full){ height: var(--entry-card-h, auto); display:flex; flex-direction:column; position:relative; }
+    #settingsCard.settings-open-inline:not(.settings-full) .settings-gate{ flex:1; min-height:0; display:flex; flex-direction:column; }
+    #settingsCard.settings-open-inline:not(.settings-full) #settingsContent{ flex:1; min-height:0; max-height:none; }
+    #settingsCard.settings-open-inline:not(.settings-full) .settings-expand{ display:flex; }
     /* Withdrawal form height (measured by the page); longer forms scroll inside. */
     #entryBody{ max-height: var(--entry-body-h, none); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
     #entryBody::-webkit-scrollbar{ display:none; width:0; height:0; }
@@ -370,6 +376,9 @@
   .settings-section{ border: 1px solid var(--line-soft); border-radius: 16px; padding: 4px 14px 14px; margin-top: 14px; background: var(--surface); }
   .settings-section > h3:first-child{ margin-top: 12px; }
   #settingsContent > .settings-section:first-child, #settingsContent > .settings-section[style*="none"] + .settings-section{ margin-top: 0; }
+  .settings-expand{ display:none; position:absolute; left: 14px; top: 12px; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--line-soft); background: var(--surface-2); color: var(--muted-strong); cursor:pointer; align-items:center; justify-content:center; padding:0; z-index: 1; -webkit-tap-highlight-color: transparent; }
+  .settings-expand svg{ width: 18px; height: 18px; }
+  .settings-expand:hover{ color: var(--text); border-color: var(--mp); }
   /* Full-screen settings. */
   #settingsCard.settings-full{ position:fixed; inset:0; z-index:1000; margin:0 !important; max-width:none !important; min-width:0 !important; width:auto; border:none; border-radius:0; box-shadow:none; background: var(--bg);
     display:flex; flex-direction:column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
@@ -1074,6 +1083,7 @@
       <span class="calc-topbar-title">Settings &amp; rate table</span>
       <span></span>
     </div>
+    <button class="settings-expand" id="settingsExpandBtn" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <div class="settings-gate">
       <button class="settings-toggle" id="settingsToggle"><span id="settingsCaret" data-heading-caret>▶︎</span> <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg> <span>Settings &amp; rate table</span></button>
 
@@ -2335,29 +2345,41 @@
   // just means "signed in as the owner".
   let settingsUnlocked = false;
 
-  // Settings open full screen (like the calculator on a phone) with a Back button; the
-  // phone's own back gesture or button closes them too.
+  // On a phone, settings open full screen with a Back button; the phone's own back gesture
+  // or button closes them too. On a PC they open as a dropdown with a full-screen button,
+  // and Back or Esc from full screen returns to the dropdown.
   function showSettingsContent(){
     $('#settingsContent').style.display = 'block';
     checkImportUploaded(); checkLegacyLedger();
     $('#settingsToggle').classList.add('open');
+    $('#settingsContent').scrollTop = 0;
+    if(desktopQuery.matches) $('#settingsCard').classList.add('settings-open-inline');
+    else openSettingsFull();
+  }
+  function openSettingsFull(){
     const card = $('#settingsCard');
-    if(!card.classList.contains('settings-full')){
-      card.classList.add('settings-full');
-      $('#settingsContent').scrollTop = 0;
-      try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
-    }
+    if(card.classList.contains('settings-full')) return;
+    card.classList.add('settings-full');
+    try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
+  }
+  function closeSettingsFull(fromHistory){
+    const card = $('#settingsCard');
+    card.classList.remove('settings-full');
+    if(fromHistory !== true && history.state && history.state.ledgerSettings){ try{ history.back(); }catch(e){} }
   }
   function hideSettingsPanels(fromHistory){
     $('#settingsContent').style.display = 'none';
     $('#settingsToggle').classList.remove('open');
-    const card = $('#settingsCard');
-    if(card.classList.contains('settings-full')){
-      card.classList.remove('settings-full');
-      if(fromHistory !== true && history.state && history.state.ledgerSettings){ try{ history.back(); }catch(e){} }
-    }
+    $('#settingsCard').classList.remove('settings-open-inline');
+    if($('#settingsCard').classList.contains('settings-full')) closeSettingsFull(fromHistory);
   }
-  window.addEventListener('popstate', ()=>{ if($('#settingsCard').classList.contains('settings-full')) hideSettingsPanels(true); });
+  // Leaving full screen: back to the dropdown when it was opened from one, else closed.
+  function leaveSettingsFull(fromHistory){
+    if($('#settingsCard').classList.contains('settings-open-inline')) closeSettingsFull(fromHistory);
+    else hideSettingsPanels(fromHistory);
+  }
+  $('#settingsExpandBtn').addEventListener('click', openSettingsFull);
+  window.addEventListener('popstate', ()=>{ if($('#settingsCard').classList.contains('settings-full')) leaveSettingsFull(true); });
   // Each settings section (a heading and everything under it) gets its own bordered box.
   (function groupSettingsSections(){
     const root = $('#settingsContent');
@@ -2375,7 +2397,7 @@
     });
   })();
   document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape' && $('#settingsCard').classList.contains('settings-full')){ e.preventDefault(); hideSettingsPanels(); }
+    if(e.key === 'Escape' && $('#settingsCard').classList.contains('settings-full')){ e.preventDefault(); leaveSettingsFull(); }
   });
 
   function openLogDropdown(){
@@ -3072,7 +3094,7 @@
   $('#settingsDoneBtn').addEventListener('click', ()=>{
     hideSettingsPanels();
   });
-  $('#settingsBackBtn').addEventListener('click', ()=> hideSettingsPanels());
+  $('#settingsBackBtn').addEventListener('click', ()=> leaveSettingsFull());
 
   $('#clearLogBtn').addEventListener('click', ()=>{
     const visible = getTodayLogEntries();
