@@ -1121,7 +1121,10 @@
       <div id="importSection" style="display:none;">
         <h3>Old records on this phone</h3>
         <div class="hint" id="importHint"></div>
-        <button class="pdfbtn" id="importBtn" type="button"></button>
+        <div class="row2" style="margin-top:12px;">
+          <button class="pdfbtn" id="importBtn" type="button" style="margin-top:0;"></button>
+          <button class="pdfbtn" id="importIgnoreBtn" type="button" style="margin-top:0;">Ignore</button>
+        </div>
         <div class="status" id="importStatus"></div>
       </div>
 
@@ -4326,29 +4329,51 @@
   let importChecking = false;
   let importCheckedFor = null; // the business the check was for
   const pendingLegacy = () => legacyTransactions.filter(tx => tx && tx.id && tx.date && (importMissing === null || importMissing.has(String(tx.id))));
+  // An entry counts as already uploaded if the cloud has the same id, or the same entry
+  // (provider, type, amount, fee and time) uploaded from another device under another id.
+  const txSignature = tx => [String(tx.provider || '').toLowerCase(), tx.type, Number(tx.amount) || 0, Number(tx.customerFee) || 0, String(tx.phoneDate || tx.date || '').slice(0, 16)].join('|');
+  // Old records belong to the original single-business ledger, so only its owner is offered them
+  // (a new owner signing in on the same device never is). Entries logged offline after the
+  // switch don't need this: they upload by themselves when the internet is back.
+  const importIgnoreKey = () => LS_PREFIX + 'importIgnored:' + bizId;
+  function importIgnoredFor(ids){ try{ return localStorage.getItem(importIgnoreKey()) === ids.slice().sort().join(','); }catch(e){ return false; } }
   async function checkImportUploaded(){
     if(importCheckedFor !== bizId){ importCheckedFor = bizId; importMissing = null; }
-    if(!fb || role !== 'owner' || importChecking || importMissing !== null || legacyTransactions.length === 0) return;
+    if(!fb || role !== 'owner' || !currentUser || currentUser.uid !== LEGACY_OWNER_UID) return;
+    if(importChecking || importMissing !== null || legacyTransactions.length === 0) return;
     importChecking = true;
     try{
       const ids = legacyTransactions.filter(tx => tx && tx.id).map(tx => String(tx.id));
       const snaps = await Promise.all(ids.map(id => fb.getDoc(bdoc('transactions', id))));
-      importMissing = new Set(ids.filter((id, i) => !snaps[i].exists()));
+      let missing = ids.filter((id, i) => !snaps[i].exists());
+      if(missing.length){
+        if(olderState !== 'loaded') await loadOlderTransactions();
+        const inCloud = new Set(transactions.map(txSignature));
+        const byId = new Map(legacyTransactions.map(tx => [String(tx.id), tx]));
+        missing = missing.filter(id => !inCloud.has(txSignature(byId.get(id))));
+      }
+      importMissing = new Set(missing);
     }catch(e){ importMissing = null; }
     importChecking = false;
     renderImportUI();
   }
   function renderImportUI(){
     const sec = $('#importSection');
-    const n = pendingLegacy().length;
-    if(role !== 'owner' || n === 0 || importMissing === null){ sec.style.display = 'none'; return; }
+    const pending = pendingLegacy();
+    const n = pending.length;
+    if(role !== 'owner' || n === 0 || importMissing === null || importIgnoredFor(pending.map(tx => String(tx.id)))){ sec.style.display = 'none'; return; }
     sec.style.display = '';
     $('#importHint').textContent = importDone
       ? `This phone's ${n} older transactions have been uploaded. Uploading again is safe — it won't create duplicates.`
-      : `This phone still has ${n} transactions saved from before the switch to online sync. Upload them once so they're backed up and included in your totals. They'll be marked as logged by you.`;
-    $('#importBtn').textContent = importDone ? `Upload again (${n})` : `Upload ${n} transactions`;
+      : `This device still has ${n} transaction${n === 1 ? '' : 's'} saved from before the switch to online sync that ${n === 1 ? "isn't" : "aren't"} in the cloud yet. Upload them once so they're backed up and included in your totals. They'll be marked as logged by you.`;
+    $('#importBtn').textContent = importDone ? `Upload again (${n})` : `Upload ${n} transaction${n === 1 ? '' : 's'}`;
   }
 
+  // Ignore hides the box on this device until different old records turn up.
+  $('#importIgnoreBtn').addEventListener('click', ()=>{
+    try{ localStorage.setItem(importIgnoreKey(), pendingLegacy().map(tx => String(tx.id)).sort().join(',')); }catch(e){}
+    renderImportUI();
+  });
   $('#importBtn').addEventListener('click', async ()=>{
     if(!fb || role !== 'owner') return;
     const btn = $('#importBtn');

@@ -353,6 +353,24 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check("the phone's back button closes settings too", await until(async()=> !(await op.isVisible('#settingsContent')) && await op.isVisible('#appWrap')));
   }
 
+  // ---------- old records on a second device ----------
+  {
+    const D2 = await ctx(b, 'second-device'); const dp = D2.p;
+    const same = Object.assign({}, legacy[1], { id: 'other-device-copy-of-legacy-2' }); // already uploaded from the first device
+    const fresh = { id:'only-on-device-2', date:new Date(now-5*86400e3).toISOString(), provider:'Moniepoint', type:'Withdrawal', amount:7300, customerFee:150, baseFee:37, vatAmt:0, stampAmt:0, autosaveAmt:0, providerFee:37, netProfit:113 };
+    await dp.addInitScript(l => { if(!localStorage.getItem('seeded2')){ localStorage.setItem('ledger_transactions', JSON.stringify(l)); localStorage.setItem('seeded2','1'); } }, [legacy[0], same, fresh]);
+    await signIn(dp, 'owner@test.com', 'secret123');
+    await until(()=> dp.isVisible('#appWrap'), 20000);
+    await dp.click('#settingsToggle');
+    check('a second device only offers old records the cloud does not have yet', await until(async()=> (await dp.isVisible('#importSection')) && (await dp.textContent('#importBtn')) === 'Upload 1 transaction', 15000), await dp.textContent('#importBtn'));
+    await dp.click('#importIgnoreBtn');
+    check('Ignore hides the old-records box', !(await dp.isVisible('#importSection')));
+    await dp.reload(); await until(()=> dp.isVisible('#appWrap'), 20000);
+    await dp.click('#settingsToggle'); await wait(3000);
+    check('...and it stays hidden on that device', !(await dp.isVisible('#importSection')));
+    await D2.c.close();
+  }
+
   // ---------- Performance Overview panels open and close ----------
   {
     const P = await ctx(b, 'panels'); const pp = P.p;
