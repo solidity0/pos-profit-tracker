@@ -34,7 +34,7 @@ async function until(fn, ms=10000){ const t = Date.now(); while(Date.now()-t < m
   await wait(1500);
 
   await p.fill('#amount', '4321'); await p.fill('#customerFee', '100'); await p.click('#addBtn');
-  check('an entry logged online is saved', await until(async()=> /4,321/.test(await p.textContent('#logList')) && (await p.textContent('#syncBadge')) === ''), await p.textContent('#syncBadge'));
+  check('an entry logged online is saved', await until(async()=> /4,321/.test(await p.textContent('#logList')) && (await p.textContent('#syncBadge')) === 'Connected'), await p.textContent('#syncBadge'));
   await c.setOffline(true);
   await p.reload();
   check('with no internet the app still opens, signed in', await until(async()=> await p.isVisible('#appWrap') && /^Offline Shop · /.test(await p.textContent('#whoLabel')), 20000), await p.textContent('#whoLabel').catch(()=>''));
@@ -42,8 +42,42 @@ async function until(fn, ms=10000){ const t = Date.now(); while(Date.now()-t < m
   check('...and shows the saved entries', await until(async()=> /4,321/.test(await p.textContent('#logList'))), (await p.textContent('#logList')).replace(/\s+/g,' ').slice(0,200));
   await p.fill('#amount', '2500'); await p.fill('#customerFee', '100'); await p.click('#addBtn');
   check('...and can log a new entry offline', await until(async()=> /2,500/.test(await p.textContent('#logList'))));
+  check('...the status shows it is waiting to upload', await until(async()=> /⏳ 1 to upload/.test(await p.textContent('#syncBadge'))), await p.textContent('#syncBadge'));
+  // Closing and reopening the app while offline keeps the entry that hasn't uploaded yet.
+  await p.reload();
+  await until(()=> p.isVisible('#appWrap'), 20000);
+  if(!(await p.isVisible('#logContent'))) await p.click('#logToggle');
+  check('...reopening the app offline keeps the not-yet-uploaded entry', await until(async()=> /2,500/.test(await p.textContent('#logList')) && /⏳ 1 to upload/.test(await p.textContent('#syncBadge')), 20000), await p.textContent('#syncBadge'));
+  // The calculator works offline.
+  await p.click('#calcToggle');
+  for(const k of ['clear','1','2','*','3','=']) await p.click(`#calcBody .calc-btn[data-calc="${k}"]`);
+  check('...the calculator works offline', (await p.textContent('#calcDisplay')).trim() === '36', await p.textContent('#calcDisplay'));
+  await p.click('#calcBackBtn');
+  // Settings: a rate change applies straight away offline (it uploads later).
+  await p.click('#settingsToggle'); await until(()=> p.isVisible('#billFee'));
+  await p.fill('#billFee', '77'); await p.dispatchEvent('#billFee', 'change');
+  await p.click('#settingsBackBtn').catch(()=>{});
+  await p.click('#typeSeg button[data-val="Bill"]'); await p.fill('#amount', '1000');
+  check('...a rate changed offline applies at once', await until(async()=> /77/.test(await p.textContent('#machineBreakdown')) || /77/.test(await p.textContent('#machineTotal'))), (await p.textContent('#machineTotal')) + ' / ' + (await p.textContent('#machineBreakdown')));
+  await p.fill('#amount', ''); await p.click('#typeSeg button[data-val="Withdrawal"]');
+  await p.click('#settingsToggle'); await until(()=> p.isVisible('#ownerUsernameInput'));
+  // Something that truly needs the server says so instead of hanging.
+  await p.fill('#ownerUsernameInput', 'offlinetest'); await p.click('#ownerUsernameBtn');
+  check('...an action that needs the server says it needs internet (no endless "Saving…")', await until(async()=> /needs an internet connection/.test(await p.textContent('#ownerUsernameStatus'))), await p.textContent('#ownerUsernameStatus'));
+  await p.fill('#ownerUsernameInput', '');
+  await p.click('#settingsBackBtn').catch(()=>{});
+  // A CSV report downloads offline.
+  await p.click('#summaryToggle');
+  for(const id of ['perfReports']) if(!(await p.$eval('#'+id, e=>e.classList.contains('open')))) await p.click('#'+id+' .perf-section-toggle');
+  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 10000 }).catch(()=>null), p.click('#csvBtn')]);
+  check('...a CSV report downloads offline', !!dl);
+  const [pdf] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }).catch(()=>null), p.click('#downloadPdfBtn')]);
+  check('...a PDF report downloads offline', !!pdf && /\.pdf$/i.test(pdf.suggestedFilename()), pdf ? pdf.suggestedFilename() : 'no download');
   await c.setOffline(false);
-  check('it uploads when the internet is back', await until(async()=> (await p.textContent('#syncBadge')) === '', 30000), await p.textContent('#syncBadge'));
+  check('it uploads when the internet is back', await until(async()=> (await p.textContent('#syncBadge')) === 'Connected', 30000), await p.textContent('#syncBadge'));
+  // and the owner's data really reached the server
+  const n = await fetch(`http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/businesses/${emu.TEST_ACCOUNTS[0].uid}/transactions`, { headers:{ Authorization:'Bearer owner' } }).then(r=>r.json());
+  check('...both entries are on the server', (n.documents || []).length === 2, String((n.documents || []).length));
   check('no page errors', errs.length === 0, errs.join(' | ').slice(0, 300));
   console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
   await b.close(); process.exit(failures ? 1 : 0);

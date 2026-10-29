@@ -112,6 +112,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('owner restore brings it back for staff', await until(async()=> (await logCount(sp)) === 2));
 
   // ---------- offline logging ----------
+  check('connection status shows Connected in green while online', (await sp.textContent('#syncBadge')) === 'Connected' && await sp.$eval('#syncBadge', e=> e.classList.contains('online')), await sp.textContent('#syncBadge'));
   await St.c.setOffline(true);
   await logTx(sp, 'Withdrawal', '5000', '150');
   check('offline: entry shows on staff phone at once', await until(async()=> (await logCount(sp)) === 3));
@@ -122,7 +123,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('back online: a green "Connected" shows once it has uploaded', await until(async()=> (await sp.textContent('#syncBadge')) === 'Connected' && await sp.$eval('#syncBadge', e=> e.classList.contains('online')), 30000), await sp.textContent('#syncBadge'));
   check('back online: owner receives it', await until(async()=> (await logCount(op)) === 3, 30000), String(await logCount(op)));
   check('owner sees it was logged offline', await until(async()=> /logged offline · uploaded/.test(await op.textContent('#logList'))));
-  check('back online: badge clears a few seconds later', await until(async()=> (await sp.textContent('#syncBadge')) === '', 15000), await sp.textContent('#syncBadge'));
+  check('back online: it stays showing Connected', await wait(5000) || (await sp.textContent('#syncBadge')) === 'Connected', await sp.textContent('#syncBadge'));
 
   // ---------- owner filters ----------
   await op.click('#periodTabs button[data-val="all"]');

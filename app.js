@@ -2766,25 +2766,13 @@
     transactions = Array.from(byId.values()).sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
   }
 
-  // Offline (orange) while there's no connection; when it comes back (and anything logged
-  // offline has uploaded) a green "Connected" shows for a few seconds, then clears.
-  let wasOffline = !navigator.onLine;
-  let backOnlineTimer = null;
-  const BACK_ONLINE_MS = 4000;
+  // Connection status, always shown: green "Connected" when online, orange "Offline" when
+  // not, and how many entries are still waiting to upload while there are any.
   function updateSyncBadge(){
     const el = $('#syncBadge');
-    let text = '', online = false;
-    if(!navigator.onLine) wasOffline = true;
-    if(pendingUploads > 0) text = `⏳ ${pendingUploads} to upload`;
-    else if(!navigator.onLine) text = 'Offline';
-    else if(wasOffline){
-      wasOffline = false;
-      clearTimeout(backOnlineTimer);
-      backOnlineTimer = setTimeout(()=>{ backOnlineTimer = null; updateSyncBadge(); }, BACK_ONLINE_MS);
-    }
-    if(!text && backOnlineTimer && navigator.onLine){ text = 'Connected'; online = true; }
-    if(text && !online && backOnlineTimer){ clearTimeout(backOnlineTimer); backOnlineTimer = null; }
-    el.textContent = text;
+    const online = navigator.onLine && pendingUploads === 0;
+    if(pendingUploads > 0) el.textContent = `⏳ ${pendingUploads} to upload`;
+    else el.textContent = navigator.onLine ? 'Connected' : 'Offline';
     el.classList.toggle('online', online);
   }
   window.addEventListener('online', updateSyncBadge);
@@ -2971,12 +2959,23 @@
     el.querySelectorAll('.team-reset').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         const m = teamMembers[btn.dataset.uid];
+        if(!navigator.onLine){ btn.textContent = 'No internet — connect to send it.'; return; }
         try{
           await fb.sendPasswordResetEmail(fb.auth, m.email);
           btn.textContent = 'Reset email sent ✓';
         }catch(err){ btn.textContent = 'Could not send — ' + ((err && err.code) || 'error'); }
       });
     });
+  }
+
+  // A few owner actions need the server itself (creating a login, checking a username is
+  // free, sending an email, the admin list). Offline they'd wait forever, so say so instead;
+  // everything else (logging, deleting, restoring, rates, names) saves now and uploads later.
+  const NEEDS_INTERNET = 'This needs an internet connection — connect and try again. Everything else works offline.';
+  function offlineBlock(statusEl){
+    if(navigator.onLine) return false;
+    if(statusEl){ statusEl.className = 'status error'; statusEl.textContent = NEEDS_INTERNET; }
+    return true;
   }
 
   function addStaffError(err){
@@ -3014,6 +3013,7 @@
     const password = $('#newStaffPassword').value;
     const st = $('#addStaffStatus');
     st.className = 'status error';
+    if(offlineBlock(st)) return;
     // Email is required (password resets go there); the username is their quick login.
     if(!name || !realEmail || !username || !password){ st.textContent = 'Enter their name, email, username and a password.'; return; }
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(realEmail)){ st.textContent = "That email address doesn't look right."; return; }
@@ -3077,6 +3077,7 @@
 
   $('#addStaffResetBtn').addEventListener('click', async ()=>{
     const btn = $('#addStaffResetBtn');
+    if(!navigator.onLine){ btn.textContent = 'No internet — connect to send the reset email.'; return; }
     try{
       await fb.sendPasswordResetEmail(fb.auth, btn.dataset.email);
       btn.textContent = `Reset email sent to ${btn.dataset.email} ✓`;
@@ -3090,6 +3091,7 @@
     const email = $('#newStaffEmail').value.trim();
     const st = $('#addStaffStatus');
     st.className = 'status error';
+    if(offlineBlock(st)) return;
     if(!uid || !name){ st.textContent = 'Enter their name above and paste their User UID.'; return; }
     if(uid === bizId || /[\/\s]/.test(uid)){ st.textContent = "That UID doesn't look right."; return; }
     try{
@@ -3179,6 +3181,7 @@
     const list = pendingLegacy();
     const BATCH = 400; // Firestore allows up to 500 writes per batch
     let uploaded = 0;
+    if(offlineBlock(st)) return;
     btn.disabled = true;
     st.className = 'status';
     try{
@@ -3660,6 +3663,7 @@
   async function loadAdminList(){
     const st = $('#adminStatus');
     const list = $('#adminList');
+    if(offlineBlock(st)) return;
     st.className = 'status'; st.textContent = 'Loading…';
     try{
       const snap = await fb.getDocs(fb.collection(fb.db, 'businesses'));
@@ -3687,6 +3691,7 @@
       list.querySelectorAll('.admin-suspend').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           armTapTwice(btn, 'Suspend business', 'Tap again to suspend', async ()=>{
+            if(offlineBlock(st)) return;
             try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: true, suspendedAt: fb.serverTimestamp() }); loadAdminList(); }
             catch(err){ st.className = 'status error'; st.textContent = 'Could not suspend: ' + err.message; }
           });
@@ -3694,6 +3699,7 @@
       });
       list.querySelectorAll('.admin-restore').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
+          if(offlineBlock(st)) return;
           try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: false, suspendedAt: null }); loadAdminList(); }
           catch(err){ st.className = 'status error'; st.textContent = 'Could not restore: ' + err.message; }
         });
@@ -3737,6 +3743,7 @@
   $('#legacyRecopyBtn').addEventListener('click', async ()=>{
     const st = $('#legacyStatus');
     const btn = $('#legacyRecopyBtn');
+    if(offlineBlock(st)) return;
     btn.disabled = true;
     try{
       const n = (await moveLegacyLedger(st, true)).copied;
@@ -3763,6 +3770,7 @@
     const u = $('#ownerUsernameInput').value.trim().toLowerCase();
     $('#ownerUsernameInput').value = u;
     if(u === ownerUsername){ st.className = 'status'; st.textContent = u ? `"${u}" is already your username.` : ''; return; }
+    if(offlineBlock(st)) return;
     btn.disabled = true; st.className = 'status'; st.textContent = 'Saving…';
     try{
       const problem = u ? await ownerUsernameProblem(u) : '';
