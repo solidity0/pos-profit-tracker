@@ -341,6 +341,19 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('...the keyboard works in it', (await pc.textContent('#calcDisplay')).trim() === '42', await pc.textContent('#calcDisplay'));
     await pc.keyboard.press('Escape');
     check('...and Esc closes it', await until(async()=> !(await pc.isVisible('#calcBody')) && await pc.isVisible('#calcToggle')));
+    // Settings on a computer: a dropdown as tall as Log a Transaction, with a full-screen button.
+    await pc.click('#settingsToggle');
+    const sh = await pc.evaluate(()=>{ const s = document.getElementById('settingsCard'), e = document.getElementById('entryCard'); return { full: s.classList.contains('settings-full'), s: s.offsetHeight, e: e.offsetHeight }; });
+    check('on a computer settings open as a dropdown', !sh.full && await pc.isVisible('#settingsContent') && await pc.isVisible('#settingsExpandBtn'), JSON.stringify(sh));
+    check('...as tall as the Log a Transaction card', Math.abs(sh.s - sh.e) <= 2, JSON.stringify(sh));
+    await pc.click('#settingsExpandBtn');
+    check('...the full-screen button opens them full screen', await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full')) && await pc.isVisible('#settingsBackBtn'));
+    await pc.keyboard.press('Escape');
+    check('...and Esc goes back to the dropdown', await until(async()=> !(await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'))) && await pc.isVisible('#settingsContent')));
+    await pc.click('#settingsExpandBtn'); await pc.click('#settingsBackBtn');
+    check('...so does Back', await until(async()=> !(await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'))) && await pc.isVisible('#settingsContent')));
+    await pc.click('#settingsToggle');
+    check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#settingsContent'))));
     await PC.c.close();
   }
 
