@@ -3492,7 +3492,7 @@
     return (err && err.message) || 'Sign-in failed.';
   }
 
-  // OWNER / STAFF choice on the sign-in screen. It doesn't grant anything —
+  // BUSINESS OWNER / STAFF choice on the sign-in screen. It doesn't grant anything —
   // the account decides what someone can do — but signing in with the wrong one chosen is
   // refused with a clear message, so nobody ends up confused about which login they used.
   // Nothing is pre-selected or remembered: the person picks one every time they sign in.
@@ -3501,7 +3501,7 @@
   let loginMismatchMsg = '';
   function renderLoginChoice(){
     $('#authRole').querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.val === loginChoice); b.setAttribute('aria-pressed', String(b.dataset.val === loginChoice)); });
-    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as OWNER'
+    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as BUSINESS OWNER'
       : loginChoice === 'staff' ? 'Sign in as STAFF'
       : 'Choose how you are signing in';
   }
@@ -3531,7 +3531,7 @@
     loginIntent = null;
     if(!intent || intent === actualRole) return false;
     loginMismatchMsg = actualRole === 'owner'
-      ? 'This is an OWNER login — choose "OWNER" and sign in again.'
+      ? 'This is a BUSINESS OWNER login — choose "BUSINESS OWNER" and sign in again.'
       : 'This is a STAFF login — choose "STAFF" and sign in again.';
     fb.signOut(fb.auth);
     return true;
@@ -3542,7 +3542,7 @@
     if(!fb) return;
     if(!loginChoice){
       $('#authStatus').className = 'status error';
-      $('#authStatus').textContent = 'Choose OWNER or STAFF first.';
+      $('#authStatus').textContent = 'Choose BUSINESS OWNER or STAFF first.';
       return;
     }
     loginIntent = loginChoice;
