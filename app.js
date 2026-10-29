@@ -2767,7 +2767,7 @@
   }
 
   // Offline (orange) while there's no connection; when it comes back (and anything logged
-  // offline has uploaded) a green "Back online" shows for a few seconds, then clears.
+  // offline has uploaded) a green "Connected" shows for a few seconds, then clears.
   let wasOffline = !navigator.onLine;
   let backOnlineTimer = null;
   const BACK_ONLINE_MS = 4000;
@@ -2782,7 +2782,7 @@
       clearTimeout(backOnlineTimer);
       backOnlineTimer = setTimeout(()=>{ backOnlineTimer = null; updateSyncBadge(); }, BACK_ONLINE_MS);
     }
-    if(!text && backOnlineTimer && navigator.onLine){ text = 'Back online'; online = true; }
+    if(!text && backOnlineTimer && navigator.onLine){ text = 'Connected'; online = true; }
     if(text && !online && backOnlineTimer){ clearTimeout(backOnlineTimer); backOnlineTimer = null; }
     el.textContent = text;
     el.classList.toggle('online', online);
