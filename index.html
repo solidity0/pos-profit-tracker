@@ -357,6 +357,19 @@
   /* Full-screen calculator: a top bar with Back, then the history, display and a keypad
      that fills the rest of the screen. */
   .calc-topbar{ display:none; }
+  /* Like Settings: while the calculator is full screen, swipes stay inside it (the history
+     and display scroll on their own) and never move the page underneath, so Safari's bars
+     stay as they are. */
+  html.calc-open, html.calc-open body{ overflow: hidden; overscroll-behavior: none; }
+  #calcCard.calc-full .calc-topbar, #calcCard.calc-full .calc-grid, #calcCard.calc-full .calc-preview, #calcCard.calc-full .calc-history-header{ touch-action: none; }
+  #calcCard.calc-full .calc-btn, #calcCard.calc-full .calc-topbar button, #calcCard.calc-full .calc-history-header button{ touch-action: manipulation; }
+  /* Full-screen button on the open calculator dropdown (top left of the card). */
+  #calcCard{ position: relative; }
+  .calc-expand{ display:none; position:absolute; left: 14px; top: 12px; width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--line-soft); background: var(--surface-2); color: var(--muted-strong); cursor:pointer; align-items:center; justify-content:center; padding:0; z-index: 1; -webkit-tap-highlight-color: transparent; }
+  .calc-expand svg{ width: 18px; height: 18px; }
+  .calc-expand:hover{ color: var(--text); border-color: var(--mp); }
+  #calcCard.calc-open-inline .calc-expand{ display:flex; }
+  #calcCard.calc-full .calc-expand{ display:none !important; }
   /* Settings sections, each in its own bordered box. */
   .settings-section{ border: 1px solid var(--line-soft); border-radius: 16px; padding: 4px 14px 14px; margin-top: 14px; background: var(--surface); }
   .settings-section > h3:first-child{ margin-top: 12px; }
@@ -368,10 +381,6 @@
   #settingsCard.settings-full #settingsToggle{ display:none; }
   #settingsCard.settings-full .settings-gate{ flex:1; min-height:0; display:flex; flex-direction:column; width:100%; max-width:720px; margin:0 auto; }
   #settingsCard.settings-full #settingsContent{ flex:1; min-height:0; max-height:none; overflow-y:auto; overscroll-behavior: contain; margin-top: 0; padding-bottom: 8px; }
-  /* The page behind the calculator is left scrollable (and given a little extra length) on
-     purpose: on an iPhone, a swipe up then lets Safari shrink its address bar and toolbar,
-     which is the only "full screen" Safari allows a website. */
-  html.calc-open body{ min-height: calc(100vh + 160px); }
   #calcCard.calc-full{ position:fixed; inset:0; z-index:1000; margin:0 !important; max-width:none !important; min-width:0 !important; width:auto; border:none; border-radius:0; box-shadow:none; background: var(--bg);
     display:flex; flex-direction:column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px); }
   #calcCard.calc-full > #calcToggle{ display:none; }
@@ -870,6 +879,7 @@
       <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="8" y="5.5" width="8" height="3.5" rx="1"/><path d="M8.5 12.5h.01M12 12.5h.01M15.5 12.5h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01M8.5 18.5h.01M12 18.5h.01M15.5 18.5h.01"/></svg>
       <span>Calculator</span>
     </button>
+    <button class="calc-expand" id="calcExpandBtn" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <div class="calc-topbar">
       <button class="calc-back" id="calcBackBtn" type="button" aria-label="Back to the home page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
       <span class="calc-topbar-title">Calculator</span>
@@ -2424,6 +2434,17 @@
   // gesture or button, and Esc on a keyboard, close it too.
   const calcHome = document.createComment('calculator goes here');
   $('#calcCard').parentNode.insertBefore(calcHome, $('#calcCard'));
+  // The calculator opens as a dropdown in its card; the full-screen button (top left of the
+  // open card) switches to full screen, and Back, Esc or the phone's back button return to
+  // the dropdown. From the sign-in page (no card there) it opens straight in full screen.
+  function toggleCalculatorDropdown(){
+    const body = $('#calcBody');
+    const isOpen = body.style.display === 'block';
+    body.style.display = isOpen ? 'none' : 'block';
+    $('#calcCaret').classList.toggle('open', !isOpen);
+    $('#calcCard').classList.toggle('calc-open-inline', !isOpen);
+    $('#calcToggle').blur();
+  }
   function openCalculator(fromSignIn){
     const card = $('#calcCard');
     if(card.classList.contains('calc-full')) return;
@@ -2449,9 +2470,16 @@
     document.documentElement.classList.remove('calc-open');
     $('#calcFsHint').style.display = 'none';
     exitFullscreen();
-    if(card.dataset.detached){ calcHome.parentNode.insertBefore(card, calcHome); delete card.dataset.detached; }
-    $('#calcBody').style.display = 'none';
-    $('#calcCaret').classList.remove('open');
+    if(card.dataset.detached){
+      calcHome.parentNode.insertBefore(card, calcHome); delete card.dataset.detached;
+      $('#calcBody').style.display = 'none';
+      $('#calcCaret').classList.remove('open');
+      card.classList.remove('calc-open-inline');
+    } else {
+      // Back to the open dropdown in the page.
+      $('#calcBody').style.display = 'block';
+      card.classList.add('calc-open-inline');
+    }
     if(!fromHistory && history.state && history.state.ledgerCalc){ try{ history.back(); }catch(e){} }
   }
   // Full-screen button (top right of the phone calculator) hides the browser's own bars
@@ -2493,7 +2521,14 @@
   document.addEventListener('webkitfullscreenchange', updateFsButton);
   updateFsButton();
 
-  $('#calcToggle').addEventListener('click', ()=> openCalculator(false));
+  $('#calcToggle').addEventListener('click', toggleCalculatorDropdown);
+  $('#calcExpandBtn').addEventListener('click', ()=>{
+    openCalculator(false);
+    // Where the browser allows it (e.g. Android), also hide its own bars.
+    if(canFullscreen() && !isFullscreen()){
+      try{ const r = rootEl.requestFullscreen ? rootEl.requestFullscreen({ navigationUI: 'hide' }) : rootEl.webkitRequestFullscreen(); if(r && r.catch) r.catch(()=>{}); }catch(e){}
+    }
+  });
   $('#authCalcBtn').addEventListener('click', ()=> openCalculator(true));
   $('#calcBackBtn').addEventListener('click', ()=> closeCalculator(false));
   window.addEventListener('popstate', ()=> closeCalculator(true));
