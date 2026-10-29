@@ -173,6 +173,17 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
 
   // ---------- owner adds a salesperson from Settings ----------
   await op.click('#settingsToggle');
+  // Trainee: a label only. Tick it for Test Staff, then untick it.
+  {
+    const box = `.team-trainee-input[data-uid="${emu.TEST_ACCOUNTS[1].uid}"]`;
+    await until(()=> op.isVisible(box));
+    await op.check(box);
+    check('owner can mark staff as a Trainee', await until(async()=> /STAFF · TRAINEE/.test(await op.textContent('#teamInputs'))), await op.textContent('#teamInputs'));
+    check("...the trainee's own header says TRAINEE", await until(async()=> / · TRAINEE$/.test(await sp.textContent('#whoLabel'))), await sp.textContent('#whoLabel'));
+    check('...and their entries say "by: Test Staff · TRAINEE"', await until(async()=> /by: Test Staff · TRAINEE/.test(await op.textContent('#logList'))));
+    await op.uncheck(box);
+    check('...unticking it makes them STAFF again', await until(async()=> / · STAFF$/.test(await sp.textContent('#whoLabel')) && !/TRAINEE/.test(await op.textContent('#logList'))), await sp.textContent('#whoLabel'));
+  }
   await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'start123');
   await op.click('#addStaffBtn');
   check('owner adds a salesperson from Settings', await until(async()=> /New Person added/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
