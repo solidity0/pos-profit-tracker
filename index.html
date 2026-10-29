@@ -357,6 +357,13 @@
   /* Full-screen calculator: a top bar with Back, then the history, display and a keypad
      that fills the rest of the screen. */
   .calc-topbar{ display:none; }
+  /* Full-screen settings. */
+  #settingsCard.settings-full{ position:fixed; inset:0; z-index:1000; margin:0 !important; max-width:none !important; min-width:0 !important; width:auto; border:none; border-radius:0; box-shadow:none; background: var(--bg);
+    display:flex; flex-direction:column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
+  #settingsCard.settings-full .settings-topbar{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:12px; width:100%; max-width:720px; margin: 0 auto 10px; flex:none; }
+  #settingsCard.settings-full #settingsToggle{ display:none; }
+  #settingsCard.settings-full .settings-gate{ flex:1; min-height:0; display:flex; flex-direction:column; width:100%; max-width:720px; margin:0 auto; }
+  #settingsCard.settings-full #settingsContent{ flex:1; min-height:0; max-height:none; overflow-y:auto; overscroll-behavior: contain; margin-top: 0; padding-bottom: 8px; }
   /* The page behind the calculator is left scrollable (and given a little extra length) on
      purpose: on an iPhone, a swipe up then lets Safari shrink its address bar and toolbar,
      which is the only "full screen" Safari allows a website. */
@@ -1049,6 +1056,11 @@
 
 
   <div class="card owner-only" id="settingsCard">
+    <div class="calc-topbar settings-topbar">
+      <button class="calc-back" id="settingsBackBtn" type="button" aria-label="Back to the home page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
+      <span class="calc-topbar-title">Settings &amp; rate table</span>
+      <span></span>
+    </div>
     <div class="settings-gate">
       <button class="settings-toggle" id="settingsToggle"><span id="settingsCaret" data-heading-caret>▶︎</span> <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg> <span>Settings &amp; rate table</span></button>
 
@@ -2300,14 +2312,28 @@
   // just means "signed in as the owner".
   let settingsUnlocked = false;
 
+  // Settings open full screen (like the calculator on a phone) with a Back button; the
+  // phone's own back gesture or button closes them too.
   function showSettingsContent(){
     $('#settingsContent').style.display = 'block';
     $('#settingsToggle').classList.add('open');
+    const card = $('#settingsCard');
+    if(!card.classList.contains('settings-full')){
+      card.classList.add('settings-full');
+      $('#settingsContent').scrollTop = 0;
+      try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
+    }
   }
-  function hideSettingsPanels(){
+  function hideSettingsPanels(fromHistory){
     $('#settingsContent').style.display = 'none';
     $('#settingsToggle').classList.remove('open');
+    const card = $('#settingsCard');
+    if(card.classList.contains('settings-full')){
+      card.classList.remove('settings-full');
+      if(fromHistory !== true && history.state && history.state.ledgerSettings){ try{ history.back(); }catch(e){} }
+    }
   }
+  window.addEventListener('popstate', ()=>{ if($('#settingsCard').classList.contains('settings-full')) hideSettingsPanels(true); });
 
   function openLogDropdown(){
     $('#logContent').style.display = 'block';
@@ -3009,6 +3035,7 @@
   $('#settingsDoneBtn').addEventListener('click', ()=>{
     hideSettingsPanels();
   });
+  $('#settingsBackBtn').addEventListener('click', ()=> hideSettingsPanels());
 
   $('#clearLogBtn').addEventListener('click', ()=>{
     const visible = getTodayLogEntries();

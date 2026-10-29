@@ -340,6 +340,17 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await PC.c.close();
   }
 
+  // ---------- settings open full screen ----------
+  {
+    await op.click('#settingsToggle');
+    const full = await op.evaluate(()=>{ const r = document.getElementById('settingsCard').getBoundingClientRect(); return r.top === 0 && Math.round(r.height) === innerHeight; });
+    check('settings open full screen with a Back button', full && await op.isVisible('#settingsBackBtn') && await op.isVisible('#settingsContent'));
+    await op.click('#settingsBackBtn');
+    check('Back closes settings', !(await op.isVisible('#settingsContent')) && await op.isVisible('#settingsToggle'));
+    await op.click('#settingsToggle'); await op.goBack();
+    check("the phone's back button closes settings too", await until(async()=> !(await op.isVisible('#settingsContent')) && await op.isVisible('#appWrap')));
+  }
+
   // ---------- Performance Overview panels open and close ----------
   {
     const P = await ctx(b, 'panels'); const pp = P.p;
