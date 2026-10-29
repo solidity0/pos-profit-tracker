@@ -2226,7 +2226,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + '</span>');
+        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (isTrainee(t.loggedBy) ? ' (TRAINEE)' : '') + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
@@ -2246,7 +2246,7 @@
             <div class="date">${dateStr}</div>
             ${byline}
             ${deletedNote}
-            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;">${settingsUnlocked ? `<span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> ` : ''}<span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
+            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;"><span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> <span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
           </div>
           <div class="log-right">
             ${profitBlock}
@@ -2861,7 +2861,7 @@
         const data = d.data() || {};
         const n = (data.name || '').trim();
         if(n) teamNames[d.id] = n;
-        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false };
+        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false, trainee: data.trainee === true };
       });
       updateWhoLabel();
       renderTeamUI();
@@ -2913,9 +2913,12 @@
     render();
   }
 
+  // Staff still in training: set by the owner with the Trainee box in Settings > Team.
+  // It only labels them "STAFF (TRAINEE)"; they can do everything other staff can.
+  const isTrainee = uid => !!(teamMembers[uid] && teamMembers[uid].trainee && uid !== bizId);
   function updateWhoLabel(){
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
-    const roleLabel = role === 'owner' ? 'OWNER' : 'STAFF';
+    const roleLabel = role === 'owner' ? 'OWNER' : (isTrainee(currentUser.uid) ? 'STAFF (TRAINEE)' : 'STAFF');
     const name = teamNames[currentUser.uid];
     // Reads as "Business · Name · Role" (the separators are hidden; the layout splits it in two rows).
     const sep = '<span class="who-sep"> · </span>';
@@ -2939,10 +2942,11 @@
       if(m.email && !isUsernameLogin(m.email)) loginBits.push(m.email);
       const meta = isOwnerRow ? '' : `<div class="team-meta">${escapeHtml(loginBits.join(' · ') || 'no email saved')}${m.active ? '' : ' · <span class="removed-tag">access removed</span>'}</div>
         <div class="team-actions">
+          ${!isOwnerRow && m.active ? `<label class="team-trainee"><input type="checkbox" class="team-trainee-input" data-uid="${uid}"${m.trainee ? ' checked' : ''} /> Trainee</label>` : ''}
           ${m.email && !isUsernameLogin(m.email) ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
           ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button><button type="button" class="team-delete danger" data-uid="${uid}">Delete permanently</button>`}
         </div>`;
-      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (OWNER)' : 'STAFF'}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
+      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (OWNER)' : (m.trainee ? 'STAFF (TRAINEE)' : 'STAFF')}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
     }).join('');
     el.querySelectorAll('.team-name-input').forEach(inp=>{
       inp.value = teamNames[inp.dataset.uid] || '';
@@ -2950,6 +2954,13 @@
         // merge, so renaming never touches someone's access or email
         fb.setDoc(bdoc('staff', inp.dataset.uid), { name: inp.value.trim() }, { merge: true })
           .catch(err => setStatus('Name not saved: ' + err.message, 'error'));
+      });
+    });
+    el.querySelectorAll('.team-trainee-input').forEach(box=>{
+      box.addEventListener('change', ()=>{
+        box.blur(); // lets the Team list redraw with the new label
+        fb.setDoc(bdoc('staff', box.dataset.uid), { trainee: box.checked }, { merge: true })
+          .catch(err => setStatus('Trainee setting not saved: ' + err.message, 'error'));
       });
     });
     el.querySelectorAll('.team-remove').forEach(btn=>{
