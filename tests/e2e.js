@@ -119,9 +119,10 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await wait(1500);
   check('offline: owner does not have it yet', (await logCount(op)) === 2, String(await logCount(op)));
   await St.c.setOffline(false);
+  check('back online: a green "Connected" shows once it has uploaded', await until(async()=> (await sp.textContent('#syncBadge')) === 'Connected' && await sp.$eval('#syncBadge', e=> e.classList.contains('online')), 30000), await sp.textContent('#syncBadge'));
   check('back online: owner receives it', await until(async()=> (await logCount(op)) === 3, 30000), String(await logCount(op)));
   check('owner sees it was logged offline', await until(async()=> /logged offline · uploaded/.test(await op.textContent('#logList'))));
-  check('back online: badge clears', await until(async()=> (await sp.textContent('#syncBadge')) === '', 15000), await sp.textContent('#syncBadge'));
+  check('back online: badge clears a few seconds later', await until(async()=> (await sp.textContent('#syncBadge')) === '', 15000), await sp.textContent('#syncBadge'));
 
   // ---------- owner filters ----------
   await op.click('#periodTabs button[data-val="all"]');
