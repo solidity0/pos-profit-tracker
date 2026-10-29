@@ -201,6 +201,15 @@
       flex: 1.1 1 340px;
       max-width: 510px;
     }
+    /* The open Calculator and Transaction Log cards match the Log a Transaction card's
+       height (measured by the page). The keypad stretches to fit; the log scrolls inside. */
+    #calcCard.calc-open-inline:not(.calc-full){ height: var(--entry-card-h, auto); display:flex; flex-direction:column; }
+    #calcCard.calc-open-inline:not(.calc-full) #calcBody{ display:flex !important; flex-direction:column; flex:1; min-height:0; }
+    #calcCard.calc-open-inline:not(.calc-full) .calc-history-wrap, #calcCard.calc-open-inline:not(.calc-full) .calc-preview, #calcCard.calc-open-inline:not(.calc-full) .calc-display{ flex:none; }
+    #calcCard.calc-open-inline:not(.calc-full) .calc-grid{ flex:1; min-height:0; grid-auto-rows: 1fr; }
+    #calcCard.calc-open-inline:not(.calc-full) .calc-btn{ aspect-ratio:auto; min-height:0; }
+    #txLogCard:has(#logContent[style*="block"]){ height: var(--entry-card-h, auto); display:flex; flex-direction:column; }
+    #txLogCard:has(#logContent[style*="block"]) #logContent{ flex:1; min-height:0; max-height:none; }
     /* Withdrawal form height (measured by the page); longer forms scroll inside. */
     #entryBody{ max-height: var(--entry-body-h, none); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; }
     #entryBody::-webkit-scrollbar{ display:none; width:0; height:0; }
@@ -1833,6 +1842,13 @@
     if(h > 200) document.documentElement.style.setProperty('--entry-body-h', h + 'px');
   }
   desktopQuery.addEventListener('change', ()=> requestAnimationFrame(sizeEntryBody));
+  // Keep the Log a Transaction card's height available to the cards beside it.
+  if('ResizeObserver' in window){
+    new ResizeObserver(entries=>{
+      const h = entries[0].target.offsetHeight; // layout height, unaffected by the Aa size
+      if(h > 200) document.documentElement.style.setProperty('--entry-card-h', h + 'px');
+    }).observe($('#entryCard'));
+  }
   window.addEventListener('resize', ()=> requestAnimationFrame(sizeEntryBody));
 
   function refreshAuto(){
