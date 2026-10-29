@@ -353,7 +353,10 @@
   /* Full-screen calculator: a top bar with Back, then the history, display and a keypad
      that fills the rest of the screen. */
   .calc-topbar{ display:none; }
-  html.calc-open, html.calc-open body{ overflow:hidden; }
+  /* The page behind the calculator is left scrollable (and given a little extra length) on
+     purpose: on an iPhone, a swipe up then lets Safari shrink its address bar and toolbar,
+     which is the only "full screen" Safari allows a website. */
+  html.calc-open body{ min-height: calc(100vh + 160px); }
   #calcCard.calc-full{ position:fixed; inset:0; z-index:1000; margin:0 !important; max-width:none !important; min-width:0 !important; width:auto; border:none; border-radius:0; box-shadow:none; background: var(--bg);
     display:flex; flex-direction:column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px); }
   #calcCard.calc-full > #calcToggle{ display:none; }
@@ -2416,7 +2419,7 @@
     }
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     hint.innerHTML = iOS
-      ? "<strong>Safari doesn't allow full screen for websites.</strong> For full screen: tap the Share button <span aria-hidden=\"true\">⬆︎</span>, choose <strong>Add to Home Screen</strong>, then open Ledger from your home screen — it opens with no browser bars."
+      ? "<strong>Swipe up on the calculator</strong> to shrink Safari's bars. For no bars at all, tap the Share button <span aria-hidden=\"true\">⬆︎</span>, choose <strong>Add to Home Screen</strong>, then open Ledger from your home screen."
       : "This browser doesn't allow full screen here. Open the browser menu and choose <strong>Add to Home screen</strong> (or <strong>Install app</strong>), then open Ledger from there for full screen.";
     hint.style.display = hint.style.display === 'none' ? 'block' : 'none';
   });
