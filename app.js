@@ -2246,7 +2246,7 @@
             <div class="date">${dateStr}</div>
             ${byline}
             ${deletedNote}
-            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;">${settingsUnlocked ? `<span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> ` : ''}<span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
+            <div class="amountline">${comboAmountLine(t, null, true)}. <span style="white-space:nowrap;"><span style="color: var(--loss);">cost -${fmt(t.providerFee)}.</span> <span style="color: var(--profit);">→ charged <span class="fig">${fmt(t.customerFee)}</span>.</span></span></div>
           </div>
           <div class="log-right">
             ${profitBlock}

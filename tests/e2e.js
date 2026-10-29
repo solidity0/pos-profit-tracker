@@ -92,8 +92,9 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await logTx(sp, 'Withdrawal', '20000', '300');
   await logTx(sp, 'Transfer', '15000', '250');
   check('staff sees its 2 entries', await until(async()=> (await logCount(sp)) === 2), String(await logCount(sp)));
+  check('staff see the cost of each entry in the log', await until(async()=> /cost -₦/.test(await sp.textContent('#logList'))), (await sp.textContent('#logList')).replace(/\s+/g,' ').slice(0,160));
   const staffRowText = await sp.textContent('#logList .log-item');
-  check('staff log shows profit but hides cost', !/cost/.test(staffRowText) && /profit\s*₦/i.test(staffRowText), staffRowText.replace(/\s+/g,' ').slice(0,140));
+  check('staff log shows profit and cost', /cost -₦/.test(staffRowText) && /profit\s*₦/i.test(staffRowText), staffRowText.replace(/\s+/g,' ').slice(0,140));
 
   // ---------- owner sees them live ----------
   await op.click('#logToggle');
