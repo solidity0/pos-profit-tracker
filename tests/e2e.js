@@ -318,6 +318,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('Volume Analysis has no date buttons of its own', !(await op.$('#trendPeriodTabs')));
     await op.click('#periodTabs button[data-val="all"]'); await op.click('#providerFilter button[data-val="All"]'); await wait(400);
     const all = await money();
+    check('the count under Transaction Log matches the filter', await until(async()=> (await op.textContent('#logCount')) === (await op.textContent('#txCount')).split(' · ')[0] && parseInt(await op.textContent('#logCount')) > 1), `${await op.textContent('#logCount')} vs ${await op.textContent('#txCount')}`);
     await op.click('#providerFilter button[data-val="Moniepoint"]'); await wait(400); const mp = await money();
     await op.click('#providerFilter button[data-val="Opay"]'); await wait(400); const opay = await money();
     check('Volume Analysis follows the provider filter', all[0] > 0 && all[0] === mp[0] + opay[0] && all[1] === mp[1] + opay[1] && (mp[0] !== all[0] || opay[0] !== all[0]), JSON.stringify({all, mp, opay}));
