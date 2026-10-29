@@ -327,6 +327,18 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await op.click('#calcToggle'); await op.goBack();
     check("the phone's own back button closes it too", await until(async()=> !(await op.isVisible('#calcBody')) && await op.isVisible('#appWrap')));
   }
+  {
+    const PC = await ctx(b, 'pc-calc'); const pc = PC.p;
+    await pc.setViewportSize({ width: 1500, height: 900 });
+    await signIn(pc, 'owner@test.com', 'secret123');
+    await until(()=> pc.isVisible('#appWrap'), 20000);
+    await pc.click('#calcToggle');
+    const inCard = await pc.evaluate(()=> !document.getElementById('calcCard').classList.contains('calc-full'));
+    check('on a computer the calculator opens in its card, not full screen', inCard && await pc.isVisible('#calcBody') && !(await pc.isVisible('#calcBackBtn')));
+    await pc.click('#calcToggle');
+    check('...and closes from its title again', !(await pc.isVisible('#calcBody')));
+    await PC.c.close();
+  }
 
   // ---------- Performance Overview panels open and close ----------
   {

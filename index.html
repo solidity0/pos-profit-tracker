@@ -2321,11 +2321,19 @@
     caret.classList.toggle('open', !isOpen);
   });
 
-  // The calculator opens full screen with a Back button (the phone's own back gesture or
-  // button closes it too).
+  // On phones the calculator opens full screen with a Back button (the phone's own back
+  // gesture or button closes it too). On a computer it opens and closes in its card.
   function openCalculator(){
     const card = $('#calcCard');
     if(card.classList.contains('calc-full')) return;
+    if(window.matchMedia('(min-width: 1024px)').matches){
+      const body = $('#calcBody');
+      const isOpen = body.style.display === 'block';
+      body.style.display = isOpen ? 'none' : 'block';
+      $('#calcCaret').classList.toggle('open', !isOpen);
+      $('#calcToggle').blur();
+      return;
+    }
     card.classList.add('calc-full');
     document.documentElement.classList.add('calc-open');
     $('#calcBody').style.display = 'block';
