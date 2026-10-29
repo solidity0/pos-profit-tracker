@@ -335,12 +335,20 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await signIn(pc, 'owner@test.com', 'secret123');
     await until(()=> pc.isVisible('#appWrap'), 20000);
     await pc.click('#calcToggle');
-    const full = await pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
-    check('on a computer the calculator opens full screen too', full && await pc.isVisible('#calcBody') && await pc.isVisible('#calcBackBtn'));
+    const isFull = () => pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
+    const ch = await pc.evaluate(()=> [document.getElementById('calcCard').offsetHeight, document.getElementById('entryCard').offsetHeight]);
+    check('on a computer the calculator opens as a dropdown', !(await isFull()) && await pc.isVisible('#calcBody') && await pc.isVisible('#calcExpandBtn'));
+    check('...as tall as the Log a Transaction card', Math.abs(ch[0] - ch[1]) <= 2, JSON.stringify(ch));
+    await pc.click('#calcExpandBtn');
+    check('...the full-screen button opens it full screen, with no browser full-screen button', await isFull() && await pc.isVisible('#calcBackBtn') && !(await pc.isVisible('#calcExpandBtn')) && !(await pc.$('#calcFsBtn')));
     await pc.keyboard.type('7*6'); await pc.keyboard.press('Enter');
     check('...the keyboard works in it', (await pc.textContent('#calcDisplay')).trim() === '42', await pc.textContent('#calcDisplay'));
     await pc.keyboard.press('Escape');
-    check('...and Esc closes it', await until(async()=> !(await pc.isVisible('#calcBody')) && await pc.isVisible('#calcToggle')));
+    check('...and Esc goes back to the dropdown', await until(async()=> !(await isFull()) && await pc.isVisible('#calcBody')));
+    await pc.click('#calcExpandBtn'); await pc.click('#calcBackBtn');
+    check('...so does Back', await until(async()=> !(await isFull()) && await pc.isVisible('#calcBody')));
+    await pc.click('#calcToggle');
+    check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#calcBody'))));
     // Settings on a computer: a dropdown as tall as Log a Transaction, with a full-screen button.
     await pc.click('#settingsToggle');
     const sh = await pc.evaluate(()=>{ const s = document.getElementById('settingsCard'), e = document.getElementById('entryCard'); return { full: s.classList.contains('settings-full'), s: s.offsetHeight, e: e.offsetHeight }; });
