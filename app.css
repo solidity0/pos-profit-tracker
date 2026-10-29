@@ -171,6 +171,12 @@
       gap: 18px;
       padding-bottom: 10px;
     }
+    /* Wide enough for four columns: Log a Transaction, Transaction Log, Performance
+       Overview and Calculator on the first row; Educational & Safety Tips and Settings on
+       the next. */
+    @media (min-width: 1400px){
+      .dashboard-row{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
     .dashboard-row > .card{
       min-width: 0;
       margin-bottom: 0;
@@ -208,17 +214,19 @@
     /* Visual reorder only — DOM order is unchanged, so mobile stacking is unaffected. */
     #txLogCard{ order: 1; margin-bottom: 18px; }
     #perfCard{ order: 1; margin-bottom: 18px; }
+    /* On a PC the Calculator comes before Educational & Safety Tips and Settings, so those
+       two start the next row; on a phone the page order applies (Tips before Calculator). */
+    .dashboard-row > #calcCard{ order: 1; }
     #safetyCard{ order: 2; margin-bottom: 0; }
-    /* Performance Overview + Educational & Safety Tips column: once either is open, the
-       column is exactly as tall as the Log a Transaction card (like the other open cards)
-       and the open card scrolls inside; with both open they share the height. So the
-       column never grows past its neighbours or pushes a wrapped row down the page. */
-    .dashboard-row > .stack-col:has(#summaryContent[style*="block"]),
-    .dashboard-row > .stack-col:has(#safetyContent[style*="block"]){ height: var(--entry-card-h, auto); }
-    .stack-col:has(#summaryContent[style*="block"]) > .card,
-    .stack-col:has(#safetyContent[style*="block"]) > .card{ flex: none; }
+    .dashboard-row > #settingsCard{ order: 3; }
+    /* Once open, Performance Overview and Educational & Safety Tips are exactly as tall as
+       the Log a Transaction card (like the other open cards) and scroll inside, so they
+       never grow past their neighbours or push the next row down the page. */
+    .dashboard-row > .stack-col:has(#summaryContent[style*="block"]){ height: var(--entry-card-h, auto); }
+    #safetyCard:has(#safetyContent[style*="block"]){ height: var(--entry-card-h, auto); }
+    #perfCard:has(#summaryContent[style*="block"]){ flex: 1 1 0; margin-bottom: 0; }
     #perfCard:has(#summaryContent[style*="block"]),
-    #safetyCard:has(#safetyContent[style*="block"]){ flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+    #safetyCard:has(#safetyContent[style*="block"]){ min-height: 0; display: flex; flex-direction: column; }
     #perfCard:has(#summaryContent[style*="block"]) > .log-toggle,
     #safetyCard:has(#safetyContent[style*="block"]) > .log-toggle{ flex: none; }
     #summaryContent[style*="block"], #safetyContent[style*="block"]{ flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
