@@ -376,8 +376,11 @@
   #calcCard.calc-full #calcPreview{ grid-row: 2; }
   #calcCard.calc-full #calcDisplay{ grid-row: 3; }
   #calcCard.calc-full .calc-grid{ grid-row: 4; }
-  #calcCard.calc-full #calcHistoryWrap{ min-height: 0; height: 100%; margin: 0; overflow-y: auto; overscroll-behavior: contain; }
-  #calcCard.calc-full .calc-history{ max-height: none; overflow: visible; }
+  #calcCard.calc-full #calcHistoryWrap{ min-height: 0; height: 100%; margin: 0; overflow: hidden; display:flex !important; flex-direction:column; }
+  #calcCard.calc-full #calcHistoryWrap[style*="none"]{ display:none !important; }
+  #calcCard.calc-full .calc-history-header{ flex: none; }
+  #calcCard.calc-full .calc-history-latest{ flex: none; }
+  #calcCard.calc-full .calc-history{ flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
   #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 0; margin: 0; align-self: end; }
   #calcCard.calc-full .calc-display{ display:flex; flex-direction:column; }
   #calcCard.calc-full .calc-expr{ margin-top: auto; }
@@ -592,6 +595,7 @@
   .auth-gate > .legal-footer{ margin-top: 18px; max-width: 380px; }
   .auth-calc-btn{ display:flex; align-items:center; justify-content:center; gap: 8px; width:100%; max-width: 380px; height: 50px; margin-top: 14px; border-radius: 16px; border: 1px solid var(--line-soft); background: var(--surface); color: var(--text); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 14px; letter-spacing: 0.02em; cursor:pointer; box-shadow: var(--shadow-sm); -webkit-tap-highlight-color: transparent; }
   .auth-calc-btn svg{ width: 20px; height: 20px; color: var(--mp-soft); }
+  .calc-title-icon{ width: 18px; height: 18px; color: var(--mp-soft); flex-shrink: 0; }
   .auth-calc-btn:active{ transform: scale(0.99); }
   .auth-gate > .legal-footer a{ color: var(--mp-soft); }
   .auth-card .status:empty{ min-height: 0; margin: 0; }
@@ -846,6 +850,7 @@
   <div class="card" id="calcCard">
     <button class="log-toggle" id="calcToggle">
       <span class="log-caret" id="calcCaret">▶</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="8" y="5.5" width="8" height="3.5" rx="1"/><path d="M8.5 12.5h.01M12 12.5h.01M15.5 12.5h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01M8.5 18.5h.01M12 18.5h.01M15.5 18.5h.01"/></svg>
       <span>Calculator</span>
     </button>
     <div class="calc-topbar">
@@ -2373,6 +2378,9 @@
     }
     card.classList.add('calc-full');
     document.documentElement.classList.add('calc-open');
+    // Full screen shows the history list open, scrolled to the latest calculations.
+    if(calcHistory.length && $('#calcHistoryList').style.display === 'none') toggleCalcHistory();
+    requestAnimationFrame(()=>{ $('#calcHistoryWrap').scrollTop = 0; $('#calcHistoryList').scrollTop = $('#calcHistoryList').scrollHeight; });
     $('#calcBody').style.display = 'block';
     $('#calcCaret').classList.add('open');
     $('#calcToggle').blur();
@@ -2390,9 +2398,8 @@
     $('#calcCaret').classList.remove('open');
     if(!fromHistory && history.state && history.state.ledgerCalc){ try{ history.back(); }catch(e){} }
   }
-  // Full-screen button (top right of the phone calculator) hides the browser's own bars.
-  // iPhones don't let websites do this, so there it explains the Home Screen option, which
-  // opens Ledger without any browser bars.
+  // Full-screen button (top right of the phone calculator) hides the browser's own bars
+  // where the browser allows it.
   const FS_EXPAND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
   const FS_SHRINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
   const rootEl = document.documentElement;
@@ -2422,11 +2429,8 @@
         return;
       }catch(e){}
     }
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    hint.innerHTML = iOS
-      ? "<strong>Swipe up on the calculator</strong> to shrink Safari's bars. For no bars at all, tap the Share button <span aria-hidden=\"true\">⬆︎</span>, choose <strong>Add to Home Screen</strong>, then open Ledger from your home screen."
-      : "This browser doesn't allow full screen here. Open the browser menu and choose <strong>Add to Home screen</strong> (or <strong>Install app</strong>), then open Ledger from there for full screen.";
-    hint.style.display = hint.style.display === 'none' ? 'block' : 'none';
+    // Browsers that don't allow it (Safari on iPhone) simply do nothing here; swiping up
+    // on the calculator shrinks Safari's bars instead.
   });
   $('#calcFsHint').addEventListener('click', ()=>{ $('#calcFsHint').style.display = 'none'; });
   document.addEventListener('fullscreenchange', updateFsButton);
