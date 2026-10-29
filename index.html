@@ -235,12 +235,14 @@
     }
     /* Visual reorder only — DOM order is unchanged, so mobile stacking is unaffected. */
     #txLogCard{ order: 1; margin-bottom: 18px; }
-    #volumeCard{ order: 2; margin-bottom: 0; }
     #perfCard{ order: 1; margin-bottom: 18px; }
     #safetyCard{ order: 2; margin-bottom: 0; }
   }
 
 
+  /* Volume Analysis, inside the Log a Transaction card under the Add Transaction button. */
+  .entry-volume{ margin-top: 16px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+  .entry-volume .log-toggle{ margin-top: 4px; }
   .autofee{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom: 10px; }
   .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:600; text-align:center; }
   .autofee .toggle{ font-size: 11px; color: var(--text); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
@@ -876,6 +878,36 @@
     </div>
 
     <button class="addbtn" id="addBtn">Add Transaction</button>
+    <div class="entry-volume" id="volumeCard">
+      <button class="log-toggle" id="volumeToggle">
+        <span class="log-caret" id="volumeCaret" data-heading-caret>▶︎</span>
+        <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="7" rx="1"/><rect x="10.5" y="6" width="3" height="12" rx="1"/><rect x="15.5" y="9" width="3" height="9" rx="1"/></svg>
+        <span>Volume Analysis</span>
+      </button>
+      <div id="volumeBody" style="display:none;">
+        <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
+        <div id="volumeContent" style="display:none; margin-top:14px;">
+        <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
+          <button data-val="today" class="active">Today</button>
+          <button data-val="week">Week</button>
+          <button data-val="month">Month</button>
+        </div>
+        <div class="trend-grid">
+          <div class="trend-box">
+            <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+            <div class="trend-label in">Money in</div>
+            <div class="trend-amt" id="trendMoneyIn">₦0</div>
+          </div>
+          <div class="trend-box">
+            <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+            <div class="trend-label out">Money out</div>
+            <div class="trend-amt" id="trendMoneyOut">₦0</div>
+          </div>
+        </div>
+        <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
+        </div>
+      </div>
+    </div>
     <div class="hint owner-only">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
     </div>
@@ -944,36 +976,6 @@
     </div>
   </div>
 
-  <div class="card" id="volumeCard">
-    <button class="log-toggle" id="volumeToggle">
-      <span class="log-caret" id="volumeCaret" data-heading-caret>▶︎</span>
-      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="7" rx="1"/><rect x="10.5" y="6" width="3" height="12" rx="1"/><rect x="15.5" y="9" width="3" height="9" rx="1"/></svg>
-      <span>Volume Analysis</span>
-    </button>
-    <div id="volumeBody" style="display:none;">
-      <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
-      <div id="volumeContent" style="display:none; margin-top:14px;">
-      <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
-        <button data-val="today" class="active">Today</button>
-        <button data-val="week">Week</button>
-        <button data-val="month">Month</button>
-      </div>
-      <div class="trend-grid">
-        <div class="trend-box">
-          <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
-          <div class="trend-label in">Money in</div>
-          <div class="trend-amt" id="trendMoneyIn">₦0</div>
-        </div>
-        <div class="trend-box">
-          <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
-          <div class="trend-label out">Money out</div>
-          <div class="trend-amt" id="trendMoneyOut">₦0</div>
-        </div>
-      </div>
-      <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
-      </div>
-    </div>
-  </div>
   </div>
 
 
@@ -2455,6 +2457,7 @@
     const isOpen = body.style.display === 'block';
     body.style.display = isOpen ? 'none' : 'block';
     caret.classList.toggle('open', !isOpen);
+    requestAnimationFrame(sizeEntryBody);
   });
 
   // The calculator opens full screen (like Settings) with a Back button; the phone's own back
