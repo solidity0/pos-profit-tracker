@@ -370,7 +370,11 @@
   #calcCard.calc-full #calcHistoryWrap{ flex: 0 1 auto; min-height: 34px; overflow-y: auto; overscroll-behavior: contain; }
   #calcCard.calc-full .calc-history{ max-height: 30vh; }
   #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 26px; flex: none; margin-top: auto; }
-  #calcCard.calc-full .calc-display{ flex: none; min-height: 84px; max-height: 22vh; overflow-y: auto; overscroll-behavior: contain; font-size: clamp(30px, 6vh, 44px); padding: 16px; }
+  #calcCard.calc-full .calc-display{ flex: none; min-height: 84px; max-height: 22vh; overflow-y: auto; overscroll-behavior: contain; font-size: 44px; line-height: 1.25; padding: 14px 16px; }
+  #calcCard.calc-full .calc-display[data-size="l"]{ font-size: 36px; }
+  #calcCard.calc-full .calc-display[data-size="m"]{ font-size: 30px; }
+  #calcCard.calc-full .calc-display[data-size="s"]{ font-size: 25px; }
+  #calcCard.calc-full .calc-display[data-size="xs"]{ font-size: 21px; }
   #calcCard.calc-full .calc-grid{ flex: none; height: min(52vh, 460px); grid-auto-rows: 1fr; gap: 10px; }
   #calcCard.calc-full .calc-btn{ aspect-ratio:auto; min-height: 0; font-size: clamp(24px, 4.6vh, 40px); }
   .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); aspect-ratio: 1.02; padding: 0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 32px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
@@ -2466,6 +2470,7 @@
     const liveResult = calcEvaluateSequence(tokens);
     const previewText = (liveResult === null || !isFinite(liveResult)) ? '' : calcFormatNumber(calcNumberToString(liveResult));
     if(previewText === ''){ preview.innerHTML = '&nbsp;'; } else { preview.textContent = previewText; }
+    sizeCalcDisplay();
     disp.scrollTop = disp.scrollHeight;
   }
   // Routes a keypad press while a history entry is loaded for editing. Only the
@@ -2532,6 +2537,13 @@
     calcState = { tokens: [], display: calcNumberToString(result), waitingForOperand: true, justEvaluated: true };
     calcRenderDisplay();
   }
+  // Full-screen display: the longer the sum, the smaller the figures, so a long sum fills
+  // the width in a few lines instead of a tall stack of big numbers.
+  function sizeCalcDisplay(){
+    const disp = $('#calcDisplay');
+    const len = disp.textContent.replace(/\s+/g, '').length;
+    disp.dataset.size = len <= 10 ? 'xl' : len <= 18 ? 'l' : len <= 30 ? 'm' : len <= 48 ? 's' : 'xs';
+  }
   function calcRenderDisplay(){
     scheduleCalcStateSave();
     const disp = $('#calcDisplay');
@@ -2543,6 +2555,7 @@
     if(calcState.display === 'Error'){
       disp.textContent = 'Error';
       preview.innerHTML = '&nbsp;';
+      sizeCalcDisplay();
       return;
     }
     const tokenHtml = buildChipRow(calcState.tokens, calcState.liveEditIndex != null ? calcState.liveEditIndex : null);
@@ -2567,6 +2580,7 @@
         calcRenderDisplay();
       });
     });
+    sizeCalcDisplay();
     disp.scrollTop = disp.scrollHeight;
   }
   function calcClear(){
