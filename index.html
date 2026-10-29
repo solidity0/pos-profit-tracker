@@ -342,6 +342,7 @@
   .netline .val{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size: 26px; color: var(--profit); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   .netline .val.neg{ color: var(--loss); }
   .txcount{ font-size: 10.5px; color: var(--muted-2); text-align:center; margin-top: 12px; letter-spacing: 0.05em; font-weight:500; }
+  .txcount.log-count{ margin-top: 2px; margin-bottom: 4px; }
   .calc-history-wrap{ margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1.5px solid var(--line-soft); }
   .calc-history-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight:700; }
   .calc-history-toggle{ display:flex; align-items:center; gap:6px; background:none; border:none; padding:4px 0; cursor:pointer; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; }
@@ -934,6 +935,7 @@
       <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
       <span>Transaction Log</span>
     </button>
+    <div class="txcount log-count" id="logCount">0 transactions</div>
     <div id="logContent" class="scroll-panel" style="display:none;">
       <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
       <button class="clearbtn sharebtn" id="logSharePdfBtn" type="button" style="display:none;">Share PDF</button>
@@ -3298,6 +3300,9 @@
     const netEl = $('#netProfit');
     netEl.textContent = fmt(sumNet);
     netEl.classList.toggle('neg', sumNet < 0);
+    // Under the Transaction Log heading: entries in the log for the current filter (deleted ones not counted).
+    const logN = getFilteredForLog().filter(t => !t.deleted).length;
+    $('#logCount').textContent = logN + ' transaction' + (logN===1?'':'s');
     $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s') + (olderState === 'loading' && needsOlderTransactions() ? ' · loading older…' : '');
     const customSt = $('#customDateStatus');
     if(state.period !== 'custom') customSt.textContent = '';
