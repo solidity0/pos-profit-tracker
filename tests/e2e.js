@@ -605,12 +605,12 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // ---------- login choice ----------
   const W = await ctx(b, 'wrongchoice'); const wp = W.p;
   await signIn(wp, 'owner@test.com', 'secret123', 'staff');
-  check('owner login with "Salesperson" chosen is refused', await until(async()=> /OWNER login — choose "OWNER"/.test(await wp.textContent('#authStatus'))), await wp.textContent('#authStatus'));
+  check('owner login with "Salesperson" chosen is refused', await until(async()=> /BUSINESS OWNER login — choose "BUSINESS OWNER"/.test(await wp.textContent('#authStatus'))), await wp.textContent('#authStatus'));
   check('...and the app never appeared, not even briefly', (await wp.evaluate(()=> window.__appShown)) === false);
   await wp.reload(); await wp.waitForSelector('#authForm', { state:'visible' });
   check('nothing is pre-selected when the sign-in screen opens', !(await wp.$('#authRole button.active')) && /Choose how/.test(await wp.textContent('#authSub')), await wp.textContent('#authSub'));
   await wp.fill('#authEmail','owner@test.com'); await wp.fill('#authPassword','secret123'); await wp.click('#authSubmit');
-  check('signing in without choosing is refused', await until(async()=> /Choose OWNER or STAFF first/.test(await wp.textContent('#authStatus'))) && !(await wp.isVisible('#appWrap')), await wp.textContent('#authStatus'));
+  check('signing in without choosing is refused', await until(async()=> /Choose BUSINESS OWNER or STAFF first/.test(await wp.textContent('#authStatus'))) && !(await wp.isVisible('#appWrap')), await wp.textContent('#authStatus'));
   await wp.click('#authRole button[data-val="owner"]'); await wp.fill('#authEmail','owner@test.com'); await wp.fill('#authPassword','secret123'); await wp.click('#authSubmit');
   check('choosing Business Owner then lets the owner in', await until(async()=> (await wp.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · OWNER'), await wp.textContent('#whoLabel'));
   await wp.reload();
