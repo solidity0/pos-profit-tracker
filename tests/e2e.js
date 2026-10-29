@@ -293,6 +293,41 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await op.click('#typeSeg button[data-val="Withdrawal"]');
   }
 
+  // ---------- custom date filter ----------
+  {
+    const ymd = n => { const d = new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+    if(!(await op.isVisible('#summaryContent'))) await op.click('#summaryToggle');
+    await op.click('#periodTabs button[data-val="all"]'); await wait(500);
+    const all = parseInt(await op.textContent('#txCount'));
+    await op.click('#periodTabs button[data-val="custom"]');
+    await op.fill('#customStartDate', ymd(70)); await op.fill('#customEndDate', ymd(50));
+    check('custom dates apply as soon as they are picked', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction') && /Showing .* · 1 transaction/.test(await op.textContent('#customDateStatus'))), `${await op.textContent('#txCount')} / ${await op.textContent('#customDateStatus')}`);
+    await op.fill('#customStartDate', ymd(0)); // later than the end date (50 days ago)
+    check('a start date after the end date is swapped round', await until(async()=> (await op.$eval('#customStartDate', e=>e.value)) === ymd(50) && (await op.$eval('#customEndDate', e=>e.value)) === ymd(0) && parseInt(await op.textContent('#txCount')) === all - 1), `${await op.$eval('#customStartDate', e=>e.value)} ${await op.textContent('#txCount')} vs ${all - 1}`);
+    await op.click('#applyDateFilterBtn');
+    check('Apply confirms it was applied', await until(async()=> /Applied ✓/.test(await op.textContent('#applyDateFilterBtn'))));
+    await op.click('#periodTabs button[data-val="today"]');
+    check('leaving Custom clears its message', await until(async()=> (await op.textContent('#customDateStatus')) === ''));
+  }
+
+  // ---------- calculator: full screen, back, sums ----------
+  {
+    await op.click('#calcToggle');
+    const full = await op.evaluate(()=>{ const r = document.getElementById('calcCard').getBoundingClientRect(); return r.top === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; });
+    check('calculator opens full screen with a Back button', full && await op.isVisible('#calcBackBtn'));
+    const press = async ks => { for(const k of ks) await op.click(`#calcBody .calc-btn[data-calc="${k}"]`); };
+    const shown = async () => (await op.textContent('#calcDisplay')).replace(/\s+/g,' ').trim();
+    await press(['clear','5','0','%','3','=']); check('a digit after % starts a new number', (await shown()) === '3', await shown());
+    await press(['clear','5','+','3','+','=']); check('= straight after an operator ignores it (5 + 3 + = is 8)', (await shown()) === '8', await shown());
+    await press(['clear','0','.','1','+','0','.','2','=']); check('0.1 + 0.2 = 0.3', (await shown()) === '0.3', await shown());
+    await press(['clear','5','0','+','1','0','%','=']); check('50 + 10% = 55', (await shown()) === '55', await shown());
+    await press(['clear','1','0','/','0','=']); check('dividing by zero shows Error', (await shown()) === 'Error', await shown());
+    await op.click('#calcBackBtn');
+    check('Back returns to the home page', !(await op.isVisible('#calcBody')) && await op.isVisible('#calcToggle') && await op.isVisible('#entryCard'));
+    await op.click('#calcToggle'); await op.goBack();
+    check("the phone's own back button closes it too", await until(async()=> !(await op.isVisible('#calcBody')) && await op.isVisible('#appWrap')));
+  }
+
   // ---------- Performance Overview panels open and close ----------
   {
     const P = await ctx(b, 'panels'); const pp = P.p;
