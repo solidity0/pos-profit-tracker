@@ -34,7 +34,7 @@ async function until(fn, ms=10000){ const t = Date.now(); while(Date.now()-t < m
   await wait(1500);
 
   await p.fill('#amount', '4321'); await p.fill('#customerFee', '100'); await p.click('#addBtn');
-  check('an entry logged online is saved', await until(async()=> /4,321/.test(await p.textContent('#logList')) && (await p.textContent('#syncBadge')) === ''), await p.textContent('#syncBadge'));
+  check('an entry logged online is saved', await until(async()=> /4,321/.test(await p.textContent('#logList')) && (await p.textContent('#syncBadge')) === 'Connected'), await p.textContent('#syncBadge'));
   await c.setOffline(true);
   await p.reload();
   check('with no internet the app still opens, signed in', await until(async()=> await p.isVisible('#appWrap') && /^Offline Shop · /.test(await p.textContent('#whoLabel')), 20000), await p.textContent('#whoLabel').catch(()=>''));
@@ -43,7 +43,7 @@ async function until(fn, ms=10000){ const t = Date.now(); while(Date.now()-t < m
   await p.fill('#amount', '2500'); await p.fill('#customerFee', '100'); await p.click('#addBtn');
   check('...and can log a new entry offline', await until(async()=> /2,500/.test(await p.textContent('#logList'))));
   await c.setOffline(false);
-  check('it uploads when the internet is back', await until(async()=> (await p.textContent('#syncBadge')) === '', 30000), await p.textContent('#syncBadge'));
+  check('it uploads when the internet is back', await until(async()=> (await p.textContent('#syncBadge')) === 'Connected', 30000), await p.textContent('#syncBadge'));
   check('no page errors', errs.length === 0, errs.join(' | ').slice(0, 300));
   console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
   await b.close(); process.exit(failures ? 1 : 0);
