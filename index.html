@@ -515,16 +515,16 @@
   .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
   /* Icon and label share the top row, so the amount below gets the box's full width
      (and shrinks a little for very long amounts rather than being cut off). */
-  .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 10px; display:grid; grid-template-columns: auto minmax(0,1fr); align-items:center; column-gap:7px; row-gap:4px; min-width:0; container-type: inline-size; }
+  .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 10px; display:grid; grid-template-columns: auto auto; justify-content:center; align-items:center; column-gap:7px; row-gap:4px; min-width:0; container-type: inline-size; }
   .trend-icon{ width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; }
   .trend-icon svg{ width:12px; height:12px; }
   .trend-icon.in{ background: rgba(52,211,153,0.12); color: var(--profit); }
   .trend-icon.out{ background: rgba(251,122,122,0.12); color: var(--loss); }
   .trend-text{ display: contents; }
-  .trend-label{ font-size: 11.5px; font-weight: 700; font-family:'Space Grotesk',sans-serif; text-align:left; }
+  .trend-label{ font-size: 11.5px; font-weight: 700; font-family:'Space Grotesk',sans-serif; text-align:center; }
   .trend-label.in{ color: var(--profit); }
   .trend-label.out{ color: var(--loss); }
-  .trend-amt{ grid-column: 1 / -1; font-size: 15px; font-size: clamp(10px, 12.5cqi, 17px); font-weight: 700; font-family:'Space Grotesk',sans-serif; white-space:nowrap; text-align:left; font-variant-numeric: tabular-nums; }
+  .trend-amt{ grid-column: 1 / -1; font-size: 15px; font-size: clamp(10px, 12.5cqi, 17px); font-weight: 700; font-family:'Space Grotesk',sans-serif; white-space:nowrap; text-align:center; font-variant-numeric: tabular-nums; }
   .trend-cell{ min-width:0; }
   .trend-caption{ text-align:center; margin-top: 5px; font-size: 11.5px; font-weight: 600; color: var(--muted-strong); line-height: 1.3; }
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
