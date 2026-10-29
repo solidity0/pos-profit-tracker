@@ -595,7 +595,9 @@
   .auth-gate > .legal-footer{ margin-top: 18px; max-width: 380px; }
   .auth-calc-btn{ display:flex; align-items:center; justify-content:center; gap: 8px; width:100%; max-width: 380px; height: 50px; margin-top: 14px; border-radius: 16px; border: 1px solid var(--line-soft); background: var(--surface); color: var(--text); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 14px; letter-spacing: 0.02em; cursor:pointer; box-shadow: var(--shadow-sm); -webkit-tap-highlight-color: transparent; }
   .auth-calc-btn svg{ width: 20px; height: 20px; color: var(--mp-soft); }
+  /* Section headings each carry a small icon in the app's blue. */
   .calc-title-icon{ width: 18px; height: 18px; color: var(--mp-soft); flex-shrink: 0; }
+  .settings-toggle .calc-title-icon{ vertical-align: -4px; margin: 0 2px; }
   .auth-calc-btn:active{ transform: scale(0.99); }
   .auth-gate > .legal-footer a{ color: var(--mp-soft); }
   .auth-card .status:empty{ min-height: 0; margin: 0; }
@@ -898,6 +900,7 @@
   <div class="card has-clear" id="txLogCard">
     <button class="log-toggle" id="logToggle">
       <span class="log-caret" id="logCaret">▶</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
       <span>Transaction Log</span>
     </button>
     <div id="logContent" class="scroll-panel" style="display:none;">
@@ -912,6 +915,7 @@
   <div class="card" id="volumeCard">
     <button class="log-toggle" id="volumeToggle">
       <span class="log-caret" id="volumeCaret">▶</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="7" rx="1"/><rect x="10.5" y="6" width="3" height="12" rx="1"/><rect x="15.5" y="9" width="3" height="9" rx="1"/></svg>
       <span>Volume Analysis</span>
     </button>
     <div id="volumeBody" style="display:none;">
@@ -945,6 +949,7 @@
   <div class="card" id="perfCard">
     <button class="summary-toggle" id="summaryToggle">
       <span class="summary-caret" id="summaryCaret">▶</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 17l5.5-5.5 4 4 7-7.5"/><path d="M15 8h5v5"/></svg>
       <span>Performance Overview</span>
     </button>
 
@@ -1025,6 +1030,7 @@
   <div class="card" id="safetyCard">
     <button class="log-toggle" id="safetyToggle">
       <span class="log-caret" id="safetyCaret">▶</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M12 8.5v4M12 15.5h.01"/></svg>
       <span>Educational &amp; Safety Tips</span>
     </button>
     <div id="safetyContent" class="scroll-panel" style="display:none; margin-top:14px;">
@@ -1040,7 +1046,7 @@
 
   <div class="card owner-only" id="settingsCard">
     <div class="settings-gate">
-      <button class="settings-toggle" id="settingsToggle"><span id="settingsCaret">▶</span> Settings &amp; rate table</button>
+      <button class="settings-toggle" id="settingsToggle"><span id="settingsCaret">▶</span> <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg> <span>Settings &amp; rate table</span></button>
 
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
