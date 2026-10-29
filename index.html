@@ -376,8 +376,11 @@
   #calcCard.calc-full #calcPreview{ grid-row: 2; }
   #calcCard.calc-full #calcDisplay{ grid-row: 3; }
   #calcCard.calc-full .calc-grid{ grid-row: 4; }
-  #calcCard.calc-full #calcHistoryWrap{ min-height: 0; height: 100%; margin: 0; overflow-y: auto; overscroll-behavior: contain; }
-  #calcCard.calc-full .calc-history{ max-height: none; overflow: visible; }
+  #calcCard.calc-full #calcHistoryWrap{ min-height: 0; height: 100%; margin: 0; overflow: hidden; display:flex !important; flex-direction:column; }
+  #calcCard.calc-full #calcHistoryWrap[style*="none"]{ display:none !important; }
+  #calcCard.calc-full .calc-history-header{ flex: none; }
+  #calcCard.calc-full .calc-history-latest{ flex: none; }
+  #calcCard.calc-full .calc-history{ flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
   #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 0; margin: 0; align-self: end; }
   #calcCard.calc-full .calc-display{ display:flex; flex-direction:column; }
   #calcCard.calc-full .calc-expr{ margin-top: auto; }
@@ -2375,6 +2378,9 @@
     }
     card.classList.add('calc-full');
     document.documentElement.classList.add('calc-open');
+    // Full screen shows the history list open, scrolled to the latest calculations.
+    if(calcHistory.length && $('#calcHistoryList').style.display === 'none') toggleCalcHistory();
+    requestAnimationFrame(()=>{ $('#calcHistoryWrap').scrollTop = 0; $('#calcHistoryList').scrollTop = $('#calcHistoryList').scrollHeight; });
     $('#calcBody').style.display = 'block';
     $('#calcCaret').classList.add('open');
     $('#calcToggle').blur();
@@ -2392,9 +2398,8 @@
     $('#calcCaret').classList.remove('open');
     if(!fromHistory && history.state && history.state.ledgerCalc){ try{ history.back(); }catch(e){} }
   }
-  // Full-screen button (top right of the phone calculator) hides the browser's own bars.
-  // iPhones don't let websites do this, so there it explains the Home Screen option, which
-  // opens Ledger without any browser bars.
+  // Full-screen button (top right of the phone calculator) hides the browser's own bars
+  // where the browser allows it.
   const FS_EXPAND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
   const FS_SHRINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
   const rootEl = document.documentElement;
@@ -2424,11 +2429,8 @@
         return;
       }catch(e){}
     }
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    hint.innerHTML = iOS
-      ? "<strong>Swipe up on the calculator</strong> to shrink Safari's bars. For no bars at all, tap the Share button <span aria-hidden=\"true\">⬆︎</span>, choose <strong>Add to Home Screen</strong>, then open Ledger from your home screen."
-      : "This browser doesn't allow full screen here. Open the browser menu and choose <strong>Add to Home screen</strong> (or <strong>Install app</strong>), then open Ledger from there for full screen.";
-    hint.style.display = hint.style.display === 'none' ? 'block' : 'none';
+    // Browsers that don't allow it (Safari on iPhone) simply do nothing here; swiping up
+    // on the calculator shrinks Safari's bars instead.
   });
   $('#calcFsHint').addEventListener('click', ()=>{ $('#calcFsHint').style.display = 'none'; });
   document.addEventListener('fullscreenchange', updateFsButton);
