@@ -509,16 +509,21 @@
   .settings h3.mp-heading{ color: var(--mp-soft); }
   .settings h3.op-heading{ color: var(--op-soft); font-family: 'Inter', sans-serif; }
   .fee-table-wrap{ margin-top: 12px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 12px 14px; }
-  .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
-  .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 14px 12px; text-align:center; }
-  .trend-icon{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin: 0 auto 10px; }
-  .trend-icon svg{ width:16px; height:16px; }
+  /* Money in / money out for the Filter, shown at the bottom of the Filter section. */
+  .filter-volume{ margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .filter-volume .empty{ padding: 4px 0; font-size: 12px; }
+  .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 10px; display:flex; align-items:center; gap:9px; min-width:0; }
+  .trend-icon{ width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; }
+  .trend-icon svg{ width:14px; height:14px; }
   .trend-icon.in{ background: rgba(52,211,153,0.12); color: var(--profit); }
   .trend-icon.out{ background: rgba(251,122,122,0.12); color: var(--loss); }
-  .trend-label{ font-size: 12.5px; font-weight: 700; margin-bottom: 8px; font-family:'Space Grotesk',sans-serif; }
+  .trend-text{ min-width:0; text-align:left; }
+  .trend-label{ font-size: 11px; font-weight: 700; margin-bottom: 2px; font-family:'Space Grotesk',sans-serif; }
   .trend-label.in{ color: var(--profit); }
   .trend-label.out{ color: var(--loss); }
-  .trend-amt{ font-size: 17px; font-weight: 700; font-family:'Space Grotesk',sans-serif; }
+  .trend-amt{ font-size: 15px; font-weight: 700; font-family:'Space Grotesk',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .trend-hint{ text-align:center; margin: 6px 0 0; font-size: 10.5px; }
   .tip-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; }
   .tip-row textarea{ flex:1; resize:vertical; min-height:52px; background: var(--surface-2); border: 1.5px solid var(--line-soft); color: var(--text); caret-color: var(--text); font-family: 'Inter', sans-serif; font-size: calc(16px / var(--app-zoom, 1)); line-height:1.5; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; }
   .tip-row textarea:focus{ border-color: var(--theme); }
@@ -988,27 +993,21 @@
         <button data-val="Opay">OPay</button>
       </div>
       <div class="provider-filter" id="loggedByFilter" style="display:none;"></div>
-      </div>
-     </section>
-
-     <section class="perf-section" id="perfVolume">
-      <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="volumeBody"><span class="perf-section-title">Volume Analysis</span><span class="perf-caret">▶</span></button>
-      <div class="perf-section-body" id="volumeBody" hidden>
-      <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
-      <div id="volumeContent" style="display:none;">
-      <div class="trend-grid">
-        <div class="trend-box">
-          <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
-          <div class="trend-label in">Money in</div>
-          <div class="trend-amt" id="trendMoneyIn">₦0</div>
+      <div class="filter-volume" id="volumeBody">
+        <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see money in and out.</div>
+        <div id="volumeContent" style="display:none;">
+        <div class="trend-grid">
+          <div class="trend-box">
+            <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+            <div class="trend-text"><div class="trend-label in">Money in</div><div class="trend-amt" id="trendMoneyIn">₦0</div></div>
+          </div>
+          <div class="trend-box">
+            <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+            <div class="trend-text"><div class="trend-label out">Money out</div><div class="trend-amt" id="trendMoneyOut">₦0</div></div>
+          </div>
         </div>
-        <div class="trend-box">
-          <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
-          <div class="trend-label out">Money out</div>
-          <div class="trend-amt" id="trendMoneyOut">₦0</div>
+        <div class="hint trend-hint">Money in = withdrawals · Money out = transfers and bills</div>
         </div>
-      </div>
-      <div class="hint" style="text-align:center; margin-top:2px;">For the dates and provider chosen in Filter. Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
       </div>
       </div>
      </section>
@@ -2389,7 +2388,7 @@
     $('#logCaret').classList.add('open');
     if(logNeedsRender) renderLog();
   }
-  // Filter / Volume Analysis / Summary / Reports inside Performance Overview open and close on their own; this
+  // Filter / Summary / Reports inside Performance Overview open and close on their own; this
   // phone remembers which ones were left open.
   (function(){
     const KEY = LS_PREFIX + 'perfOpen';
