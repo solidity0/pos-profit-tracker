@@ -184,22 +184,19 @@
      Scoped entirely to min-width: 1024px so the phone/mobile layout above is untouched. */
   @media (min-width: 1024px){
     .wrap{ max-width: 100%; width: 100%; padding: 28px 32px 8px; }
+    /* Equal columns at least 320px wide. When the window is too narrow for all of them
+       (e.g. a 1366-1536px laptop) the rest wrap onto another row in the same columns,
+       instead of running off the side of the screen. */
     .dashboard-row{
-      display: flex;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      align-items: start;
       gap: 18px;
-      overflow-x: auto;
       padding-bottom: 10px;
     }
     .dashboard-row > .card{
-      flex: 1 1 320px;
-      min-width: 320px;
-      max-width: 510px;
+      min-width: 0;
       margin-bottom: 0;
-    }
-    .dashboard-row > #entryCard{
-      flex: 1.1 1 340px;
-      max-width: 510px;
     }
     /* The open Calculator and Transaction Log cards match the Log a Transaction card's
        height (measured by the page). The keypad stretches to fit; the log scrolls inside. */
@@ -223,9 +220,7 @@
     .dashboard-row > .stack-col{
       display: flex;
       flex-direction: column;
-      flex: 1 1 320px;
-      min-width: 320px;
-      max-width: 510px;
+      min-width: 0;
     }
     .dashboard-row > .stack-col > .card{
       margin-bottom: 18px;
