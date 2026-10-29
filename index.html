@@ -387,6 +387,11 @@
   #calcCard.calc-full .calc-display[data-size="s"]{ font-size: 23px; }
   #calcCard.calc-full .calc-display[data-size="xs"]{ font-size: 20px; }
   #calcCard.calc-full .calc-grid{ height: 100%; min-height: 0; grid-auto-rows: 1fr; gap: 10px; }
+  /* On a wide screen (full-screen calculator opened from the sign-in page) keep the
+     calculator phone-shaped, so the keys stay roughly square instead of wide and flat. */
+  @media (min-width: 700px){
+    #calcCard.calc-full .calc-topbar, #calcCard.calc-full #calcBody, #calcCard.calc-full .calc-fs-hint{ max-width: min(440px, 46vh); }
+  }
   #calcCard.calc-full .calc-btn{ aspect-ratio:auto; min-height: 0; font-size: clamp(24px, 4.6vh, 40px); }
   .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); aspect-ratio: 1.02; padding: 0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 32px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
   .calc-btn:active{ transform: scale(0.94); }
