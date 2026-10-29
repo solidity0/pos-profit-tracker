@@ -908,53 +908,6 @@
 
   </div>
 
-  <div class="card" id="calcCard">
-    <button class="calc-expand" id="calcExpandBtn" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-    <button class="log-toggle" id="calcToggle">
-      <span class="log-caret" id="calcCaret" data-heading-caret>▶︎</span>
-      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="8" y="5.5" width="8" height="3.5" rx="1"/><path d="M8.5 12.5h.01M12 12.5h.01M15.5 12.5h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01M8.5 18.5h.01M12 18.5h.01M15.5 18.5h.01"/></svg>
-      <span>Calculator</span>
-    </button>
-    <div class="calc-topbar">
-      <button class="calc-back" id="calcBackBtn" type="button" aria-label="Back to the home page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
-      <span class="calc-topbar-title">Calculator</span>
-      <span></span>
-    </div>
-    <div id="calcBody" style="display:none; margin-top:14px;">
-      <div class="calc-history-wrap" id="calcHistoryWrap" style="display:none;">
-        <div class="calc-history-header">
-          <button class="calc-history-toggle" id="calcHistoryToggle" type="button"><span class="log-caret" id="calcHistoryCaret">▶</span><span>History</span><span id="calcHistoryCount"></span></button>
-          <button class="calc-history-clear" id="calcHistoryClear" type="button" style="display:none;">Clear</button>
-        </div>
-        <div class="calc-history-latest" id="calcHistoryLatest"></div>
-        <div class="calc-history" id="calcHistoryList" style="display:none;"></div>
-      </div>
-      <div class="calc-preview" id="calcPreview">&nbsp;</div>
-      <div class="calc-display" id="calcDisplay">0</div>
-      <div class="calc-grid">
-        <button class="calc-btn calc-op" data-calc="clear">AC</button>
-        <button class="calc-btn calc-op" data-calc="%">%</button>
-        <button class="calc-btn" data-calc=".">.</button>
-        <button class="calc-btn calc-op" data-calc="/">÷</button>
-        <button class="calc-btn" data-calc="7">7</button>
-        <button class="calc-btn" data-calc="8">8</button>
-        <button class="calc-btn" data-calc="9">9</button>
-        <button class="calc-btn calc-op" data-calc="*">×</button>
-        <button class="calc-btn" data-calc="4">4</button>
-        <button class="calc-btn" data-calc="5">5</button>
-        <button class="calc-btn" data-calc="6">6</button>
-        <button class="calc-btn calc-op" data-calc="-">−</button>
-        <button class="calc-btn" data-calc="1">1</button>
-        <button class="calc-btn" data-calc="2">2</button>
-        <button class="calc-btn" data-calc="3">3</button>
-        <button class="calc-btn calc-op" data-calc="+">+</button>
-        <button class="calc-btn calc-op" data-calc="backspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:26px; height:26px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
-        <button class="calc-btn" data-calc="0">0</button>
-        <button class="calc-btn calc-eq calc-wide" data-calc="=">=</button>
-      </div>
-    </div>
-  </div>
-
 
   <div class="stack-col">
   <div class="card" id="perfCard">
@@ -1075,6 +1028,53 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <div class="card" id="calcCard">
+    <button class="calc-expand" id="calcExpandBtn" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="log-toggle" id="calcToggle">
+      <span class="log-caret" id="calcCaret" data-heading-caret>▶︎</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="8" y="5.5" width="8" height="3.5" rx="1"/><path d="M8.5 12.5h.01M12 12.5h.01M15.5 12.5h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01M8.5 18.5h.01M12 18.5h.01M15.5 18.5h.01"/></svg>
+      <span>Calculator</span>
+    </button>
+    <div class="calc-topbar">
+      <button class="calc-back" id="calcBackBtn" type="button" aria-label="Back to the home page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
+      <span class="calc-topbar-title">Calculator</span>
+      <span></span>
+    </div>
+    <div id="calcBody" style="display:none; margin-top:14px;">
+      <div class="calc-history-wrap" id="calcHistoryWrap" style="display:none;">
+        <div class="calc-history-header">
+          <button class="calc-history-toggle" id="calcHistoryToggle" type="button"><span class="log-caret" id="calcHistoryCaret">▶</span><span>History</span><span id="calcHistoryCount"></span></button>
+          <button class="calc-history-clear" id="calcHistoryClear" type="button" style="display:none;">Clear</button>
+        </div>
+        <div class="calc-history-latest" id="calcHistoryLatest"></div>
+        <div class="calc-history" id="calcHistoryList" style="display:none;"></div>
+      </div>
+      <div class="calc-preview" id="calcPreview">&nbsp;</div>
+      <div class="calc-display" id="calcDisplay">0</div>
+      <div class="calc-grid">
+        <button class="calc-btn calc-op" data-calc="clear">AC</button>
+        <button class="calc-btn calc-op" data-calc="%">%</button>
+        <button class="calc-btn" data-calc=".">.</button>
+        <button class="calc-btn calc-op" data-calc="/">÷</button>
+        <button class="calc-btn" data-calc="7">7</button>
+        <button class="calc-btn" data-calc="8">8</button>
+        <button class="calc-btn" data-calc="9">9</button>
+        <button class="calc-btn calc-op" data-calc="*">×</button>
+        <button class="calc-btn" data-calc="4">4</button>
+        <button class="calc-btn" data-calc="5">5</button>
+        <button class="calc-btn" data-calc="6">6</button>
+        <button class="calc-btn calc-op" data-calc="-">−</button>
+        <button class="calc-btn" data-calc="1">1</button>
+        <button class="calc-btn" data-calc="2">2</button>
+        <button class="calc-btn" data-calc="3">3</button>
+        <button class="calc-btn calc-op" data-calc="+">+</button>
+        <button class="calc-btn calc-op" data-calc="backspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:26px; height:26px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
+        <button class="calc-btn" data-calc="0">0</button>
+        <button class="calc-btn calc-eq calc-wide" data-calc="=">=</button>
+      </div>
+    </div>
   </div>
 
 
