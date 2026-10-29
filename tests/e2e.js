@@ -75,18 +75,18 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#importBtn');
   check('old transactions upload', await until(async()=> /Uploaded 3 transactions/.test(await op.textContent('#importStatus'))), await op.textContent('#importStatus'));
   check('once uploaded, the old-records box goes away', await until(async()=> !(await op.isVisible('#importSection'))));
-  check('header shows owner name', await until(async()=> (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner'), await op.textContent('#whoLabel'));
+  check('header shows owner name', await until(async()=> (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · OWNER'), await op.textContent('#whoLabel'));
   await op.click('#settingsDoneBtn');
 
   // ---------- staff ----------
   const St = await ctx(b, 'staff'); const sp = St.p;
   await signIn(sp, 'staff@test.com', 'secret123', 'owner');
-  check('salesperson login with "Business Owner" chosen is refused', await until(async()=> /salesperson login — choose "Salesperson"/.test(await sp.textContent('#authStatus'))), await sp.textContent('#authStatus'));
+  check('salesperson login with "Business Owner" chosen is refused', await until(async()=> /STAFF login — choose "STAFF"/.test(await sp.textContent('#authStatus'))), await sp.textContent('#authStatus'));
   check('...and stays on the sign-in screen', await sp.isVisible('#authForm') && !(await sp.isVisible('#appWrap')));
   check('...and the app never appeared, not even briefly', (await sp.evaluate(()=> window.__appShown)) === false);
   await signIn(sp, 'staff@test.com', 'secret123');
   check('staff signs in', await until(()=> sp.isVisible('#appWrap')));
-  check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · Salesperson'), await sp.textContent('#whoLabel'));
+  check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · STAFF'), await sp.textContent('#whoLabel'));
   check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
   check('staff sees Performance Overview (with money in/out under Filter), not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && !(await sp.isVisible('#settingsCard')));
   await logTx(sp, 'Withdrawal', '20000', '300');
@@ -103,8 +103,12 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#summaryToggle');
   check('owner totals today = 2 transactions', await until(async()=> (await op.textContent('#txCount')).startsWith('2 transactions')), await op.textContent('#txCount'));
 
-  // ---------- staff deletes, owner still sees it ----------
+  // ---------- staff deletes (two taps), owner still sees it ----------
   await sp.click('#logList .del');
+  check('one tap on delete only asks to confirm', /tap again to delete/.test(await sp.textContent('#logList .del')) && (await logCount(sp)) === 2, await sp.textContent('#logList .del'));
+  await wait(3300);
+  check('...and goes back to "delete" if not confirmed', (await sp.textContent('#logList .del')).trim() === 'delete' && (await logCount(sp)) === 2);
+  await sp.click('#logList .del'); await wait(400); await sp.click('#logList .del');
   check('staff no longer sees deleted entry', await until(async()=> (await logCount(sp)) === 1));
   check('owner sees it struck through with who deleted it', await until(async()=> /Deleted by Test Staff/.test(await op.textContent('#logList'))));
   check('owner totals drop to 1', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction')), await op.textContent('#txCount'));
@@ -171,7 +175,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'start123');
   await op.click('#addStaffBtn');
   check('owner adds a salesperson from Settings', await until(async()=> /New Person added/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
-  check('owner is still signed in as owner after adding', (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner', await op.textContent('#whoLabel'));
+  check('owner is still signed in as owner after adding', (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · OWNER', await op.textContent('#whoLabel'));
   check('new person appears in Team list', await until(async()=> (await op.$$eval('#teamInputs .team-name-input', els => els.map(e=>e.value))).includes('New Person')));
   await op.fill('#newStaffName', 'Again'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'wrongpass');
   await op.click('#addStaffBtn');
@@ -180,7 +184,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.fill('#newStaffName', ''); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffPassword', '');
   const N = await ctx(b, 'newperson'); const np = N.p;
   await signIn(np, 'new@test.com', 'start123');
-  check('new salesperson can sign in straight away', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson'), await np.textContent('#whoLabel'));
+  check('new salesperson can sign in straight away', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · STAFF'), await np.textContent('#whoLabel'));
   check('new salesperson cannot see Settings', !(await np.isVisible('#settingsCard')));
   await logTx(np, 'Withdrawal', '7000', '200');
   check("owner sees the new person's entry live", await until(async()=> /by: New Person/.test(await op.textContent('#logList'))));
@@ -205,7 +209,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#teamInputs .team-restore');
   await wait(1000);
   await sp.reload();
-  check('restored salesperson gets back in', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · Salesperson', 15000), await sp.textContent('#whoLabel'));
+  check('restored salesperson gets back in', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · STAFF', 15000), await sp.textContent('#whoLabel'));
   // ---------- salesperson with a username ----------
   await op.fill('#newStaffName', 'Uche'); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffUsername', 'Uche'); await op.fill('#newStaffPassword', 'start123');
   await op.click('#addStaffBtn');
@@ -232,7 +236,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await n2.click('#authRole button[data-val="staff"]'); await n2.fill('#authEmail', 'newp'); await n2.click('#authForgot');
   check('"Forgot password?" on a username with an email sends the reset to that email', await until(async()=> /reset link is on its way/.test(await n2.textContent('#authStatus'))), await n2.textContent('#authStatus'));
   await n2.fill('#authPassword', 'start123'); await n2.click('#authSubmit');
-  check('...and they can sign in with the username', await until(async()=> (await n2.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson', 15000), await n2.textContent('#whoLabel'));
+  check('...and they can sign in with the username', await until(async()=> (await n2.textContent('#whoLabel')) === 'Triumph Ventures · New Person · STAFF', 15000), await n2.textContent('#whoLabel'));
   await NP2.c.close();
   await op.fill('#newStaffName', ''); await op.fill('#newStaffEmail', ''); await op.fill('#newStaffUsername', ''); await op.fill('#newStaffPassword', '');
   const U = await ctx(b, 'uche'); const up = U.p;
@@ -240,7 +244,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await up.click('#authRole button[data-val="staff"]'); await up.fill('#authEmail', 'uche'); await up.click('#authForgot');
   check('"Forgot password?" with the username sends the link to their email', await until(async()=> /reset link is on its way/.test(await up.textContent('#authStatus'))), await up.textContent('#authStatus'));
   await up.fill('#authEmail', 'UCHE'); await up.fill('#authPassword', 'start123'); await up.click('#authSubmit');
-  check('salesperson signs in with just their username', await until(async()=> (await up.textContent('#whoLabel')) === 'Triumph Ventures · Uche · Salesperson', 15000), await up.textContent('#whoLabel'));
+  check('salesperson signs in with just their username', await until(async()=> (await up.textContent('#whoLabel')) === 'Triumph Ventures · Uche · STAFF', 15000), await up.textContent('#whoLabel'));
   check('there is no "Change my password" card on the home page', !(await up.$('#passwordCard')));
   await U.c.close();
 
@@ -261,8 +265,8 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('a permanently deleted person can be added back with their email', await until(async()=> /New Person added back/.test(await op.textContent('#addStaffStatus'))), await op.textContent('#addStaffStatus'));
   check('...and is in the Team list again', await until(async()=> !!(await npRow())));
   await np.reload();
-  check('...and can sign in again', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · Salesperson', 15000), await np.textContent('#whoLabel'));
-  check('owner stayed signed in as owner', (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner', await op.textContent('#whoLabel'));
+  check('...and can sign in again', await until(async()=> (await np.textContent('#whoLabel')) === 'Triumph Ventures · New Person · STAFF', 15000), await np.textContent('#whoLabel'));
+  check('owner stayed signed in as owner', (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · OWNER', await op.textContent('#whoLabel'));
   await op.click('#settingsDoneBtn');
 
   // ---------- old-ledger recopy ----------
@@ -478,7 +482,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   }
   await logTx(sp, 'Transfer', '1234', '50');
   await until(async()=> /1,234/.test(await sp.textContent('#logList')));
-  await sp.click('#logList .del');
+  await sp.click('#logList .del'); await wait(400); await sp.click('#logList .del');
   await until(async()=> /Deleted by Test Staff/.test(await op.textContent('#logList')));
   await op.click('#settingsToggle');
   {
@@ -537,7 +541,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('reopening the app goes back to the confirm-your-email step', await until(()=> ap.isVisible('#verifyForm'), 15000));
   check('the confirmation email was sent', await emu.verifyEmail('ada@test.com'));
   await ap.click('#verifyDone');
-  check('new owner gets their own business', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 20000), await ap.textContent('#whoLabel'));
+  check('new owner gets their own business', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 20000), await ap.textContent('#whoLabel'));
   check('the username chosen at sign-up is saved', await until(async()=> (await ap.$eval('#ownerUsernameInput', e=>e.value)) === 'adastores'), await ap.$eval('#ownerUsernameInput', e=>e.value));
   check('a new business starts with auto-save at ₦0', await until(async()=> (await ap.$eval('#autosaveFlat', e=>e.value)) === '0'), await ap.$eval('#autosaveFlat', e=>e.value));
   await ap.click('#summaryToggle'); await ap.click('#periodTabs button[data-val="all"]');
@@ -571,7 +575,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await (await (await adaRow()).$('.admin-restore')).click();
   check('admin restores Ada Stores', await until(async()=> /Active/.test(await (await adaRow()).textContent())));
   await wait(800); await ap.reload();
-  check('restored Ada gets back in', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 15000), await ap.textContent('#whoLabel'));
+  check('restored Ada gets back in', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await ap.textContent('#whoLabel'));
   await op.click('#settingsDoneBtn');
   await Ada.c.close();
 
@@ -601,14 +605,14 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // ---------- login choice ----------
   const W = await ctx(b, 'wrongchoice'); const wp = W.p;
   await signIn(wp, 'owner@test.com', 'secret123', 'staff');
-  check('owner login with "Salesperson" chosen is refused', await until(async()=> /business owner login — choose "Business Owner"/.test(await wp.textContent('#authStatus'))), await wp.textContent('#authStatus'));
+  check('owner login with "Salesperson" chosen is refused', await until(async()=> /OWNER login — choose "OWNER"/.test(await wp.textContent('#authStatus'))), await wp.textContent('#authStatus'));
   check('...and the app never appeared, not even briefly', (await wp.evaluate(()=> window.__appShown)) === false);
   await wp.reload(); await wp.waitForSelector('#authForm', { state:'visible' });
   check('nothing is pre-selected when the sign-in screen opens', !(await wp.$('#authRole button.active')) && /Choose how/.test(await wp.textContent('#authSub')), await wp.textContent('#authSub'));
   await wp.fill('#authEmail','owner@test.com'); await wp.fill('#authPassword','secret123'); await wp.click('#authSubmit');
-  check('signing in without choosing is refused', await until(async()=> /Choose Business Owner or Salesperson first/.test(await wp.textContent('#authStatus'))) && !(await wp.isVisible('#appWrap')), await wp.textContent('#authStatus'));
+  check('signing in without choosing is refused', await until(async()=> /Choose OWNER or STAFF first/.test(await wp.textContent('#authStatus'))) && !(await wp.isVisible('#appWrap')), await wp.textContent('#authStatus'));
   await wp.click('#authRole button[data-val="owner"]'); await wp.fill('#authEmail','owner@test.com'); await wp.fill('#authPassword','secret123'); await wp.click('#authSubmit');
-  check('choosing Business Owner then lets the owner in', await until(async()=> (await wp.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner'), await wp.textContent('#whoLabel'));
+  check('choosing Business Owner then lets the owner in', await until(async()=> (await wp.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · OWNER'), await wp.textContent('#whoLabel'));
   await wp.reload();
   check('a saved sign-in reopens without asking again', await until(()=> wp.isVisible('#appWrap')));
 
@@ -626,7 +630,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#signOutBtn'); await wait(600); await op.click('#signOutBtn');
   await op.waitForSelector('#authForm', { state:'visible' });
   await op.click('#authRole button[data-val="owner"]'); await op.fill('#authEmail', 'adastores'); await op.fill('#authPassword', 'secret123'); await op.click('#authSubmit');
-  check('a second owner signs in on the same phone', await until(async()=> (await op.textContent('#whoLabel')) === 'Ada Stores · Ada · Owner', 15000), await op.textContent('#whoLabel'));
+  check('a second owner signs in on the same phone', await until(async()=> (await op.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await op.textContent('#whoLabel'));
   check("...and starts with their own rates, not the previous business's", await until(async()=> (await op.$eval('#mp_transfer', e=>e.value)) === '20' && (await op.$eval('#autosaveFlat', e=>e.value)) === '0'), `${await op.$eval('#mp_transfer', e=>e.value)} / ${await op.$eval('#autosaveFlat', e=>e.value)}`);
   const errs = [...op.errs, ...sp.errs, ...xp.errs];
   check('no page errors', errs.length === 0, errs.join(' | ').slice(0,400));

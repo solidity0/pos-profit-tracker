@@ -1838,6 +1838,29 @@
   function deleteTx(id){
     cloudSoftDelete([id]);
   }
+  // Deleting takes two taps, for owners and staff alike: the first turns the link into
+  // "tap again to delete" for 3 seconds, the second deletes. Remembered by entry (not by
+  // button), so a log refresh between the two taps doesn't lose the first one.
+  const DELETE_CONFIRM_MS = 3000;
+  let armedDelete = { id: null, at: 0 };
+  const isDeleteArmed = id => armedDelete.id === String(id) && Date.now() - armedDelete.at < DELETE_CONFIRM_MS;
+  function tapDelete(btn){
+    const id = btn.dataset.id, now = Date.now();
+    if(isDeleteArmed(id)){
+      if(now - armedDelete.at < 350) return; // ignore a phone's ghost double-tap
+      armedDelete = { id: null, at: 0 };
+      deleteTx(id);
+      return;
+    }
+    armedDelete = { id: String(id), at: now };
+    document.querySelectorAll('#logList .del.armed').forEach(b=>{ b.classList.remove('armed'); b.textContent = 'delete'; });
+    btn.classList.add('armed'); btn.textContent = 'tap again to delete';
+    setTimeout(()=>{
+      if(isDeleteArmed(id)) return;
+      const b = document.querySelector(`#logList .del[data-id="${CSS.escape(String(id))}"]`);
+      if(b && b.classList.contains('armed')){ b.classList.remove('armed'); b.textContent = 'delete'; }
+    }, DELETE_CONFIRM_MS + 50);
+  }
 
   function ordinal(n){
     const s = ['th','st','nd','rd'];
@@ -2198,7 +2221,7 @@
           ? (role === 'owner' ? `<button class="restore" data-id="${t.id}">restore</button>` : '')
           : (role === 'staff' && !ownEntry) ? ''
           : isDeletable
-            ? `<button class="del" data-id="${t.id}">delete</button>`
+            ? (isDeleteArmed(t.id) ? `<button class="del armed" data-id="${t.id}">tap again to delete</button>` : `<button class="del" data-id="${t.id}">delete</button>`)
             : `<span class="del-locked" title="Entries can only be deleted within 3h 50m of logging">locked</span>`;
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
@@ -2254,7 +2277,7 @@
         }
       }
       logList.querySelectorAll('.del').forEach(btn=>{
-        btn.addEventListener('click', ()=> deleteTx(btn.dataset.id));
+        btn.addEventListener('click', ()=> tapDelete(btn));
       });
       logList.querySelectorAll('.restore').forEach(btn=>{
         btn.addEventListener('click', ()=> cloudRestore(btn.dataset.id));
@@ -2724,7 +2747,7 @@
     return Object.keys(teamMembers).filter(uid => uid !== bizId)
       .sort((a,b) => nameFor(a).localeCompare(nameFor(b)));
   }
-  function nameFor(uid, savedName){ return teamNames[uid] || savedName || (uid === bizId ? 'Owner' : 'Salesperson'); }
+  function nameFor(uid, savedName){ return teamNames[uid] || savedName || (uid === bizId ? 'OWNER' : 'STAFF'); }
   function recentSinceISO(){
     const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - RECENT_DAYS);
     return d.toISOString();
@@ -2892,7 +2915,7 @@
 
   function updateWhoLabel(){
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
-    const roleLabel = role === 'owner' ? 'Owner' : 'Salesperson';
+    const roleLabel = role === 'owner' ? 'OWNER' : 'STAFF';
     const name = teamNames[currentUser.uid];
     // Reads as "Business · Name · Role" (the separators are hidden; the layout splits it in two rows).
     const sep = '<span class="who-sep"> · </span>';
@@ -2919,7 +2942,7 @@
           ${m.email && !isUsernameLogin(m.email) ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
           ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button><button type="button" class="team-delete danger" data-uid="${uid}">Delete permanently</button>`}
         </div>`;
-      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (owner)' : 'Salesperson'}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
+      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (OWNER)' : 'STAFF'}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
     }).join('');
     el.querySelectorAll('.team-name-input').forEach(inp=>{
       inp.value = teamNames[inp.dataset.uid] || '';
@@ -3060,7 +3083,7 @@
           throw signInErr;
         }
       }
-      if(uid === bizId){ const e3 = new Error("That's your own login — it can't be added as a salesperson."); e3.code = 'own-login'; throw e3; }
+      if(uid === bizId){ const e3 = new Error("That's your own login — it can't be added as staff."); e3.code = 'own-login'; throw e3; }
       await grantStaffAccess(uid, name, email, username);
       st.className = 'status deepgreen';
       st.textContent = existing
@@ -3469,7 +3492,7 @@
     return (err && err.message) || 'Sign-in failed.';
   }
 
-  // Business Owner / Salesperson choice on the sign-in screen. It doesn't grant anything —
+  // OWNER / STAFF choice on the sign-in screen. It doesn't grant anything —
   // the account decides what someone can do — but signing in with the wrong one chosen is
   // refused with a clear message, so nobody ends up confused about which login they used.
   // Nothing is pre-selected or remembered: the person picks one every time they sign in.
@@ -3478,8 +3501,8 @@
   let loginMismatchMsg = '';
   function renderLoginChoice(){
     $('#authRole').querySelectorAll('button').forEach(b => { b.classList.toggle('active', b.dataset.val === loginChoice); b.setAttribute('aria-pressed', String(b.dataset.val === loginChoice)); });
-    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as the business owner'
-      : loginChoice === 'staff' ? 'Sign in as a salesperson'
+    $('#authSub').textContent = loginChoice === 'owner' ? 'Sign in as OWNER'
+      : loginChoice === 'staff' ? 'Sign in as STAFF'
       : 'Choose how you are signing in';
   }
   $('#authRole').querySelectorAll('button').forEach(btn=>{
@@ -3508,8 +3531,8 @@
     loginIntent = null;
     if(!intent || intent === actualRole) return false;
     loginMismatchMsg = actualRole === 'owner'
-      ? 'This is the business owner login — choose "Business Owner" and sign in again.'
-      : 'This is a salesperson login — choose "Salesperson" and sign in again.';
+      ? 'This is an OWNER login — choose "OWNER" and sign in again.'
+      : 'This is a STAFF login — choose "STAFF" and sign in again.';
     fb.signOut(fb.auth);
     return true;
   }
@@ -3519,7 +3542,7 @@
     if(!fb) return;
     if(!loginChoice){
       $('#authStatus').className = 'status error';
-      $('#authStatus').textContent = 'Choose Business Owner or Salesperson first.';
+      $('#authStatus').textContent = 'Choose OWNER or STAFF first.';
       return;
     }
     loginIntent = loginChoice;
@@ -3681,7 +3704,7 @@
       rows.sort((a,b)=> b.createdMs - a.createdMs);
       list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended ? ' suspended' : ''}">
         <div class="admin-name">${escapeHtml(r.name)}${r.id === PLATFORM_ADMIN_UID ? ' (you)' : ''}</div>
-        <div class="admin-meta">${escapeHtml(r.ownerName || 'Owner')} · ${escapeHtml(r.email || 'no email')} · created ${r.created}</div>
+        <div class="admin-meta">${escapeHtml(r.ownerName || 'OWNER')} · ${escapeHtml(r.email || 'no email')} · created ${r.created}</div>
         <div class="admin-meta">Status: <span class="admin-status">${r.suspended ? 'Suspended' : 'Active'}</span></div>
         ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${r.suspended
           ? `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
