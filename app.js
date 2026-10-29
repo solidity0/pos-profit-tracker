@@ -2766,11 +2766,26 @@
     transactions = Array.from(byId.values()).sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
   }
 
+  // Offline (orange) while there's no connection; when it comes back (and anything logged
+  // offline has uploaded) a green "Back online" shows for a few seconds, then clears.
+  let wasOffline = !navigator.onLine;
+  let backOnlineTimer = null;
+  const BACK_ONLINE_MS = 4000;
   function updateSyncBadge(){
     const el = $('#syncBadge');
-    if(pendingUploads > 0) el.textContent = `⏳ ${pendingUploads} to upload`;
-    else if(!navigator.onLine) el.textContent = 'Offline';
-    else el.textContent = '';
+    let text = '', online = false;
+    if(!navigator.onLine) wasOffline = true;
+    if(pendingUploads > 0) text = `⏳ ${pendingUploads} to upload`;
+    else if(!navigator.onLine) text = 'Offline';
+    else if(wasOffline){
+      wasOffline = false;
+      clearTimeout(backOnlineTimer);
+      backOnlineTimer = setTimeout(()=>{ backOnlineTimer = null; updateSyncBadge(); }, BACK_ONLINE_MS);
+    }
+    if(!text && backOnlineTimer && navigator.onLine){ text = 'Back online'; online = true; }
+    if(text && !online && backOnlineTimer){ clearTimeout(backOnlineTimer); backOnlineTimer = null; }
+    el.textContent = text;
+    el.classList.toggle('online', online);
   }
   window.addEventListener('online', updateSyncBadge);
   window.addEventListener('offline', updateSyncBadge);
