@@ -88,7 +88,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('staff signs in', await until(()=> sp.isVisible('#appWrap')));
   check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · Salesperson'), await sp.textContent('#whoLabel'));
   check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
-  check('staff sees Performance Overview (with Volume Analysis), not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfCard #perfVolume')) && !(await sp.isVisible('#settingsCard')));
+  check('staff sees Performance Overview (with money in/out under Filter), not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && !(await sp.isVisible('#settingsCard')));
   await logTx(sp, 'Withdrawal', '20000', '300');
   await logTx(sp, 'Transfer', '15000', '250');
   check('staff sees its 2 entries', await until(async()=> (await logCount(sp)) === 2), String(await logCount(sp)));
@@ -315,7 +315,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // ---------- Volume Analysis follows the Filter ----------
   {
     const money = async () => [await op.textContent('#trendMoneyIn'), await op.textContent('#trendMoneyOut')].map(t => parseFloat(t.replace(/[^\d.]/g,'')) || 0);
-    check('Volume Analysis has no date buttons of its own', !(await op.$('#trendPeriodTabs')));
+    check('Volume Analysis has no date buttons of its own, and sits inside Filter', !(await op.$('#trendPeriodTabs')) && !(await op.$('#perfVolume')) && !!(await op.$('#perfFilters #trendMoneyIn')));
     await op.click('#periodTabs button[data-val="all"]'); await op.click('#providerFilter button[data-val="All"]'); await wait(400);
     const all = await money();
     check('the count under Transaction Log matches the filter', await until(async()=> (await op.textContent('#logCount')) === (await op.textContent('#txCount')).split(' · ')[0] && parseInt(await op.textContent('#logCount')) > 1), `${await op.textContent('#logCount')} vs ${await op.textContent('#txCount')}`);
