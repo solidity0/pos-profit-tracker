@@ -6,6 +6,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -d node_modules ] || npm install
+# index.html must point at the current app.css / app.js (see stamp.sh).
+./stamp.sh --check
 # The emulator only reads rules inside this folder, so test a fresh copy of the real ones.
 cp ../firestore.rules .firestore.rules
 

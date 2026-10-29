@@ -5,7 +5,7 @@
 // served from the cache once downloaded. Firestore and sign-in traffic is never touched; the
 // Firebase SDK keeps its own offline copy of the records.
 const CACHE = 'ledger-v1';
-const APP_FILES = ['./', 'index.html', 'terms.html', 'privacy.html', 'manifest.webmanifest',
+const APP_FILES = ['./', 'index.html', 'app.css', 'app.js', 'terms.html', 'privacy.html', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const LIBRARIES = [
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js',
