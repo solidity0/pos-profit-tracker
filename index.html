@@ -362,7 +362,9 @@
   .calc-back{ display:inline-flex; align-items:center; gap:4px; height:40px; padding: 0 14px 0 8px; border-radius: 12px; border:1.5px solid var(--line-soft); background: var(--surface-2); color: var(--text); font-family:'Inter',sans-serif; font-weight:600; font-size:14px; cursor:pointer; -webkit-tap-highlight-color: transparent; }
   .calc-back svg{ width:20px; height:20px; }
   .calc-topbar-title{ font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color: var(--muted); }
-  .calc-topbar-spacer{ justify-self:end; }
+  .calc-topbar .calc-fs{ justify-self:end; padding: 0; width: 44px; justify-content:center; }
+  .calc-fs-hint{ display:none; }
+  #calcCard.calc-full .calc-fs-hint{ width:100%; max-width:560px; margin: 0 auto 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line-soft); color: var(--text); font-size: 12.5px; line-height: 1.5; }
   /* Four fixed sections, top to bottom: history, running answer, display, keypad. Their
      sizes depend only on the screen, never on what's in them; the history and the display
      each scroll inside themselves. */
@@ -835,8 +837,9 @@
     <div class="calc-topbar">
       <button class="calc-back" id="calcBackBtn" type="button" aria-label="Back to the home page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
       <span class="calc-topbar-title">Calculator</span>
-      <span class="calc-topbar-spacer"></span>
+      <button class="calc-back calc-fs" id="calcFsBtn" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
+    <div class="calc-fs-hint" id="calcFsHint" style="display:none;"></div>
     <div id="calcBody" style="display:none; margin-top:14px;">
       <div class="calc-history-wrap" id="calcHistoryWrap" style="display:none;">
         <div class="calc-history-header">
@@ -2360,10 +2363,55 @@
     if(!card.classList.contains('calc-full')) return;
     card.classList.remove('calc-full');
     document.documentElement.classList.remove('calc-open');
+    $('#calcFsHint').style.display = 'none';
+    exitFullscreen();
     $('#calcBody').style.display = 'none';
     $('#calcCaret').classList.remove('open');
     if(!fromHistory && history.state && history.state.ledgerCalc){ try{ history.back(); }catch(e){} }
   }
+  // Full-screen button (top right of the phone calculator) hides the browser's own bars.
+  // iPhones don't let websites do this, so there it explains the Home Screen option, which
+  // opens Ledger without any browser bars.
+  const FS_EXPAND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+  const FS_SHRINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
+  const rootEl = document.documentElement;
+  const isStandaloneApp = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const canFullscreen = () => !!(rootEl.requestFullscreen || rootEl.webkitRequestFullscreen);
+  function updateFsButton(){
+    const btn = $('#calcFsBtn');
+    btn.style.visibility = isStandaloneApp() ? 'hidden' : '';
+    const on = isFullscreen();
+    btn.innerHTML = on ? FS_SHRINK : FS_EXPAND;
+    btn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    btn.title = on ? 'Exit full screen' : 'Full screen';
+  }
+  function exitFullscreen(){
+    if(!isFullscreen()) return;
+    try{ (document.exitFullscreen || document.webkitExitFullscreen).call(document); }catch(e){}
+  }
+  $('#calcFsBtn').addEventListener('click', async ()=>{
+    const hint = $('#calcFsHint');
+    if(isFullscreen()){ exitFullscreen(); return; }
+    if(canFullscreen()){
+      try{
+        if(rootEl.requestFullscreen) await rootEl.requestFullscreen({ navigationUI: 'hide' });
+        else rootEl.webkitRequestFullscreen();
+        hint.style.display = 'none';
+        return;
+      }catch(e){}
+    }
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    hint.innerHTML = iOS
+      ? "<strong>Safari doesn't allow full screen for websites.</strong> For full screen: tap the Share button <span aria-hidden=\"true\">⬆︎</span>, choose <strong>Add to Home Screen</strong>, then open Ledger from your home screen — it opens with no browser bars."
+      : "This browser doesn't allow full screen here. Open the browser menu and choose <strong>Add to Home screen</strong> (or <strong>Install app</strong>), then open Ledger from there for full screen.";
+    hint.style.display = hint.style.display === 'none' ? 'block' : 'none';
+  });
+  $('#calcFsHint').addEventListener('click', ()=>{ $('#calcFsHint').style.display = 'none'; });
+  document.addEventListener('fullscreenchange', updateFsButton);
+  document.addEventListener('webkitfullscreenchange', updateFsButton);
+  updateFsButton();
+
   $('#calcToggle').addEventListener('click', openCalculator);
   $('#calcBackBtn').addEventListener('click', ()=> closeCalculator(false));
   window.addEventListener('popstate', ()=> closeCalculator(true));
