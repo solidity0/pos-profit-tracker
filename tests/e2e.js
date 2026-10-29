@@ -293,6 +293,23 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await op.click('#typeSeg button[data-val="Withdrawal"]');
   }
 
+  // ---------- custom date filter ----------
+  {
+    const ymd = n => { const d = new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+    if(!(await op.isVisible('#summaryContent'))) await op.click('#summaryToggle');
+    await op.click('#periodTabs button[data-val="all"]'); await wait(500);
+    const all = parseInt(await op.textContent('#txCount'));
+    await op.click('#periodTabs button[data-val="custom"]');
+    await op.fill('#customStartDate', ymd(70)); await op.fill('#customEndDate', ymd(50));
+    check('custom dates apply as soon as they are picked', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction') && /Showing .* · 1 transaction/.test(await op.textContent('#customDateStatus'))), `${await op.textContent('#txCount')} / ${await op.textContent('#customDateStatus')}`);
+    await op.fill('#customStartDate', ymd(0)); // later than the end date (50 days ago)
+    check('a start date after the end date is swapped round', await until(async()=> (await op.$eval('#customStartDate', e=>e.value)) === ymd(50) && (await op.$eval('#customEndDate', e=>e.value)) === ymd(0) && parseInt(await op.textContent('#txCount')) === all - 1), `${await op.$eval('#customStartDate', e=>e.value)} ${await op.textContent('#txCount')} vs ${all - 1}`);
+    await op.click('#applyDateFilterBtn');
+    check('Apply confirms it was applied', await until(async()=> /Applied ✓/.test(await op.textContent('#applyDateFilterBtn'))));
+    await op.click('#periodTabs button[data-val="today"]');
+    check('leaving Custom clears its message', await until(async()=> (await op.textContent('#customDateStatus')) === ''));
+  }
+
   // ---------- Performance Overview panels open and close ----------
   {
     const P = await ctx(b, 'panels'); const pp = P.p;

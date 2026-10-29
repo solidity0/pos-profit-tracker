@@ -120,6 +120,7 @@
   .log-toggle:hover{ color: var(--theme-soft); }
   .log-caret{ font-size: 10px; transition: transform 0.15s; }
   .log-caret.open{ transform: rotate(90deg); }
+  .log-more.log-sentinel{ background:none; border:none; color: var(--muted); font-weight:500; font-size:12px; }
   .log-more{ display:block; width:100%; margin-top:10px; padding:11px; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); color: var(--text); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; }
   #logContent{ margin-top: 14px; }
 
@@ -910,7 +911,8 @@
             <input type="date" id="customEndDate" />
           </div>
         </div>
-        <button class="addbtn" id="applyDateFilterBtn" type="button" style="margin-bottom:16px;">Apply Filter</button>
+        <button class="addbtn" id="applyDateFilterBtn" type="button">Apply Filter</button>
+        <div class="status" id="customDateStatus" style="text-align:center; margin: 8px 0 14px;"></div>
       </div>
       <div class="provider-filter" id="providerFilter">
         <button data-val="All" class="active">All</button>
@@ -2010,23 +2012,46 @@
         }
         $('#customStartDate').value = state.customStart || '';
         $('#customEndDate').value = state.customEnd || '';
-        updateApplyFilterLabel();
       } else {
         $('#customDateWrap').style.display = 'none';
       }
       render();
     });
   });
-  function updateApplyFilterLabel(){
-    const count = (($('#customStartDate').value ? 1 : 0) + ($('#customEndDate').value ? 1 : 0));
-    $('#applyDateFilterBtn').textContent = count > 0 ? `Apply Filter (${count})` : 'Apply Filter';
+  // Custom dates take effect as soon as they're picked (iPhones only report the new date when
+  // the picker closes, so both "input" and "change" are listened to); Apply does the same and
+  // confirms what's being shown. A start date after the end date is swapped round.
+  function applyCustomDates(confirm){
+    let start = $('#customStartDate').value || null;
+    let end = $('#customEndDate').value || null;
+    const st = $('#customDateStatus');
+    if(start && end && start > end){
+      [start, end] = [end, start];
+      $('#customStartDate').value = start; $('#customEndDate').value = end;
+    }
+    const changed = start !== state.customStart || end !== state.customEnd;
+    state.customStart = start; state.customEnd = end;
+    if(state.period !== 'custom') return;
+    if(changed || confirm) render();
+    if(confirm || changed){
+      const n = getFiltered().length;
+      st.className = 'status deepgreen';
+      st.textContent = `Showing ${customRangeLabel()} · ${n} transaction${n === 1 ? '' : 's'}`;
+    }
+    if(confirm){
+      const btn = $('#applyDateFilterBtn');
+      btn.textContent = 'Applied ✓';
+      clearTimeout(btn._t); btn._t = setTimeout(()=>{ btn.textContent = 'Apply Filter'; }, 1500);
+    }
   }
-  $('#customStartDate').addEventListener('input', updateApplyFilterLabel);
-  $('#customEndDate').addEventListener('input', updateApplyFilterLabel);
+  ['input', 'change'].forEach(ev=>{
+    $('#customStartDate').addEventListener(ev, ()=> applyCustomDates(false));
+    $('#customEndDate').addEventListener(ev, ()=> applyCustomDates(false));
+  });
   $('#applyDateFilterBtn').addEventListener('click', ()=>{
-    state.customStart = $('#customStartDate').value || null;
-    state.customEnd = $('#customEndDate').value || null;
-    render();
+    // Let an open date picker hand over its value first.
+    if(document.activeElement && document.activeElement.type === 'date') document.activeElement.blur();
+    setTimeout(()=> applyCustomDates(true), 0);
   });
   $('#trendPeriodTabs').querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -3061,6 +3086,9 @@
     netEl.textContent = fmt(sumNet);
     netEl.classList.toggle('neg', sumNet < 0);
     $('#txCount').textContent = filtered.length + ' transaction' + (filtered.length===1?'':'s') + (olderState === 'loading' && needsOlderTransactions() ? ' · loading older…' : '');
+    const customSt = $('#customDateStatus');
+    if(state.period !== 'custom') customSt.textContent = '';
+    else if(customSt.textContent) customSt.textContent = `Showing ${customRangeLabel()} · ${filtered.length} transaction${filtered.length === 1 ? '' : 's'}${olderState === 'loading' && needsOlderTransactions() ? ' · loading older…' : ''}`;
     // Auto-save is the owner's own savings, so the salesperson doesn't see the row at all.
     $('#sumAutosaveRow').style.display = (sumAutosave > 0 && settingsUnlocked) ? 'flex' : 'none';
     $('#sumAutosave').innerHTML = settingsUnlocked ? '−' + fmt(sumAutosave) : LOCK_HTML;
@@ -3085,8 +3113,10 @@
   const LOG_CLEAR_BTN = $('#clearLogBtn');
   const LOG_SHARE_BTN = $('#logSharePdfBtn');
 
+  var logObserver = null;
   function renderLog(){
     logNeedsRender = false;
+    if(logObserver){ logObserver.disconnect(); logObserver = null; }
     logRenderedAt = Date.now();
     const clearBtn = LOG_CLEAR_BTN;
     const shareBtn = LOG_SHARE_BTN;
@@ -3190,14 +3220,26 @@
         `;
         dayGroup.appendChild(item);
       });
+      // Older entries load by themselves as you scroll near the end of the log.
       const remaining = allLogFiltered.length - logFiltered.length;
       if(remaining > 0){
         const more = document.createElement('button');
-        more.className = 'log-more';
+        more.className = 'log-more log-sentinel';
         more.type = 'button';
-        more.textContent = `Show ${Math.min(remaining, LOG_PAGE_SIZE)} more (${remaining} older)`;
-        more.addEventListener('click', ()=>{ logLimit += LOG_PAGE_SIZE; renderLog(); });
+        more.textContent = `Loading ${remaining} older…`;
+        const loadMore = ()=>{
+          if(logObserver) logObserver.disconnect();
+          const box = $('#logContent'), keep = box.scrollTop;
+          logLimit += LOG_PAGE_SIZE; renderLog();
+          box.scrollTop = keep; // stay where you were while the next ones appear below
+        };
+        more.addEventListener('click', loadMore);
         logList.appendChild(more);
+        if('IntersectionObserver' in window){
+          logObserver = new IntersectionObserver(entries=>{ if(entries.some(e => e.isIntersecting)) loadMore(); },
+            { root: $('#logContent'), rootMargin: '0px 0px 400px 0px' });
+          logObserver.observe(more);
+        }
       }
       logList.querySelectorAll('.del').forEach(btn=>{
         btn.addEventListener('click', ()=> deleteTx(btn.dataset.id));
