@@ -88,7 +88,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('staff signs in', await until(()=> sp.isVisible('#appWrap')));
   check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · Salesperson'), await sp.textContent('#whoLabel'));
   check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
-  check('staff sees Performance Overview + Volume, not Settings', await sp.isVisible('#perfCard') && await sp.isVisible('#volumeCard') && !(await sp.isVisible('#settingsCard')));
+  check('staff sees Performance Overview (with Volume Analysis), not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfCard #perfVolume')) && !(await sp.isVisible('#settingsCard')));
   await logTx(sp, 'Withdrawal', '20000', '300');
   await logTx(sp, 'Transfer', '15000', '250');
   check('staff sees its 2 entries', await until(async()=> (await logCount(sp)) === 2), String(await logCount(sp)));

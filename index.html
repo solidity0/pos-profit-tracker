@@ -178,7 +178,7 @@
   }
 
   /* Desktop-only layout: 4 columns side by side next to the Ledger entry card —
-     Transaction Log + Volume Analysis share one column (log on top), Educational &
+     Transaction Log has its own column, Educational &
      Safety Tips + Performance Overview share another (tips on top), both stacked
      vertically via CSS order (DOM order stays untouched, so mobile is unaffected).
      Scoped entirely to min-width: 1024px so the phone/mobile layout above is untouched. */
@@ -240,8 +240,6 @@
   }
 
 
-  /* Volume Analysis, inside the Log a Transaction card under the Add Transaction button. */
-  .entry-volume{ margin-top: 14px; }
   .autofee{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom: 10px; }
   .autofee label{ display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); font-weight:600; text-align:center; }
   .autofee .toggle{ font-size: 11px; color: var(--text); display:flex; align-items:center; gap: 5px; cursor:pointer; user-select:none; font-weight:500; }
@@ -877,36 +875,6 @@
     </div>
 
     <button class="addbtn" id="addBtn">Add Transaction</button>
-    <div class="entry-volume" id="volumeCard">
-      <button class="summary-toggle" id="volumeToggle">
-        <span class="summary-caret" id="volumeCaret" data-heading-caret>▶︎</span>
-        <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="7" rx="1"/><rect x="10.5" y="6" width="3" height="12" rx="1"/><rect x="15.5" y="9" width="3" height="9" rx="1"/></svg>
-        <span>Volume Analysis</span>
-      </button>
-      <div id="volumeBody" style="display:none;">
-        <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
-        <div id="volumeContent" style="display:none; margin-top:14px;">
-        <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
-          <button data-val="today" class="active">Today</button>
-          <button data-val="week">Week</button>
-          <button data-val="month">Month</button>
-        </div>
-        <div class="trend-grid">
-          <div class="trend-box">
-            <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
-            <div class="trend-label in">Money in</div>
-            <div class="trend-amt" id="trendMoneyIn">₦0</div>
-          </div>
-          <div class="trend-box">
-            <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
-            <div class="trend-label out">Money out</div>
-            <div class="trend-amt" id="trendMoneyOut">₦0</div>
-          </div>
-        </div>
-        <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
-        </div>
-      </div>
-    </div>
     <div class="hint owner-only">Net profit = fee you charged customer − everything Moniepoint/OPay deducted (fee + VAT + stamp duty + autosave). Check "override fee" for a free same-bank transfer — the base fee and VAT drop to ₦0, while stamp duty and autosave still calculate automatically per leg.</div>
     <div class="status" id="status"></div>
     </div>
@@ -1018,6 +986,33 @@
         <button data-val="Opay">OPay</button>
       </div>
       <div class="provider-filter" id="loggedByFilter" style="display:none;"></div>
+      </div>
+     </section>
+
+     <section class="perf-section" id="perfVolume">
+      <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="volumeBody"><span class="perf-section-title">Volume Analysis</span><span class="perf-caret">▶</span></button>
+      <div class="perf-section-body" id="volumeBody" hidden>
+      <div class="empty" id="volumeEmptyState" style="display:none;">Log a transaction to see volume analysis.</div>
+      <div id="volumeContent" style="display:none;">
+      <div class="tabs" id="trendPeriodTabs" style="grid-template-columns: repeat(3, 1fr);">
+        <button data-val="today" class="active">Today</button>
+        <button data-val="week">Week</button>
+        <button data-val="month">Month</button>
+      </div>
+      <div class="trend-grid">
+        <div class="trend-box">
+          <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+          <div class="trend-label in">Money in</div>
+          <div class="trend-amt" id="trendMoneyIn">₦0</div>
+        </div>
+        <div class="trend-box">
+          <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+          <div class="trend-label out">Money out</div>
+          <div class="trend-amt" id="trendMoneyOut">₦0</div>
+        </div>
+      </div>
+      <div class="hint" style="text-align:center; margin-top:2px;">Money in = Withdrawals (cash you pay out to customers, tracked as inflow to your till). Money out = Transfers/Bills (electronic payments you send out on the customer's behalf). Withdraw+Transfer counts toward both, since it includes one leg of each.</div>
+      </div>
       </div>
      </section>
 
@@ -1838,10 +1833,7 @@
     const body = $('#entryBody');
     if(body) body.classList.toggle('is-combo', state.type === 'WithdrawTransfer');
     if(!body || !desktopQuery.matches || state.type !== 'Withdrawal' || $('#status').textContent) return;
-    // Measured without Volume Analysis, so it never makes the card (or the cards beside
-    // it) taller; it scrolls inside the card instead.
-    const vol = $('#volumeCard');
-    const h = body.scrollHeight - vol.offsetHeight - (parseFloat(getComputedStyle(vol).marginTop) || 0);
+    const h = body.scrollHeight;
     if(h > 200) document.documentElement.style.setProperty('--entry-body-h', h + 'px');
   }
   desktopQuery.addEventListener('change', ()=> requestAnimationFrame(sizeEntryBody));
@@ -2408,7 +2400,7 @@
     $('#logCaret').classList.add('open');
     if(logNeedsRender) renderLog();
   }
-  // Filter / Summary / Reports inside Performance Overview open and close on their own; this
+  // Filter / Volume Analysis / Summary / Reports inside Performance Overview open and close on their own; this
   // phone remembers which ones were left open.
   (function(){
     const KEY = LS_PREFIX + 'perfOpen';
@@ -2453,15 +2445,6 @@
     caret.classList.toggle('open', !isOpen);
   });
 
-  $('#volumeToggle').addEventListener('click', ()=>{
-    const body = $('#volumeBody');
-    const caret = $('#volumeCaret');
-    const isOpen = body.style.display === 'block';
-    body.style.display = isOpen ? 'none' : 'block';
-    caret.classList.toggle('open', !isOpen);
-    // On a PC the form scrolls inside its card: bring the opened table into view.
-    if(!isOpen && desktopQuery.matches){ const eb = $('#entryBody'); requestAnimationFrame(()=> eb.scrollTo({ top: eb.scrollHeight, behavior: 'smooth' })); }
-  });
 
   // The calculator opens full screen (like Settings) with a Back button; the phone's own back
   // gesture or button, and Esc on a keyboard, close it too.
