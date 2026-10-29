@@ -513,16 +513,14 @@
   .filter-volume{ margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
   .filter-volume .empty{ padding: 4px 0; font-size: 12px; }
   .trend-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-  /* Icon and label share the top row, so the amount below gets the box's full width;
-     both are centred. A very long amount is shrunk to fit (fitTrendAmounts) rather than
-     being cut off. */
-  .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; text-align:center; }
-  .trend-head{ display:flex; align-items:center; justify-content:center; gap:7px; max-width:100%; }
+  /* "Money in" / "Money out" sit above each box; inside it, the arrow and the amount are
+     centred. A very long amount is shrunk to fit (fitTrendAmounts) rather than being cut off. */
+  .trend-box{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; text-align:center; }
   .trend-icon{ width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; }
   .trend-icon svg{ width:12px; height:12px; }
   .trend-icon.in{ background: rgba(52,211,153,0.12); color: var(--profit); }
   .trend-icon.out{ background: rgba(251,122,122,0.12); color: var(--loss); }
-  .trend-label{ font-size: 11.5px; font-weight: 700; font-family:'Space Grotesk',sans-serif; text-align:center; }
+  .trend-label{ font-size: 12px; font-weight: 700; font-family:'Space Grotesk',sans-serif; text-align:center; margin-bottom: 5px; }
   .trend-label.in{ color: var(--profit); }
   .trend-label.out{ color: var(--loss); }
   .trend-amt{ display:block; width:100%; font-size: 15px; font-weight: 700; font-family:'Space Grotesk',sans-serif; white-space:nowrap; text-align:center; font-variant-numeric: tabular-nums; line-height:1.25; }
@@ -1002,15 +1000,17 @@
         <div id="volumeContent" style="display:none;">
         <div class="trend-grid">
           <div class="trend-cell">
+            <div class="trend-label in">Money in</div>
             <div class="trend-box">
-              <div class="trend-head"><div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div><div class="trend-label in">Money in</div></div>
+              <div class="trend-icon in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
               <div class="trend-amt" id="trendMoneyIn">₦0</div>
             </div>
             <div class="trend-caption">Total withdrawals</div>
           </div>
           <div class="trend-cell">
+            <div class="trend-label out">Money out</div>
             <div class="trend-box">
-              <div class="trend-head"><div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div><div class="trend-label out">Money out</div></div>
+              <div class="trend-icon out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
               <div class="trend-amt" id="trendMoneyOut">₦0</div>
             </div>
             <div class="trend-caption">Total transfers and bills</div>
