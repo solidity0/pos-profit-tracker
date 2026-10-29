@@ -553,6 +553,14 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('reopening the app goes back to the confirm-your-email step', await until(()=> ap.isVisible('#verifyForm'), 15000));
   check('the confirmation email was sent', await emu.verifyEmail('ada@test.com'));
   await ap.click('#verifyDone');
+  check('a new owner waits for approval before using Ledger', await until(async()=> /waiting for approval/.test(await ap.textContent('#authBlocked')) && await ap.isVisible('#authBlocked'), 20000) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authBlocked'));
+  // the platform admin approves Ada from Settings
+  await op.click('#settingsToggle'); await until(()=> op.isVisible('#adminRefreshBtn')); await op.click('#adminRefreshBtn');
+  check('admin sees Ada waiting for approval, at the top of the list', await until(async()=> { const first = await op.$('#adminList .admin-biz'); return !!first && /Ada Stores/.test(await first.textContent()) && /Waiting for approval/.test(await first.textContent()); }) && /1 waiting for approval/.test(await op.textContent('#adminStatus')), await op.textContent('#adminStatus'));
+  await op.click('#adminList .admin-biz.pending .admin-approve');
+  check('...approving it opens Ada\'s ledger by itself', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 20000), await ap.textContent('#whoLabel').catch(()=>''));
+  check('...and the list shows Ada as Active', await until(async()=> /Ada Stores[\s\S]*Status: Active/.test(await op.textContent('#adminList'))), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
+  await op.click('#settingsBackBtn');
   check('new owner gets their own business', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 20000), await ap.textContent('#whoLabel'));
   check('the username chosen at sign-up is saved', await until(async()=> (await ap.$eval('#ownerUsernameInput', e=>e.value)) === 'adastores'), await ap.$eval('#ownerUsernameInput', e=>e.value));
   check('a new business starts with auto-save at ₦0', await until(async()=> (await ap.$eval('#autosaveFlat', e=>e.value)) === '0'), await ap.$eval('#autosaveFlat', e=>e.value));

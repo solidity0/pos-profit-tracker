@@ -6,9 +6,12 @@
 // marked inactive. users/{uid} tells a salesperson's login which business it belongs to.
 // No one can read or change another business's data.
 //
-// The platform admin (the UID in isAdmin) can list every business and suspend or restore
-// one. A suspended business's owner and salespeople lose all access to its data. The
-// admin can see business names, owners and teams, not their transactions.
+// The platform admin (the UID in isAdmin) can list every business, approve new ones, and
+// suspend or restore one. A new business waits for the admin's approval (approved == false)
+// before its owner can use it; businesses created before approval existed have no
+// "approved" field and count as approved. A suspended or not-yet-approved business's owner
+// and salespeople have no access to its data. The admin can see business names, owners and
+// teams, not their transactions.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -20,7 +23,9 @@ service cloud.firestore {
     function isOwnerOf(b) { return signedIn() && request.auth.uid == b; }
     function isStaffOf(b) { return signedIn() && exists(staffPath(b)) && get(staffPath(b)).data.get('active', true) == true; }
     // A business that hasn't been created yet counts as active (its owner fills it in first).
-    function bizActive(b) { return !exists(bizPath(b)) || get(bizPath(b)).data.get('suspended', false) == false; }
+    // Otherwise it must be approved (no field = approved, for older businesses) and not suspended.
+    function bizActive(b) { return !exists(bizPath(b))
+      || (get(bizPath(b)).data.get('suspended', false) == false && get(bizPath(b)).data.get('approved', true) == true); }
     function isMemberOf(b) { return (isOwnerOf(b) || isStaffOf(b)) && bizActive(b); }
 
     match /businesses/{b} {
@@ -28,19 +33,21 @@ service cloud.firestore {
       // suspended); the admin can read and list them all.
       allow read: if isOwnerOf(b) || isStaffOf(b) || isAdmin();
       // Anyone can create a business, but only as its owner, under their own UID, with a
-      // confirmed email (the platform admin is exempt), having accepted the Terms of Use and Privacy Policy, and never
-      // pre-suspended or un-suspendable.
+      // confirmed email (the platform admin is exempt), having accepted the Terms of Use and Privacy Policy, never
+      // pre-suspended or un-suspendable, and waiting for approval (the admin's own is exempt).
       allow create: if isOwnerOf(b) && request.resource.data.ownerUid == b
         && (request.auth.token.email_verified == true || isAdmin())
         && request.resource.data.termsAcceptedAt == request.time
         && request.resource.data.termsVersion is string
-        && !('suspended' in request.resource.data);
-      // The owner edits their business (e.g. its name) but can't lift a suspension;
-      // the admin can only suspend or restore.
+        && !('suspended' in request.resource.data)
+        && (request.resource.data.get('approved', null) == false || isAdmin());
+      // The owner edits their business (e.g. its name) but can't lift a suspension or approve
+      // it; the admin can only approve, suspend or restore.
       allow update: if (isOwnerOf(b) && bizActive(b)
           && request.resource.data.ownerUid == b
-          && request.resource.data.get('suspended', false) == resource.data.get('suspended', false))
-        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt']));
+          && request.resource.data.get('suspended', false) == resource.data.get('suspended', false)
+          && request.resource.data.get('approved', true) == resource.data.get('approved', true))
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt', 'approved', 'approvedAt']));
       allow delete: if false;
 
       match /transactions/{txId} {
