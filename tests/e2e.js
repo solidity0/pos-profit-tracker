@@ -74,8 +74,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await names[0].fill('Uweribe'); await names[0].dispatchEvent('change');
   await op.click('#importBtn');
   check('old transactions upload', await until(async()=> /Uploaded 3 transactions/.test(await op.textContent('#importStatus'))), await op.textContent('#importStatus'));
-  await op.click('#importBtn');
-  await until(async()=> /Uploaded 3/.test(await op.textContent('#importStatus')));
+  check('once uploaded, the old-records box goes away', await until(async()=> !(await op.isVisible('#importSection'))));
   check('header shows owner name', await until(async()=> (await op.textContent('#whoLabel')) === 'Triumph Ventures · Uweribe · Owner'), await op.textContent('#whoLabel'));
   await op.click('#settingsDoneBtn');
 
@@ -266,12 +265,15 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
 
   // ---------- old-ledger recopy ----------
   await op.click('#settingsToggle');
-  check('owner sees the old-ledger section', await op.isVisible('#legacySection'));
-  await op.click('#legacyRecopyBtn');
-  check('recopy with nothing new copies nothing', await until(async()=> /Nothing missing/.test(await op.textContent('#legacyStatus'))), await op.textContent('#legacyStatus'));
+  check('the old-ledger box is hidden when nothing is missing', await until(async()=> /none/.test(await op.$eval('#legacySection', e => e.style.display)), 10000) && !(await op.isVisible('#legacySection')));
+  await op.click('#settingsDoneBtn');
   await admin('transactions/oldtop-2', { id:{stringValue:'oldtop-2'}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, deleted:{ booleanValue:false }, date:{ stringValue: tenDaysAgo }, createdAt:{ timestampValue: tenDaysAgo }, provider:{stringValue:'Opay'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:'1000'}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'10'}, providerFee:{integerValue:'10'}, netProfit:{integerValue:'90'} });
+  await op.reload(); await until(()=> op.isVisible('#appWrap'), 20000);
+  await op.click('#settingsToggle');
+  check('the old-ledger box shows when an entry is missing', await until(()=> op.isVisible('#legacySection'), 10000));
   await op.click('#legacyRecopyBtn');
   check('recopy picks up an entry logged on the old version', await until(async()=> /Copied 1 missing entry/.test(await op.textContent('#legacyStatus'))), await op.textContent('#legacyStatus'));
+  check('...and the box goes away once everything is copied', await until(async()=> !(await op.isVisible('#legacySection')), 10000));
   await op.fill('#bizNameInput', 'Triumph Ventures Ltd'); await op.dispatchEvent('#bizNameInput', 'change');
   check('owner can rename the business', await until(async()=> /^Triumph Ventures Ltd · /.test(await op.textContent('#whoLabel'))), await op.textContent('#whoLabel'));
   check("salesperson sees the new business name", await until(async()=> /^Triumph Ventures/.test(await sp.textContent('#whoLabel'))), await sp.textContent('#whoLabel'));

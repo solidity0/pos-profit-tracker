@@ -357,6 +357,10 @@
   /* Full-screen calculator: a top bar with Back, then the history, display and a keypad
      that fills the rest of the screen. */
   .calc-topbar{ display:none; }
+  /* Settings sections, each in its own bordered box. */
+  .settings-section{ border: 1px solid var(--line-soft); border-radius: 16px; padding: 4px 14px 14px; margin-top: 14px; background: var(--surface); }
+  .settings-section > h3:first-child{ margin-top: 12px; }
+  #settingsContent > .settings-section:first-child, #settingsContent > .settings-section[style*="none"] + .settings-section{ margin-top: 0; }
   /* Full-screen settings. */
   #settingsCard.settings-full{ position:fixed; inset:0; z-index:1000; margin:0 !important; max-width:none !important; min-width:0 !important; width:auto; border:none; border-radius:0; box-shadow:none; background: var(--bg);
     display:flex; flex-direction:column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
@@ -2316,6 +2320,7 @@
   // phone's own back gesture or button closes them too.
   function showSettingsContent(){
     $('#settingsContent').style.display = 'block';
+    checkImportUploaded(); checkLegacyLedger();
     $('#settingsToggle').classList.add('open');
     const card = $('#settingsCard');
     if(!card.classList.contains('settings-full')){
@@ -2334,6 +2339,25 @@
     }
   }
   window.addEventListener('popstate', ()=>{ if($('#settingsCard').classList.contains('settings-full')) hideSettingsPanels(true); });
+  // Each settings section (a heading and everything under it) gets its own bordered box.
+  (function groupSettingsSections(){
+    const root = $('#settingsContent');
+    let box = null;
+    Array.from(root.children).forEach(el=>{
+      const isOwnSection = el.tagName === 'DIV' && el.firstElementChild && el.firstElementChild.tagName === 'H3';
+      if(el.querySelector && (el.id === 'settingsDoneBtn' || el.querySelector('#settingsDoneBtn'))){ box = null; return; }
+      if(isOwnSection){ el.classList.add('settings-section'); box = null; return; }
+      if(el.tagName === 'H3'){
+        box = document.createElement('div');
+        box.className = 'settings-section';
+        root.insertBefore(box, el);
+      }
+      if(box) box.appendChild(el);
+    });
+  })();
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && $('#settingsCard').classList.contains('settings-full')){ e.preventDefault(); hideSettingsPanels(); }
+  });
 
   function openLogDropdown(){
     $('#logContent').style.display = 'block';
@@ -4296,10 +4320,28 @@
     });
   }
 
+  // Which of this device's old records aren't in the cloud yet (checked once per session when
+  // Settings opens, so a device whose records were uploaded elsewhere doesn't keep asking).
+  let importMissing = null; // Set of ids, or null before the check
+  let importChecking = false;
+  let importCheckedFor = null; // the business the check was for
+  const pendingLegacy = () => legacyTransactions.filter(tx => tx && tx.id && tx.date && (importMissing === null || importMissing.has(String(tx.id))));
+  async function checkImportUploaded(){
+    if(importCheckedFor !== bizId){ importCheckedFor = bizId; importMissing = null; }
+    if(!fb || role !== 'owner' || importChecking || importMissing !== null || legacyTransactions.length === 0) return;
+    importChecking = true;
+    try{
+      const ids = legacyTransactions.filter(tx => tx && tx.id).map(tx => String(tx.id));
+      const snaps = await Promise.all(ids.map(id => fb.getDoc(bdoc('transactions', id))));
+      importMissing = new Set(ids.filter((id, i) => !snaps[i].exists()));
+    }catch(e){ importMissing = null; }
+    importChecking = false;
+    renderImportUI();
+  }
   function renderImportUI(){
     const sec = $('#importSection');
-    const n = legacyTransactions.length;
-    if(role !== 'owner' || n === 0){ sec.style.display = 'none'; return; }
+    const n = pendingLegacy().length;
+    if(role !== 'owner' || n === 0 || importMissing === null){ sec.style.display = 'none'; return; }
     sec.style.display = '';
     $('#importHint').textContent = importDone
       ? `This phone's ${n} older transactions have been uploaded. Uploading again is safe — it won't create duplicates.`
@@ -4311,7 +4353,7 @@
     if(!fb || role !== 'owner') return;
     const btn = $('#importBtn');
     const st = $('#importStatus');
-    const list = legacyTransactions.filter(tx => tx && tx.id && tx.date);
+    const list = pendingLegacy();
     const BATCH = 400; // Firestore allows up to 500 writes per batch
     let uploaded = 0;
     btn.disabled = true;
@@ -4332,6 +4374,7 @@
         uploaded = Math.min(i + BATCH, list.length);
       }
       importDone = true;
+      list.forEach(tx => importMissing && importMissing.delete(String(tx.id)));
       try{ await store.set('cloudImported', '1'); }catch(e){}
       st.textContent = `Uploaded ${list.length} transactions ✓`;
       st.className = 'status deepgreen';
@@ -4839,8 +4882,34 @@
   }
   $('#adminRefreshBtn').addEventListener('click', ()=>{ $('#adminRefreshBtn').textContent = 'Refresh list'; loadAdminList(); });
 
+  // The "copy missing entries" box only shows when the old ledger really has entries this
+  // business doesn't. Checked once per session when Settings opens; after a full check the
+  // old ledger's size is remembered on this device, so later checks cost a single read.
+  let legacyLedgerState = 'unknown'; // unknown | checking | missing | done
+  const isLegacyOwnerNow = () => role === 'owner' && currentUser && currentUser.uid === LEGACY_OWNER_UID;
   function renderLegacyUI(){
-    $('#legacySection').style.display = (role === 'owner' && currentUser && currentUser.uid === LEGACY_OWNER_UID) ? '' : 'none';
+    $('#legacySection').style.display = (isLegacyOwnerNow() && legacyLedgerState === 'missing') ? '' : 'none';
+  }
+  async function checkLegacyLedger(){
+    if(!fb || !isLegacyOwnerNow() || legacyLedgerState === 'checking' || legacyLedgerState === 'done') return;
+    legacyLedgerState = 'checking';
+    const key = LS_PREFIX + 'legacyCheckedCount:' + currentUser.uid;
+    try{
+      const total = (await fb.getCountFromServer(fb.collection(fb.db, 'transactions'))).data().count;
+      let saved = null; try{ saved = localStorage.getItem(key); }catch(e){}
+      if(saved !== null && Number(saved) === total){ legacyLedgerState = 'done'; }
+      else{
+        const [legacySnap, haveSnap] = await Promise.all([
+          fb.getDocs(fb.collection(fb.db, 'transactions')),
+          fb.getDocs(fb.collection(fb.db, 'businesses', currentUser.uid, 'transactions'))
+        ]);
+        const have = new Set(haveSnap.docs.map(d => d.id));
+        const missing = legacySnap.docs.filter(d => !have.has(d.id)).length;
+        legacyLedgerState = missing ? 'missing' : 'done';
+        if(!missing){ try{ localStorage.setItem(key, String(total)); }catch(e){} }
+      }
+    }catch(e){ legacyLedgerState = 'unknown'; }
+    renderLegacyUI();
   }
   $('#legacyRecopyBtn').addEventListener('click', async ()=>{
     const st = $('#legacyStatus');
@@ -4850,6 +4919,7 @@
       const n = (await moveLegacyLedger(st, true)).copied;
       st.className = 'status deepgreen';
       st.textContent = n ? `Copied ${n} missing entr${n === 1 ? 'y' : 'ies'} ✓` : 'Nothing missing — everything is already here ✓';
+      legacyLedgerState = 'unknown'; setTimeout(checkLegacyLedger, 2500); // hides the box once all is copied
       olderTx = []; olderState = 'idle'; render();
     }catch(err){
       st.className = 'status error';
@@ -4974,7 +5044,7 @@
           return uid;
         },
         collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
-        orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs, getDoc: fsMod.getDoc,
+        orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs, getDoc: fsMod.getDoc, getCountFromServer: fsMod.getCountFromServer,
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc, writeBatch: fsMod.writeBatch,
         serverTimestamp: fsMod.serverTimestamp
       };
