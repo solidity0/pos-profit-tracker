@@ -316,9 +316,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   {
     await op.click('#calcToggle');
     const isFull = () => op.evaluate(()=>{ const r = document.getElementById('calcCard').getBoundingClientRect(); return r.top === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; });
-    check('the calculator opens as a dropdown first, with a full-screen button', await op.isVisible('#calcBody') && !(await isFull()) && await op.isVisible('#calcExpandBtn'));
-    await op.click('#calcExpandBtn');
-    check('the full-screen button opens it full screen with a Back button', await isFull() && await op.isVisible('#calcBackBtn'));
+    check('on a phone the calculator opens straight in full screen with a Back button', await isFull() && await op.isVisible('#calcBackBtn'));
     const press = async ks => { for(const k of ks) await op.click(`#calcBody .calc-btn[data-calc="${k}"]`); };
     const shown = async () => (await op.textContent('#calcDisplay')).replace(/\s+/g,' ').trim();
     await press(['clear','5','0','%','3','=']); check('a digit after % starts a new number', (await shown()) === '3', await shown());
@@ -327,11 +325,9 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await press(['clear','5','0','+','1','0','%','=']); check('50 + 10% = 55', (await shown()) === '55', await shown());
     await press(['clear','1','0','/','0','=']); check('dividing by zero shows Error', (await shown()) === 'Error', await shown());
     await op.click('#calcBackBtn');
-    check('Back returns to the dropdown on the home page', await op.isVisible('#calcBody') && !(await isFull()) && await op.isVisible('#entryCard'));
-    await op.click('#calcExpandBtn'); await op.goBack();
-    check("the phone's own back button leaves full screen too", await until(async()=> !(await isFull()) && await op.isVisible('#calcBody') && await op.isVisible('#appWrap')));
-    await op.click('#calcToggle');
-    check('tapping the title closes the dropdown', !(await op.isVisible('#calcBody')));
+    check('Back returns to the home page', !(await op.isVisible('#calcBody')) && !(await isFull()) && await op.isVisible('#entryCard'));
+    await op.click('#calcToggle'); await op.goBack();
+    check("the phone's own back button closes it too", await until(async()=> !(await isFull()) && !(await op.isVisible('#calcBody')) && await op.isVisible('#appWrap')));
   }
   {
     const PC = await ctx(b, 'pc-calc'); const pc = PC.p;
