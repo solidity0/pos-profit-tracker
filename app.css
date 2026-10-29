@@ -98,7 +98,7 @@
   .log-caret{ font-size: 10px; transition: transform 0.15s; }
   .log-caret.open{ transform: rotate(90deg); }
   /* Section headings: the open/close arrow sits at the right-hand end. */
-  .log-toggle, .summary-toggle, .settings-toggle{ position: relative; padding-left: 40px !important; padding-right: 40px !important; }
+  .log-toggle, .settings-toggle{ position: relative; padding-left: 40px !important; padding-right: 40px !important; }
   [data-heading-caret]{ position: absolute; right: 18px; top: 50%; transform: translateY(-50%) !important; transition: transform 0.15s; line-height: 1; }
   [data-heading-caret].open, .settings-toggle.open #settingsCaret{ transform: translateY(-50%) rotate(90deg) !important; }
   .log-more.log-sentinel{ background:none; border:none; color: var(--muted); font-weight:500; font-size:12px; }
@@ -268,10 +268,6 @@
   .tabs button.active{ background: var(--theme); color: var(--theme-text); border-color: var(--theme); box-shadow: 0 6px 16px -6px var(--theme); }
 
   .provider-filter{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom: 18px; font-size: 11px; }
-  .summary-toggle{ width:100%; background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; font-family:'Space Grotesk',sans-serif; padding: 11px; margin-bottom: 4px; }
-  .summary-toggle:hover{ color: var(--theme-soft); border-color: var(--theme); }
-  .summary-caret{ font-size: 10px; transition: transform 0.15s; }
-  .summary-caret.open{ transform: rotate(90deg); }
   .summary-content{ margin-top: 14px; }
   /* Performance Overview in three drop-down panels, stacked one under another: filters,
      the summary, and report downloads. */
