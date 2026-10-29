@@ -889,6 +889,25 @@
     </div>
   </div>
 
+  <div class="stack-col">
+  <div class="card has-clear" id="txLogCard">
+    <button class="log-toggle" id="logToggle">
+      <span class="log-caret" id="logCaret" data-heading-caret>▶︎</span>
+      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+      <span>Transaction Log</span>
+    </button>
+    <div class="txcount log-count" id="logCount">0 transactions</div>
+    <div id="logContent" class="scroll-panel" style="display:none;">
+      <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
+      <button class="clearbtn sharebtn" id="logSharePdfBtn" type="button" style="display:none;">Share PDF</button>
+      <div class="status" id="logPdfStatus"></div>
+      <div id="logList"></div>
+      <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
+    </div>
+  </div>
+
+  </div>
+
   <div class="card" id="calcCard">
     <button class="calc-expand" id="calcExpandBtn" type="button" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="log-toggle" id="calcToggle">
@@ -934,25 +953,6 @@
         <button class="calc-btn calc-eq calc-wide" data-calc="=">=</button>
       </div>
     </div>
-  </div>
-
-  <div class="stack-col">
-  <div class="card has-clear" id="txLogCard">
-    <button class="log-toggle" id="logToggle">
-      <span class="log-caret" id="logCaret" data-heading-caret>▶︎</span>
-      <svg class="calc-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-      <span>Transaction Log</span>
-    </button>
-    <div class="txcount log-count" id="logCount">0 transactions</div>
-    <div id="logContent" class="scroll-panel" style="display:none;">
-      <button class="clearbtn" id="clearLogBtn" style="display:none;">Clear</button>
-      <button class="clearbtn sharebtn" id="logSharePdfBtn" type="button" style="display:none;">Share PDF</button>
-      <div class="status" id="logPdfStatus"></div>
-      <div id="logList"></div>
-      <div class="empty" id="emptyState" style="display:none;">No transactions yet for this filter.</div>
-    </div>
-  </div>
-
   </div>
 
 
