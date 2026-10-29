@@ -363,19 +363,25 @@
   .calc-back svg{ width:20px; height:20px; }
   .calc-topbar-title{ font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color: var(--muted); }
   .calc-topbar-spacer{ justify-self:end; }
-  #calcCard.calc-full #calcBody{ display:flex !important; flex-direction:column; flex:1; min-height:0; width:100%; max-width:560px; margin: 6px auto 0; }
-  /* The keypad keeps a fixed size at the bottom. A long sum grows the display upwards to a
-     limit and then scrolls inside itself, so part of the history (which scrolls in its own
-     space) always stays visible above it. */
-  #calcCard.calc-full #calcHistoryWrap{ flex: 0 1 auto; min-height: 34px; overflow-y: auto; overscroll-behavior: contain; }
-  #calcCard.calc-full .calc-history{ max-height: 30vh; }
-  #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 26px; flex: none; margin-top: auto; }
-  #calcCard.calc-full .calc-display{ flex: none; min-height: 84px; max-height: 22vh; overflow-y: auto; overscroll-behavior: contain; font-size: 44px; line-height: 1.25; padding: 14px 16px; }
+  /* Four fixed sections, top to bottom: history, running answer, display, keypad. Their
+     sizes depend only on the screen, never on what's in them; the history and the display
+     each scroll inside themselves. */
+  #calcCard.calc-full #calcBody{ display:grid !important; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 32px 20vh min(52vh, 460px); row-gap: 8px; flex:1; min-height:0; width:100%; max-width:560px; margin: 6px auto 0; }
+  #calcCard.calc-full #calcHistoryWrap{ grid-row: 1; }
+  #calcCard.calc-full #calcPreview{ grid-row: 2; }
+  #calcCard.calc-full #calcDisplay{ grid-row: 3; }
+  #calcCard.calc-full .calc-grid{ grid-row: 4; }
+  #calcCard.calc-full #calcHistoryWrap{ min-height: 0; height: 100%; margin: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #calcCard.calc-full .calc-history{ max-height: none; overflow: visible; }
+  #calcCard.calc-full .calc-preview{ font-size: 20px; min-height: 0; margin: 0; align-self: end; }
+  #calcCard.calc-full .calc-display{ display:flex; flex-direction:column; }
+  #calcCard.calc-full .calc-expr{ margin-top: auto; }
+  #calcCard.calc-full .calc-display{ height: 100%; min-height: 0; max-height: none; margin: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 44px; line-height: 1.25; padding: 14px 16px; }
   #calcCard.calc-full .calc-display[data-size="l"]{ font-size: 36px; }
   #calcCard.calc-full .calc-display[data-size="m"]{ font-size: 30px; }
   #calcCard.calc-full .calc-display[data-size="s"]{ font-size: 25px; }
   #calcCard.calc-full .calc-display[data-size="xs"]{ font-size: 21px; }
-  #calcCard.calc-full .calc-grid{ flex: none; height: min(52vh, 460px); grid-auto-rows: 1fr; gap: 10px; }
+  #calcCard.calc-full .calc-grid{ height: 100%; min-height: 0; grid-auto-rows: 1fr; gap: 10px; }
   #calcCard.calc-full .calc-btn{ aspect-ratio:auto; min-height: 0; font-size: clamp(24px, 4.6vh, 40px); }
   .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); aspect-ratio: 1.02; padding: 0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 32px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
   .calc-btn:active{ transform: scale(0.94); }
@@ -2541,6 +2547,13 @@
   // the width in a few lines instead of a tall stack of big numbers.
   function sizeCalcDisplay(){
     const disp = $('#calcDisplay');
+    // Wrap the sum so it can sit at the bottom of the fixed-height display box.
+    if(!(disp.childNodes.length === 1 && disp.firstChild.className === 'calc-expr')){
+      const wrap = document.createElement('div');
+      wrap.className = 'calc-expr';
+      while(disp.firstChild) wrap.appendChild(disp.firstChild);
+      disp.appendChild(wrap);
+    }
     const len = disp.textContent.replace(/\s+/g, '').length;
     disp.dataset.size = len <= 10 ? 'xl' : len <= 18 ? 'l' : len <= 30 ? 'm' : len <= 48 ? 's' : 'xs';
   }
