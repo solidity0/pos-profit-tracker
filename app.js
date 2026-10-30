@@ -1102,10 +1102,10 @@
   $('#autosaveFlat').addEventListener('change', async ()=>{ settings.autosaveFlat = numVal('#autosaveFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampOnWithdrawal').addEventListener('change', async ()=>{ settings.stampOnWithdrawal = $('#stampOnWithdrawal').checked; await saveSettings(); refreshAuto(); render(); });
 
-  // An entry can be deleted (or cleared) only on the day it was logged, and within 2 hours of
-  // logging for staff (their own entries) or 3 hours for the owner. The Firebase rules enforce
-  // it too, by the server's clock and Nigerian time (UTC+1).
-  const DELETE_WINDOW_MINUTES = { owner: 180, staff: 120 };
+  // Staff can delete (or clear) their own entries only on the day they were logged and within
+  // 2 hours; the owner any entry within 24 hours of logging. The Firebase rules enforce it too,
+  // by the server's clock (and Nigerian time, UTC+1, for the day).
+  const DELETE_WINDOW_MINUTES = { owner: 24 * 60, staff: 120 };
   const watDay = ms => Math.floor((ms + 3600000) / 86400000);
   function canDeleteTx(t){
     if(!t || t.deleted || !currentUser) return false;
@@ -1115,8 +1115,8 @@
     // When it was logged, and (once saved) when the server got it: both must be recent.
     const times = [Date.parse(t.date)];
     if(t.createdAtMs) times.push(t.createdAtMs);
-    return times.every(ms => !isNaN(ms) && new Date(ms).toDateString() === today && watDay(ms) === watDay(now)
-      && (now - ms) / 60000 < limit);
+    const sameDay = ms => role === 'owner' || (new Date(ms).toDateString() === today && watDay(ms) === watDay(now));
+    return times.every(ms => !isNaN(ms) && sameDay(ms) && (now - ms) / 60000 < limit);
   }
   // Signing in as the owner replaces the old shared settings password, so "unlocked" now
   // just means "signed in as the owner".
@@ -1956,7 +1956,7 @@
 
   $('#clearLogBtn').addEventListener('click', ()=>{
     const visible = getTodayLogEntries();
-    if(visible.length === 0){ setStatus("Nothing to clear (only today's entries within " + (role === 'owner' ? '3 hours' : '2 hours') + ' of logging can be cleared)'); return; }
+    if(visible.length === 0){ setStatus("Nothing to clear (only today's entries within " + (role === 'owner' ? '24 hours' : '2 hours') + ' of logging can be cleared)'); return; }
     armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, ()=>{
       const ids = getTodayLogEntries().map(t=>t.id); // checked again: some may have locked meanwhile
       if(ids.length) cloudSoftDelete(ids);
@@ -1969,7 +1969,7 @@
     cloudSoftDelete([id]);
   }
   function deleteLockedMsg(){
-    return `Locked: entries can only be deleted on the day they're logged, within ${role === 'owner' ? '3 hours' : '2 hours'}.`;
+    return role === 'owner' ? 'Locked: entries can only be deleted within 24 hours of logging.' : "Locked: entries can only be deleted on the day they're logged, within 2 hours.";
   }
   // Deleting takes two taps, for owners and staff alike: the first turns the link into
   // "tap again to delete" for 3 seconds, the second deletes. Remembered by entry (not by

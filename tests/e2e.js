@@ -568,20 +568,23 @@ function sideAware(p){
     check('an entry deleted an hour ago is still shown to the owner', await until(async()=> /6,111/.test(await op.textContent('#logList'))));
     check('an entry deleted three hours ago is gone from the log', !/6,333/.test(await op.textContent('#logList')));
   }
-  // Deleting (and Clear) only works on the day an entry was logged: staff within 2 hours, the owner within 3.
+  // Staff can delete (and Clear) only on the day an entry was logged, within 2 hours; the owner within 24 hours.
   {
     const minsToday = ms => { const d = new Date(ms); return d.getHours()*60 + d.getMinutes(); };
     const watMins = Math.floor(((Date.now() + 3600e3) % 86400e3) / 60e3);
     if(Math.min(minsToday(Date.now()), watMins) > 200){
       const ago = m => new Date(Date.now() - m*60e3).toISOString();
       const oldTx = (id, amount, m) => admin(`businesses/0xxeZTLlaAeTzTgpezc58hwDxXp2/transactions/${id}`, { id:{stringValue:id}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:false }, date:{ stringValue: ago(m) }, createdAt:{ timestampValue: ago(m) }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:String(amount)}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'20'}, netProfit:{integerValue:'80'} });
-      await oldTx('old-130m', 7130, 130); await oldTx('old-190m', 7190, 190);
+      await oldTx('old-130m', 7130, 130); await oldTx('old-190m', 7190, 190); await oldTx('old-25h', 7250, 25*60);
       const rowCtl = async (pg, amt) => pg.$$eval('#logList .log-item', (els, amt) => { const e = els.find(x => x.textContent.includes(amt)); return !e ? 'missing' : e.querySelector('.del') ? 'delete' : 'none'; }, amt);
       const spLogWasOpen = await sp.isVisible('#logContent'); if(!spLogWasOpen) await sp.click('#logToggle');
       check('staff: their own entry logged 2h10m ago has no delete link any more', await until(async()=> await rowCtl(sp, '7,130') === 'none'), await rowCtl(sp, '7,130'));
       if(!spLogWasOpen) await sp.click('#logToggle');
-      check('owner: the same entry can still be deleted (under 3 hours)', await until(async()=> await rowCtl(op, '7,130') === 'delete'), await rowCtl(op, '7,130'));
-      check('owner: an entry logged 3h10m ago has no delete link', await rowCtl(op, '7,190') === 'none', await rowCtl(op, '7,190'));
+      check('owner: the same entry can still be deleted (under 24 hours)', await until(async()=> await rowCtl(op, '7,130') === 'delete'), await rowCtl(op, '7,130'));
+      check('owner: an entry logged 3h10m ago can still be deleted', await rowCtl(op, '7,190') === 'delete', await rowCtl(op, '7,190'));
+      await op.click('#periodTabs button[data-val="all"]');
+      check('owner: an entry logged 25 hours ago has no delete link', await until(async()=> await rowCtl(op, '7,250') === 'none'), await rowCtl(op, '7,250'));
+      await op.click('#periodTabs button[data-val="today"]'); await wait(300);
       await op.click('#clearLogBtn');
       const canDel = await op.$$eval('#logList .del', els => els.length);
       const clearLabel = await op.textContent('#clearLogBtn');
