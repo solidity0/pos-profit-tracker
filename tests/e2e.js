@@ -90,8 +90,11 @@ function sideAware(p){
   check('...tapping the Ledger logo opens the side menu with Tips and Settings', await until(async()=> await op.isVisible('#sideDrawer') && await op.isVisible('#safetyToggle') && await op.isVisible('#settingsToggle')));
   const drawerBox = () => op.evaluate(()=>{ const r = document.getElementById('sideDrawer').getBoundingClientRect(); return { left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), vw: innerWidth, vh: innerHeight }; });
   check('...and on a phone it fills the screen', await until(async()=>{ const d = await drawerBox(); return d.left === 0 && d.width === d.vw && d.height >= d.vh; }), JSON.stringify(await drawerBox()));
+  const pageBehindHidden = () => op.evaluate(()=> ['.top', '.dashboard-row', '.legal-footer'].every(c => getComputedStyle(document.querySelector('#appWrap > ' + c)).visibility === 'hidden'));
+  check('...with the page behind it hidden once it has slid in (nothing shows through after an iPhone back swipe)', await until(pageBehindHidden));
   await op.goBack();
   check("...so does the phone's back button", await until(async()=> !(await op.isVisible('#sideDrawer')) && await op.isVisible('#appWrap')));
+  check('...and the page is back straight away', !(await op.evaluate(()=> ['.top', '.dashboard-row', '.legal-footer'].some(c => getComputedStyle(document.querySelector('#appWrap > ' + c)).visibility === 'hidden'))));
   await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#sideDrawer')); await op.click('#sideCloseBtn');
   check('...and the × button', await until(async()=> !(await op.isVisible('#sideDrawer'))));
   // team names + import
@@ -543,6 +546,7 @@ function sideAware(p){
     check("salesperson's PDF covers only their own entries", /by Test Staff/.test(raw) && !/Uweribe/.test(raw));
   }
   check('salesperson sees Share PDF and Excel, but not Download PDF', await sp.isVisible('#sharePdfBtn') && await sp.isVisible('#csvBtn') && !(await sp.isVisible('#downloadPdfBtn')));
+  if(await op.isVisible('#sideDrawer')){ await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer'))); }
   check('owner sees Download PDF', await op.isVisible('#downloadPdfBtn'));
   {
     const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#csvBtn') ]);

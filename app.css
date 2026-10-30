@@ -619,6 +619,10 @@
   @media (max-width: 1023px){
     .side-drawer{ width: 100vw; left: calc(-100vw - 24px); border-right: none; box-shadow: none; }
     .side-backdrop{ display: none; }
+    /* Nothing of the page shows behind it (an iPhone back swipe can redraw the strip under
+       Safari's toolbar from the page): hidden once the menu has slid in, back at once on close. */
+    #appWrap > .top, #appWrap > .dashboard-row, #appWrap > .legal-footer{ transition: visibility 0s; }
+    html.side-open #appWrap > .top, html.side-open #appWrap > .dashboard-row, html.side-open #appWrap > .legal-footer{ visibility: hidden; transition: visibility 0s .25s; }
   }
   /* Inside the menu the open cards just grow; the menu itself scrolls. */
   .side-drawer #settingsCard.settings-open-inline:not(.settings-full){ height: auto; }
