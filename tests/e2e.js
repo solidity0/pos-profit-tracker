@@ -567,8 +567,10 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('...and each business shows its account type (MASTER ADMIN / BUSINESS OWNER), with no "(you)"', /MASTER ADMIN/.test(await op.textContent('#adminList')) && /BUSINESS OWNER/.test(await op.textContent('#adminList .admin-biz.pending')) && !/\(you\)/.test(await op.textContent('#adminList')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,220));
   check('...with Approve and Decline, not Suspend', await op.isVisible('#adminList .admin-biz.pending .admin-approve') && await op.isVisible('#adminList .admin-biz.pending .admin-decline') && !(await op.$('#adminList .admin-biz.pending .admin-suspend')));
   await op.click('#adminList .admin-biz.pending .admin-decline');
-  check('...Decline asks to confirm first', /Tap again to decline/.test(await op.textContent('#adminList .admin-biz.pending .admin-decline')));
-  await wait(400); await op.click('#adminList .admin-biz.pending .admin-decline');
+  check('...Decline asks to confirm first, saying what will happen', await until(async()=> /Decline the sign-up for Ada Stores \(Ada\)\?[\s\S]*Approve after all/.test(await op.textContent('#adminList .admin-biz.pending .admin-confirm'))));
+  await op.click('#adminList .admin-biz.pending .admin-confirm-no');
+  check('...Cancel leaves it waiting', await until(async()=> !(await op.$('#adminList .admin-confirm'))) && /waiting for approval/.test(await ap.textContent('#authBlocked')));
+  await op.click('#adminList .admin-biz.pending .admin-decline'); await op.click('#adminList .admin-biz.pending .admin-confirm-yes');
   check('a declined owner is told their account wasn\'t approved', await until(async()=> /wasn't approved/.test(await ap.textContent('#authBlocked')), 20000) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authBlocked'));
   check('...and the admin list shows Declined, with "Approve after all"', await until(async()=> /Ada Stores[\s\S]*Status\s*Declined/.test(await op.textContent('#adminList')) && await op.isVisible('#adminList .admin-approve')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
   await op.click('#adminList .admin-approve');

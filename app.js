@@ -3892,11 +3892,8 @@
             .finally(()=>{ btn.disabled = false; });
         });
       });
-      list.querySelectorAll('.admin-decline').forEach(btn=>{
-        btn.addEventListener('click', ()=> armTapTwice(btn, 'Decline', 'Tap again to decline', ()=>
-          run('decline', ()=> fb.updateDoc(bizRef(btn.dataset.id), { declined: true, declinedAt: fb.serverTimestamp() }))));
-      });
-      // Removing access and suspending ask for confirmation in a box on the card, saying
+
+      // Declining, removing access and suspending ask for confirmation in a box on the card, saying
       // exactly what will happen; nothing changes until "Yes" is tapped.
       const askConfirm = (btn, message, yesLabel, onYes) => {
         const card = btn.closest('.admin-biz');
@@ -3913,6 +3910,13 @@
         box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       };
       const bizLabel = r => `<strong>${escapeHtml(r.name || 'this business')}</strong>${r.ownerName ? ` (${escapeHtml(r.ownerName)})` : ''}`;
+      list.querySelectorAll('.admin-decline').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const r = byId(btn.dataset.id);
+          askConfirm(btn, `Decline the sign-up for ${bizLabel(r)}? The owner is told their account wasn't approved and can't use Ledger. You can still approve them later with "Approve after all".`,
+            'Yes, decline', ()=> run('decline', ()=> fb.updateDoc(bizRef(r.id), { declined: true, declinedAt: fb.serverTimestamp() })));
+        });
+      });
       list.querySelectorAll('.admin-remove').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const r = byId(btn.dataset.id);
