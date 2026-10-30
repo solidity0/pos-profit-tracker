@@ -120,7 +120,14 @@ function sideAware(p){
   check('staff signs in', await until(()=> sp.isVisible('#appWrap')));
   check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · STAFF'), await sp.textContent('#whoLabel'));
   check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
-  check('staff sees Performance Overview (with money in/out under Filter) and Tips on the page, no side menu, not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && await sp.isVisible('#safetyCard') && !(await sp.$('#sideCards #safetyCard')) && !(await sp.evaluate(()=> document.body.classList.contains('has-side-menu'))) && !(await sp.isVisible('#settingsCard')));
+  check('staff sees Performance Overview (with money in/out under Filter); Tips are in the side menu, not on the page; no Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && !(await sp.isVisible('#safetyCard')) && !!(await sp.$('#sideCards #safetyCard')) && !(await sp.$('#sideCards #settingsCard')) && await sp.evaluate(()=> document.body.classList.contains('has-side-menu')) && !(await sp.isVisible('#settingsCard')));
+  await sp.click('#sideMenuBtn');
+  check("...tapping the logo opens the staff's menu, titled Tips, with just Educational & Safety Tips", await until(()=> sp.isVisible('#safetyToggle')) && (await sp.textContent('#sideDrawer .side-title')) === 'Tips' && !(await sp.isVisible('#settingsToggle')));
+  await sp.click('#safetyToggle');
+  check('...which open full screen', await until(()=> sp.evaluate(()=> document.getElementById('safetyCard').classList.contains('tips-full'))));
+  await sp.click('#tipsBackBtn');
+  check('...and Back returns to the menu', await until(async()=> !(await sp.evaluate(()=> document.getElementById('safetyCard').classList.contains('tips-full')))) && await sp.isVisible('#sideDrawer'));
+  await sp.click('#sideCloseBtn'); await until(async()=> !(await sp.isVisible('#sideDrawer')));
   await logTx(sp, 'Withdrawal', '20000', '300');
   await logTx(sp, 'Transfer', '15000', '250');
   check('staff sees its 2 entries', await until(async()=> (await logCount(sp)) === 2), String(await logCount(sp)));

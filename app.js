@@ -1178,10 +1178,9 @@
     if(e.key === 'Escape' && $('#settingsCard').classList.contains('settings-full')){ e.preventDefault(); leaveSettingsFull(); }
   });
 
-  // ---------- Side menu (owners) ----------
+  // ---------- Side menu ----------
   // Tapping the Ledger logo (or, on a computer, pointing at it) slides out a menu holding
-  // Educational & Safety Tips and Settings & rate table. Owners only: staff keep the Tips
-  // card on the page and the logo does nothing for them. Closed with ×, the dimmed page,
+  // Educational & Safety Tips, and for the owner Settings & rate table too. Closed with ×, the dimmed page,
   // Esc or the phone's back button; on a computer also by moving the pointer away (unless
   // something in it is being typed into).
   const sideDrawer = $('#sideDrawer');
@@ -1194,15 +1193,21 @@
   $('#sideDrawer .side-logo').innerHTML = $('#sideMenuBtn .brand-mark').innerHTML;
   const sideMenuOn = () => document.body.classList.contains('has-side-menu');
   const sideOpen = () => sideDrawer.classList.contains('open');
+  // Everyone signed in gets the menu: Tips for the whole team, Settings for the owner only.
   function placeSideCards(){
-    const owner = role === 'owner';
-    document.body.classList.toggle('has-side-menu', owner);
-    ['safetyCard', 'settingsCard'].forEach(id=>{
+    const on = !!role, owner = role === 'owner';
+    document.body.classList.toggle('has-side-menu', on);
+    [['safetyCard', on], ['settingsCard', owner]].forEach(([id, inMenu])=>{
       const el = document.getElementById(id);
-      if(owner) $('#sideCards').appendChild(el);
+      if(inMenu) $('#sideCards').appendChild(el);
       else if(el.parentNode !== sideHomes[id].parentNode) sideHomes[id].parentNode.insertBefore(el, sideHomes[id].nextSibling);
     });
-    if(!owner) closeSide(true);
+    const title = owner ? 'Tips & Settings' : 'Tips';
+    $('#sideDrawer .side-title').textContent = title;
+    $('#sideDrawer').setAttribute('aria-label', title);
+    $('#sideMenuBtn').title = title;
+    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Tips & Settings: Educational & Safety Tips, Settings & rate table' : 'Tips: Educational & Safety Tips');
+    if(!on) closeSide(true);
   }
   // The phone's back button closes it: a history step is added when it's opened by a tap or
   // click (browsers ignore steps added without one, e.g. on pointing).
