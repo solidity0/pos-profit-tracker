@@ -1115,8 +1115,7 @@
     checkImportUploaded(); checkLegacyLedger();
     $('#settingsToggle').classList.add('open');
     $('#settingsContent').scrollTop = 0;
-    if(desktopQuery.matches) $('#settingsCard').classList.add('settings-open-inline');
-    else openSettingsFull();
+    openSettingsFull(); // full screen on phones and computers alike
   }
   function openSettingsFull(){
     const card = $('#settingsCard');
@@ -1236,15 +1235,16 @@
     sideLeaveTimer = setTimeout(()=>{
       if(!sideOpen() || sideOpenedAt !== openedAt) return;
       const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-      const fullScreen = $('#settingsCard').classList.contains('settings-full');
+      const fullScreen = $('#settingsCard').classList.contains('settings-full') || $('#safetyCard').classList.contains('tips-full');
       if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
     }, 450);
   });
   document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape' && sideOpen() && !$('#settingsCard').classList.contains('settings-full') && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
+    if(e.defaultPrevented) return; // Esc already closed a full-screen Settings / Tips / Calculator
+    if(e.key === 'Escape' && sideOpen() && !$('#settingsCard').classList.contains('settings-full') && !$('#safetyCard').classList.contains('tips-full') && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
   });
   window.addEventListener('popstate', ()=>{
-    if(sideOpen() && !(history.state && history.state.ledgerSide) && !$('#settingsCard').classList.contains('settings-full')) closeSide(true);
+    if(sideOpen() && !(history.state && history.state.ledgerSide) && !$('#settingsCard').classList.contains('settings-full') && !$('#safetyCard').classList.contains('tips-full')) closeSide(true);
   });
 
   function openLogDropdown(){
@@ -1262,7 +1262,8 @@
       const btn = sec.querySelector('.perf-section-toggle');
       const body = sec.querySelector('.perf-section-body');
       const set = (isOpen)=>{ body.hidden = !isOpen; sec.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', String(isOpen)); };
-      set(!!open[sec.id]);
+      // Summary starts open the first time; after that, whatever was last chosen.
+      set(sec.id in open ? !!open[sec.id] : sec.id === 'perfTotals');
       btn.addEventListener('click', ()=>{
         const isOpen = body.hidden;
         set(isOpen);
@@ -1289,13 +1290,29 @@
     if(!isOpen && logNeedsRender) renderLog();
   });
 
-  $('#safetyToggle').addEventListener('click', ()=>{
-    const content = $('#safetyContent');
-    const caret = $('#safetyCaret');
-    const isOpen = content.style.display === 'block';
-    content.style.display = isOpen ? 'none' : 'block';
-    caret.classList.toggle('open', !isOpen);
-  });
+  // Educational & Safety Tips open full screen (like Settings), with a Back button; the
+  // phone's back button and Esc close them too.
+  function openTipsFull(){
+    const card = $('#safetyCard');
+    if(card.classList.contains('tips-full')) return;
+    $('#safetyContent').style.display = 'block';
+    $('#safetyCaret').classList.add('open');
+    card.classList.add('tips-full');
+    $('#safetyContent').scrollTop = 0;
+    try{ history.pushState({ ledgerTips: true }, ''); }catch(e){}
+  }
+  function closeTipsFull(fromHistory){
+    const card = $('#safetyCard');
+    if(!card.classList.contains('tips-full')) return;
+    card.classList.remove('tips-full');
+    $('#safetyContent').style.display = 'none';
+    $('#safetyCaret').classList.remove('open');
+    if(fromHistory !== true && history.state && history.state.ledgerTips){ try{ history.back(); }catch(e){} }
+  }
+  $('#safetyToggle').addEventListener('click', openTipsFull);
+  $('#tipsBackBtn').addEventListener('click', ()=> closeTipsFull());
+  window.addEventListener('popstate', ()=>{ if($('#safetyCard').classList.contains('tips-full') && !(history.state && history.state.ledgerTips)) closeTipsFull(true); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && $('#safetyCard').classList.contains('tips-full')){ e.preventDefault(); closeTipsFull(); } });
 
 
   // The calculator opens full screen (like Settings) with a Back button; the phone's own back
@@ -2991,8 +3008,56 @@
   }
 
   function stopListeners(){
-    [txUnsub, settingsUnsub, teamUnsub].forEach(u => { if(u) u(); });
-    txUnsub = settingsUnsub = teamUnsub = null;
+    [txUnsub, settingsUnsub, teamUnsub, presenceUnsub].forEach(u => { if(u) u(); });
+    txUnsub = settingsUnsub = teamUnsub = presenceUnsub = null;
+    stopPresence();
+  }
+
+  // ---------- Who has the app open ----------
+  // While the app is open (and on screen) each member's phone notes "I'm here" every couple
+  // of minutes in businesses/{id}/presence/{uid}, and "away" when it's put aside or signs out.
+  // The owner's logged-by filter shows anyone seen in the last few minutes as a "breathing"
+  // name. Phones that just lose signal simply stop being seen and fade out after that time.
+  const PRESENCE_EVERY_MS = 2 * 60 * 1000;
+  const PRESENCE_FRESH_MS = 5 * 60 * 1000;
+  let presenceUnsub = null, presenceTimer = null, presenceTick = null, presenceMine = null;
+  let presence = {}; // uid -> { online, lastSeenMs }
+  function writePresence(online){
+    if(!fb || !bizId || !currentUser || !role) return;
+    presenceMine = { b: bizId, uid: currentUser.uid };
+    fb.setDoc(bdoc('presence', currentUser.uid), { lastSeen: fb.serverTimestamp(), online }).catch(()=>{});
+  }
+  function startPresence(){
+    stopPresence();
+    if(presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
+    writePresence(document.visibilityState !== 'hidden');
+    presenceTimer = setInterval(()=>{ if(document.visibilityState !== 'hidden') writePresence(true); }, PRESENCE_EVERY_MS);
+    if(role === 'owner'){
+      presenceUnsub = fb.onSnapshot(bcol('presence'), (snap)=>{
+        presence = {};
+        snap.forEach(d=>{
+          const data = d.data({ serverTimestamps: 'estimate' }) || {};
+          presence[d.id] = { online: data.online === true, lastSeenMs: data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : 0 };
+        });
+        renderLoggedByFilter();
+      }, ()=>{});
+      // Names fade out once they haven't been seen for a while, even with nothing new arriving.
+      presenceTick = setInterval(()=> renderLoggedByFilter(), 30 * 1000);
+    }
+  }
+  function stopPresence(){
+    clearInterval(presenceTimer); clearInterval(presenceTick);
+    presenceTimer = presenceTick = null;
+    presence = {};
+  }
+  const isLive = uid => !!(presence[uid] && presence[uid].online && Date.now() - presence[uid].lastSeenMs < PRESENCE_FRESH_MS);
+  document.addEventListener('visibilitychange', ()=>{ if(presenceTimer) writePresence(document.visibilityState !== 'hidden'); });
+  window.addEventListener('pagehide', ()=>{ if(presenceTimer) writePresence(false); });
+  // Before signing out, note "away" (best effort: the next write may be refused once signed out).
+  function signOutNow(){
+    if(presenceTimer) writePresence(false);
+    stopPresence();
+    return fb.signOut(fb.auth);
   }
 
   function cloudAddTx(tx){
@@ -3269,7 +3334,12 @@
     if(role !== 'owner' || staff.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([bizId].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
-    el.innerHTML = opts.map(([val, label]) => `<button data-val="${val}" class="${state.loggedByFilter === val ? 'active' : ''}">${escapeHtml(label)}</button>`).join('');
+    // Anyone with the app open right now is shown "breathing" (see isLive).
+    el.innerHTML = opts.map(([val, label]) => {
+      const live = val !== 'All' && isLive(val);
+      const cls = [state.loggedByFilter === val ? 'active' : '', live ? 'live' : ''].filter(Boolean).join(' ');
+      return `<button data-val="${val}" class="${cls}"${live ? ' title="Has the app open now"' : ''}>${escapeHtml(label)}</button>`;
+    }).join('');
     el.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         state.loggedByFilter = btn.dataset.val;
@@ -3678,6 +3748,7 @@
     loadBusinessSettings().then(startSettingsListener);
     startTeamListener();
     startTxListener();
+    startPresence();
     render();
     openDesktopCardsOnce();
   }
@@ -4218,7 +4289,7 @@
       setStatus(`${pendingUploads} transaction${pendingUploads === 1 ? '' : 's'} not uploaded yet — connect to the internet before signing out.`, 'error');
       return;
     }
-    armTapTwice($('#signOutBtn'), 'Sign out', 'Confirm', ()=> fb.signOut(fb.auth));
+    armTapTwice($('#signOutBtn'), 'Sign out', 'Confirm', ()=> signOutNow());
   });
   $('#authBlockedSignOut').addEventListener('click', ()=>{ if(fb) fb.signOut(fb.auth); });
 

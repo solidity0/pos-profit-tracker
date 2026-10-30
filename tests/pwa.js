@@ -20,7 +20,7 @@ function sideAware(p){
         let el = null; try{ el = document.querySelector(s); }catch(e){}
         const d = document.getElementById('sideDrawer');
         return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
-          full: !!document.querySelector('#settingsCard.settings-full') };
+          full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
       }, sel).catch(()=> null);
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
       if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
