@@ -130,6 +130,17 @@ service cloud.firestore {
 
       // Team list (who has access, and their names): the team reads, only the owner changes.
       // The admin can read it to see who runs each business.
+      // Who has the app open right now (shown as a "breathing" name in the owner's filter).
+      // Each member writes only their own row, stamped with the server's time; the team reads.
+      match /presence/{uid} {
+        allow read: if isMemberOf(b);
+        allow create, update: if signedIn() && request.auth.uid == uid && isMemberOf(b)
+          && request.resource.data.keys().hasOnly(['lastSeen', 'online'])
+          && request.resource.data.lastSeen == request.time
+          && request.resource.data.online is bool;
+        allow delete: if false;
+      }
+
       // The owner's own row carries their name, which must match the business's ownerName (so
       // renaming themselves goes through the 30-day limit there).
       match /staff/{uid} {

@@ -174,6 +174,17 @@ await backdate('blocked/e:c@mt.test', { until: daysAgo(1) });
 await expect('C signs up once the 3 months are over', true, ()=>setDoc(biz('C', C), { name:'C Shop', ownerUid:C, ownerName:'Cee', approved:false, ownerPhone:'08077777777', ...T() }));
 await expect('C changes its phone to one blocked for good', false, ()=>updateDoc(biz('C', C), { ownerPhone:'08099999999', phoneChangedAt: serverTimestamp() }));
 
+console.log('--- who has the app open (presence)');
+await expect('B marks itself online', true, ()=>setDoc(biz('B', B,'presence',B), { lastSeen: serverTimestamp(), online:true }));
+await expect('B reads who is online', true, ()=>getDocs(collection(db.B,'businesses',B,'presence')));
+await expect('B marks someone else online', false, ()=>setDoc(biz('B', B,'presence',SB), { lastSeen: serverTimestamp(), online:true }));
+await expect('B fakes its last-seen time', false, ()=>setDoc(biz('B', B,'presence',B), { lastSeen: Timestamp.fromDate(new Date(Date.now() + 86400e3)), online:true }));
+await expect('B adds extra fields to its presence', false, ()=>setDoc(biz('B', B,'presence',B), { lastSeen: serverTimestamp(), online:true, note:'x' }));
+await expect('B deletes its presence', false, ()=>deleteDoc(biz('B', B,'presence',B)));
+await expect('SB (removed from B) marks itself online in B', false, ()=>setDoc(biz('SB', B,'presence',SB), { lastSeen: serverTimestamp(), online:true }));
+await expect('X reads who is online in B', false, ()=>getDocs(collection(db.X,'businesses',B,'presence')));
+await expect('X marks itself online in B', false, ()=>setDoc(biz('X', B,'presence',X), { lastSeen: serverTimestamp(), online:true }));
+
 console.log('--- usernames');
 {
   const { initializeApp: ia } = await import('firebase/app');

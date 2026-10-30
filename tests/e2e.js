@@ -42,7 +42,7 @@ function sideAware(p){
         let el = null; try{ el = document.querySelector(s); }catch(e){}
         const d = document.getElementById('sideDrawer');
         return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
-          full: !!document.querySelector('#settingsCard.settings-full') };
+          full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
       }, sel).catch(()=> null);
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
       if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
@@ -167,6 +167,11 @@ function sideAware(p){
   await op.click('#loggedByFilter button:has-text("Uweribe")');
   check('Logged-by filter: owner = 3 imported', await until(async()=> (await op.textContent('#txCount')).startsWith('3 transactions')), await op.textContent('#txCount'));
   await op.click('#loggedByFilter button:has-text("Everyone")');
+  // Who has the app open right now "breathes" in the owner's filter.
+  const liveNames = () => op.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()));
+  check('names of people with the app open are "breathing" (owner and Test Staff; not Everyone)', await until(async()=> { const n = await liveNames(); return n.includes('Test Staff') && n.includes('Uweribe') && !n.includes('Everyone'); }, 15000), JSON.stringify(await liveNames()));
+  await fetch(`http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/businesses/${emu.TEST_ACCOUNTS[0].uid}/presence/${emu.TEST_ACCOUNTS[1].uid}?updateMask.fieldPaths=online`, { method:'PATCH', headers:{ Authorization:'Bearer owner', 'Content-Type':'application/json' }, body: JSON.stringify({ fields:{ online:{ booleanValue:false } } }) });
+  check('...and stop when they put the app aside', await until(async()=> !(await liveNames()).includes('Test Staff'), 15000), JSON.stringify(await liveNames()));
 
   // ---------- staff view of the whole shop ----------
   await sp.click('#summaryToggle');
@@ -424,22 +429,28 @@ function sideAware(p){
     await pc.mouse.move(1200, 600);
     check('...and moving the pointer away closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
     check('...with only the four working cards on the page', await pc.evaluate(()=> [...document.querySelector('.dashboard-row').children].filter(e => e.offsetParent).length) === 4);
-    // Settings on a computer open inside the menu, with a full-screen button.
+    // Settings on a computer open full screen straight away (no separate full-screen button).
+    const settingsFull = () => pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'));
     await pc.click('#settingsToggle');
-    const sh = await pc.evaluate(()=>{ const s = document.getElementById('settingsCard'), e = document.getElementById('entryCard'); return { full: s.classList.contains('settings-full'), s: s.offsetHeight, e: e.offsetHeight }; });
-    check('on a computer settings open as a dropdown in the menu', !sh.full && await pc.isVisible('#settingsContent') && await pc.isVisible('#settingsExpandBtn'), JSON.stringify(sh));
+    check('on a computer settings open full screen, with Back and no full-screen button', await until(settingsFull) && await pc.isVisible('#settingsBackBtn') && !(await pc.isVisible('#settingsExpandBtn')));
     await pc.click('#setCatRates .perf-section-toggle');
     check('a Settings category closes from its heading', await until(async()=> !(await pc.isVisible('#billFee'))));
     await pc.click('#setCatRates .perf-section-toggle');
     check('...and opens again', await until(()=> pc.isVisible('#billFee')));
-    await pc.click('#settingsExpandBtn');
-    check('...the full-screen button opens them full screen', await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full')) && await pc.isVisible('#settingsBackBtn'));
     await pc.keyboard.press('Escape');
-    check('...and Esc goes back to the dropdown', await until(async()=> !(await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'))) && await pc.isVisible('#settingsContent')));
-    await pc.click('#settingsExpandBtn'); await pc.click('#settingsBackBtn');
-    check('...so does Back', await until(async()=> !(await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'))) && await pc.isVisible('#settingsContent')));
-    await pc.click('#settingsToggle');
-    check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#settingsContent'))));
+    check('...Esc closes settings and leaves the menu open', await until(async()=> !(await settingsFull()) && !(await pc.isVisible('#settingsContent'))) && await pc.isVisible('#sideDrawer'));
+    await pc.click('#settingsToggle'); await until(settingsFull); await pc.click('#settingsBackBtn');
+    check('...so does Back', await until(async()=> !(await settingsFull())) && await pc.isVisible('#sideDrawer'));
+    // Educational & Safety Tips open full screen too.
+    const tipsFull = () => pc.evaluate(()=> document.getElementById('safetyCard').classList.contains('tips-full'));
+    await pc.click('#safetyToggle');
+    check('Educational & Safety Tips open full screen with a Back button', await until(tipsFull) && await pc.isVisible('#tipsBackBtn') && await pc.isVisible('#safetyTipsList'));
+    await pc.keyboard.press('Escape');
+    check('...Esc closes them and leaves the menu open', await until(async()=> !(await tipsFull())) && await pc.isVisible('#sideDrawer'));
+    await pc.click('#safetyToggle'); await until(tipsFull); await pc.click('#tipsBackBtn');
+    check('...so does Back', await until(async()=> !(await tipsFull())));
+    await pc.click('#sideCloseBtn');
+    check('Performance Overview\'s Summary starts open', await pc.isVisible('#netProfit'));
     // Performance Overview: never taller than Log a Transaction once open.
     const colH = () => pc.evaluate(()=> [document.getElementById('perfCard').parentElement.offsetHeight, document.getElementById('entryCard').offsetHeight]);
     for(const id of ['perfFilters','perfTotals','perfReports']) if(!(await pc.$eval('#'+id, e=>e.classList.contains('open')))) await pc.click('#'+id+' .perf-section-toggle');
@@ -486,13 +497,14 @@ function sideAware(p){
     await signIn(pp, 'owner@test.com', 'secret123');
     await until(()=> pp.isVisible('#appWrap'), 20000);
     await pp.click('#summaryToggle');
-    check('Filter, Summary and Reports start closed', !(await pp.isVisible('#periodTabs')) && !(await pp.isVisible('#netProfit')) && !(await pp.isVisible('#csvBtn')) && await pp.isVisible('#perfTotals .perf-section-toggle'));
+    check('Summary starts open; Filter and Reports start closed', await pp.isVisible('#netProfit') && !(await pp.isVisible('#periodTabs')) && !(await pp.isVisible('#csvBtn')));
     await pp.click('#perfTotals .perf-section-toggle');
-    check('tapping Summary opens just Summary', await pp.isVisible('#netProfit') && !(await pp.isVisible('#periodTabs')));
+    check('tapping Summary closes it', !(await pp.isVisible('#netProfit')));
+    await pp.click('#perfReports .perf-section-toggle');
     await pp.reload(); await until(()=> pp.isVisible('#appWrap'), 20000); await pp.click('#summaryToggle');
-    check('the phone remembers which panels were open', await until(()=> pp.isVisible('#netProfit')) && !(await pp.isVisible('#csvBtn')));
+    check('the phone remembers which panels were open (Summary closed, Reports open)', await until(()=> pp.isVisible('#csvBtn')) && !(await pp.isVisible('#netProfit')));
     await pp.click('#perfTotals .perf-section-toggle');
-    check('tapping it again closes it', !(await pp.isVisible('#netProfit')));
+    check('tapping Summary again opens it', await until(()=> pp.isVisible('#netProfit')));
     await P.c.close();
   }
 
