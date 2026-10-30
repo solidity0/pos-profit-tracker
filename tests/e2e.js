@@ -452,6 +452,15 @@ function sideAware(p){
     check('...Esc closes them and leaves the menu open', await until(async()=> !(await tipsFull())) && await pc.isVisible('#sideDrawer'));
     await pc.click('#safetyToggle'); await until(tipsFull); await pc.click('#tipsBackBtn');
     check('...so does Back', await until(async()=> !(await tipsFull())));
+    // Opened by pointing (no history step of its own), Back from Tips / Settings still returns to the menu.
+    await pc.keyboard.press('Escape'); await until(async()=> !(await pc.isVisible('#sideDrawer')));
+    await pc.waitForTimeout(900); await pc.hover('#sideMenuBtn'); await until(()=> pc.isVisible('#safetyToggle'));
+    await pc.click('#safetyToggle'); await until(tipsFull); await pc.click('#tipsBackBtn');
+    await until(async()=> !(await tipsFull())); await pc.waitForTimeout(600);
+    check('opened by pointing, Back from Tips returns to the menu (not the home page)', await pc.isVisible('#sideDrawer') && await pc.isVisible('#safetyToggle'));
+    await pc.click('#settingsToggle'); await until(settingsFull); await pc.click('#settingsBackBtn');
+    await until(async()=> !(await settingsFull())); await pc.waitForTimeout(600);
+    check('...and so does Back from Settings', await pc.isVisible('#sideDrawer') && await pc.isVisible('#settingsToggle'));
     check('on a computer the menu has no × button', !(await pc.isVisible('#sideCloseBtn')));
     await pc.keyboard.press('Escape');
     check('...Esc closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));

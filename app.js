@@ -1121,6 +1121,7 @@
     const card = $('#settingsCard');
     if(card.classList.contains('settings-full')) return;
     card.classList.add('settings-full');
+    if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
     try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
   }
   function closeSettingsFull(fromHistory){
@@ -1299,6 +1300,7 @@
     $('#safetyCaret').classList.add('open');
     card.classList.add('tips-full');
     $('#safetyContent').scrollTop = 0;
+    if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
     try{ history.pushState({ ledgerTips: true }, ''); }catch(e){}
   }
   function closeTipsFull(fromHistory){
