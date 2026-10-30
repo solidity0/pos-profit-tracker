@@ -88,9 +88,9 @@ function sideAware(p){
   check('owner sees Performance Overview; Tips and Settings are in the side menu, not on the page', await op.isVisible('#perfCard') && !(await op.isVisible('#settingsCard')) && !(await op.isVisible('#safetyCard')) && await op.evaluate(()=> ['safetyCard','settingsCard'].every(id => document.getElementById('sideCards').contains(document.getElementById(id)))));
   await op.click('#sideMenuBtn');
   check('...tapping the Ledger logo opens the side menu with Tips and Settings', await until(async()=> await op.isVisible('#sideDrawer') && await op.isVisible('#safetyToggle') && await op.isVisible('#settingsToggle')));
-  await op.click('#sideBackdrop', { position: { x: 375, y: 420 } });
-  check('...tapping the dimmed page closes it', await until(async()=> !(await op.isVisible('#sideDrawer'))));
-  await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#sideDrawer')); await op.goBack();
+  const drawerBox = () => op.evaluate(()=>{ const r = document.getElementById('sideDrawer').getBoundingClientRect(); return { left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), vw: innerWidth, vh: innerHeight }; });
+  check('...and on a phone it fills the screen', await until(async()=>{ const d = await drawerBox(); return d.left === 0 && d.width === d.vw && d.height >= d.vh; }), JSON.stringify(await drawerBox()));
+  await op.goBack();
   check("...so does the phone's back button", await until(async()=> !(await op.isVisible('#sideDrawer')) && await op.isVisible('#appWrap')));
   await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#sideDrawer')); await op.click('#sideCloseBtn');
   check('...and the × button', await until(async()=> !(await op.isVisible('#sideDrawer'))));
@@ -428,6 +428,9 @@ function sideAware(p){
     check('on a computer pointing at the Ledger logo opens the side menu', await until(()=> pc.isVisible('#settingsToggle')));
     await pc.mouse.move(1200, 600);
     check('...and moving the pointer away closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
+    await pc.click('#sideMenuBtn'); await until(()=> pc.isVisible('#sideDrawer'));
+    await pc.mouse.click(1200, 600, { delay: 20 });
+    check('...tapping the dimmed page beside it closes it too', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
     check('...with only the four working cards on the page', await pc.evaluate(()=> [...document.querySelector('.dashboard-row').children].filter(e => e.offsetParent).length) === 4);
     // Settings on a computer open full screen straight away (no separate full-screen button).
     const settingsFull = () => pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'));

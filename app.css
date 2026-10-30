@@ -601,6 +601,21 @@
   .side-close{ width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--line-soft); background: var(--surface-2); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; }
   .side-cards > .card, .side-cards > #safetyCard, .side-cards > #settingsCard{ margin: 0 0 14px; max-width: none; width: auto; }
   html.side-open, html.side-open body{ overflow: hidden; }
+  /* iPhone Safari: its floating toolbar sits over the bottom of the page, and "the screen"
+     (inset: 0) stops above it, leaving the page behind showing in a band at the bottom. So the
+     full-screen menu, Settings and Tips are made as tall as the whole screen (100lvh) and get
+     extra room at the bottom (the toolbar's height, 100lvh - 100svh) so nothing ends up hidden
+     behind it. Browsers without these units keep inset: 0. */
+  @supports (height: 100lvh){
+    .side-drawer, #settingsCard.settings-full, #safetyCard.tips-full{ bottom: auto; height: 100lvh; }
+    .side-drawer{ padding-bottom: calc(100lvh - 100svh + env(safe-area-inset-bottom, 0px) + 20px); }
+    #settingsCard.settings-full, #safetyCard.tips-full{ padding-bottom: calc(100lvh - 100svh + env(safe-area-inset-bottom, 0px) + 12px); }
+  }
+  /* On a phone the menu fills the screen (no strip of dimmed page beside it). */
+  @media (max-width: 1023px){
+    .side-drawer{ width: 100vw; left: calc(-100vw - 24px); border-right: none; box-shadow: none; }
+    .side-backdrop{ display: none; }
+  }
   /* Inside the menu the open cards just grow; the menu itself scrolls. */
   .side-drawer #settingsCard.settings-open-inline:not(.settings-full){ height: auto; }
   .side-drawer #settingsCard:not(.settings-full) #settingsContent{ max-height: none; overflow: visible; }
