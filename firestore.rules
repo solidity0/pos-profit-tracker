@@ -137,6 +137,22 @@ service cloud.firestore {
         allow delete: if isOwnerOf(b) && bizActive(b) && ownerDeleteOk();
       }
 
+      // Activity: sign-ins, sign-outs, deletes, Clears, restores and team changes. Everyone on
+      // the team notes only their own actions, stamped with the server's time; only the owner
+      // reads them, and nobody can change or remove one.
+      match /activity/{id} {
+        allow read: if isOwnerOf(b) && bizActive(b);
+        allow create: if isMemberOf(b)
+          && request.resource.data.keys().hasOnly(['type', 'uid', 'at', 'detail'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.at == request.time
+          && (request.resource.data.type in ['login', 'logout', 'delete', 'clear', 'restore']
+              || (isOwnerOf(b) && request.resource.data.type in ['staff_added', 'staff_removed', 'staff_restored', 'staff_deleted']))
+          && (!('detail' in request.resource.data)
+              || (request.resource.data.detail is string && request.resource.data.detail.size() <= 200));
+        allow update, delete: if false;
+      }
+
       // Fee rates and tips: the team reads, only the owner changes.
       match /settings/{doc} {
         allow read: if isMemberOf(b);

@@ -1217,11 +1217,11 @@
       if(inMenu) $('#sideCards').appendChild(el);
       else if(el.parentNode !== sideHomes[id].parentNode) sideHomes[id].parentNode.insertBefore(el, sideHomes[id].nextSibling);
     });
-    const title = owner ? 'Tips & Settings' : 'Tips';
+    const title = owner ? 'Control Center' : 'Tips';
     $('#sideDrawer .side-title').textContent = title;
     $('#sideDrawer').setAttribute('aria-label', title);
     $('#sideMenuBtn').title = title;
-    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Tips & Settings: Educational & Safety Tips, Settings & rate table' : 'Tips: Educational & Safety Tips');
+    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Control Center: Activity, Educational & Safety Tips, Settings & rate table' : 'Tips: Educational & Safety Tips');
     if(!on) closeSide(true);
   }
   // The phone's back button closes it: a history step is added when it's opened by a tap or
@@ -1250,6 +1250,8 @@
     $('#sideMenuBtn').setAttribute('aria-expanded', 'false');
     if(fromHistory !== true && history.state && history.state.ledgerSide){ try{ history.back(); }catch(e){} }
   }
+  // Something from the menu (Activity, Tips or Settings) is open full screen.
+  const menuCardFull = () => !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full');
   let sideOpenedAt = 0, sideClosedAt = 0;
   // Back from Tips / Settings (opened from the menu) can leave the pointer beside the menu: it
   // stays open until the pointer has been back in it, instead of closing a moment later.
@@ -1269,7 +1271,7 @@
   $('#sideMenuBtn').addEventListener('mouseenter', ()=>{ if(canHover.matches && Date.now() - sideClosedAt > 800) openSide(true); });
   sideDrawer.addEventListener('mouseenter', ()=> clearTimeout(sideLeaveTimer));
   sideDrawer.addEventListener('mousemove', ()=>{
-    if(sideHoverHold && !$('#settingsCard').classList.contains('settings-full') && !$('#safetyCard').classList.contains('tips-full')) sideHoverHold = false;
+    if(sideHoverHold && !menuCardFull()) sideHoverHold = false;
   });
   sideDrawer.addEventListener('mouseleave', ()=>{
     if(!canHover.matches || !sideOpen()) return;
@@ -1278,16 +1280,16 @@
     sideLeaveTimer = setTimeout(()=>{
       if(!sideOpen() || sideOpenedAt !== openedAt || sideHoverHold) return;
       const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-      const fullScreen = $('#settingsCard').classList.contains('settings-full') || $('#safetyCard').classList.contains('tips-full');
+      const fullScreen = menuCardFull();
       if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
     }, 450);
   });
   document.addEventListener('keydown', (e)=>{
     if(e.defaultPrevented) return; // Esc already closed a full-screen Settings / Tips / Calculator
-    if(e.key === 'Escape' && sideOpen() && !$('#settingsCard').classList.contains('settings-full') && !$('#safetyCard').classList.contains('tips-full') && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
+    if(e.key === 'Escape' && sideOpen() && !menuCardFull() && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
   });
   window.addEventListener('popstate', ()=>{
-    if(sideOpen() && !(history.state && history.state.ledgerSide) && !$('#settingsCard').classList.contains('settings-full') && !$('#safetyCard').classList.contains('tips-full')) closeSide(true);
+    if(sideOpen() && !(history.state && history.state.ledgerSide) && !menuCardFull()) closeSide(true);
   });
 
   function openLogDropdown(){
@@ -1333,30 +1335,36 @@
     if(!isOpen && logNeedsRender) renderLog();
   });
 
-  // Educational & Safety Tips open full screen (like Settings), with a Back button; the
-  // phone's back button and Esc close them too.
-  function openTipsFull(){
-    const card = $('#safetyCard');
-    if(card.classList.contains('tips-full')) return;
-    $('#safetyContent').style.display = 'block';
-    $('#safetyCaret').classList.add('open');
-    card.classList.add('tips-full');
-    $('#safetyContent').scrollTop = 0;
-    if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
-    try{ history.pushState({ ledgerTips: true }, ''); }catch(e){}
+  // Educational & Safety Tips, and Activity, open full screen (like Settings) with a Back
+  // button; the phone's back button and Esc close them too.
+  function fullScreenCard(cardId, contentId, caretId, toggleId, backId, stateKey, onOpen){
+    const card = $('#' + cardId), content = $('#' + contentId);
+    const isOpen = () => card.classList.contains('tips-full');
+    function open(){
+      if(isOpen()) return;
+      content.style.display = 'block';
+      $('#' + caretId).classList.add('open');
+      card.classList.add('tips-full');
+      content.scrollTop = 0;
+      if(onOpen) onOpen();
+      if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
+      try{ history.pushState({ [stateKey]: true }, ''); }catch(e){}
+    }
+    function close(fromHistory){
+      if(!isOpen()) return;
+      card.classList.remove('tips-full');
+      content.style.display = 'none';
+      $('#' + caretId).classList.remove('open');
+      if(fromHistory !== true && history.state && history.state[stateKey]){ try{ history.back(); }catch(e){} }
+    }
+    $('#' + toggleId).addEventListener('click', open);
+    $('#' + backId).addEventListener('click', ()=> close());
+    window.addEventListener('popstate', ()=>{ if(isOpen() && !(history.state && history.state[stateKey])) close(true); });
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && isOpen()){ e.preventDefault(); close(); } });
+    return { open, close };
   }
-  function closeTipsFull(fromHistory){
-    const card = $('#safetyCard');
-    if(!card.classList.contains('tips-full')) return;
-    card.classList.remove('tips-full');
-    $('#safetyContent').style.display = 'none';
-    $('#safetyCaret').classList.remove('open');
-    if(fromHistory !== true && history.state && history.state.ledgerTips){ try{ history.back(); }catch(e){} }
-  }
-  $('#safetyToggle').addEventListener('click', openTipsFull);
-  $('#tipsBackBtn').addEventListener('click', ()=> closeTipsFull());
-  window.addEventListener('popstate', ()=>{ if($('#safetyCard').classList.contains('tips-full') && !(history.state && history.state.ledgerTips)) closeTipsFull(true); });
-  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && $('#safetyCard').classList.contains('tips-full')){ e.preventDefault(); closeTipsFull(); } });
+  fullScreenCard('safetyCard', 'safetyContent', 'safetyCaret', 'safetyToggle', 'tipsBackBtn', 'ledgerTips');
+  fullScreenCard('activityCard', 'activityContent', 'activityCaret', 'activityToggle', 'activityBackBtn', 'ledgerActivity', ()=> renderActivity());
 
 
   // The calculator opens full screen (like Settings) with a Back button; the phone's own back
@@ -3049,13 +3057,15 @@
       updateWhoLabel();
       renderTeamUI();
       renderLoggedByFilter();
+      renderActivity();
       render();
     }, ()=>{});
   }
 
   function stopListeners(){
-    [txUnsub, settingsUnsub, teamUnsub, presenceUnsub].forEach(u => { if(u) u(); });
-    txUnsub = settingsUnsub = teamUnsub = presenceUnsub = null;
+    [txUnsub, settingsUnsub, teamUnsub, presenceUnsub, activityUnsub].forEach(u => { if(u) u(); });
+    txUnsub = settingsUnsub = teamUnsub = presenceUnsub = activityUnsub = null;
+    activityEvents = [];
     stopPresence();
   }
 
@@ -3087,9 +3097,10 @@
           presence[d.id] = { online: data.online === true, lastSeenMs: data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : 0 };
         });
         renderLoggedByFilter();
+        renderActivity();
       }, ()=>{});
       // Names fade out once they haven't been seen for a while, even with nothing new arriving.
-      presenceTick = setInterval(()=> renderLoggedByFilter(), 30 * 1000);
+      presenceTick = setInterval(()=>{ renderLoggedByFilter(); renderActivity(); }, 30 * 1000);
     }
   }
   function stopPresence(){
@@ -3098,6 +3109,72 @@
     presence = {};
   }
   const isLive = uid => !!(presence[uid] && presence[uid].online && Date.now() - presence[uid].lastSeenMs < PRESENCE_FRESH_MS);
+
+  // ---------- Activity (owner) ----------
+  // Sign-ins, sign-outs, deletes, Clears, restores and team changes are noted in
+  // businesses/{id}/activity, stamped with the server's time. Everyone notes only their own
+  // actions; only the owner reads them, and nobody can change or remove one (see the rules).
+  let activityUnsub = null, activityEvents = [];
+  let signingIn = false; // set while the sign-in form is being used, so a sign-in is noted once
+  const ACTIVITY_DAYS = 7;
+  function logActivity(type, detail){
+    if(!fb || !bizId || !currentUser) return Promise.resolve();
+    const id = Date.now().toString(36) + '-' + currentUser.uid.slice(0, 6) + '-' + Math.random().toString(36).slice(2, 8);
+    const data = { type, uid: currentUser.uid, at: fb.serverTimestamp() };
+    if(detail) data.detail = String(detail).slice(0, 200);
+    return fb.setDoc(bdoc('activity', id), data).catch(()=>{});
+  }
+  function txSummary(t){
+    if(!t) return 'an entry';
+    return `${typeLabel(t)} ${fmt(t.amount || 0)} · ${providerDisplay(t.provider)} · logged by ${nameFor(t.loggedBy, t.loggedByName)}`;
+  }
+  function startActivityListener(){
+    if(activityUnsub){ activityUnsub(); activityUnsub = null; }
+    activityEvents = [];
+    if(role !== 'owner') return;
+    const since = fb.Timestamp.fromMillis(Date.now() - ACTIVITY_DAYS * 86400e3);
+    activityUnsub = fb.onSnapshot(fb.query(bcol('activity'), fb.where('at', '>=', since), fb.orderBy('at', 'desc')), (snap)=>{
+      activityEvents = snap.docs.map(d => { const x = d.data({ serverTimestamps: 'estimate' }) || {}; return { id: d.id, type: x.type, uid: x.uid, detail: x.detail || '', atMs: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
+      renderActivity();
+    }, ()=>{});
+  }
+  function agoText(ms){
+    const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+    if(m < 1) return 'just now';
+    if(m < 60) return m + ' min ago';
+    const h = Math.floor(m / 60);
+    if(h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    const d = Math.floor(h / 24);
+    return d + (d === 1 ? ' day ago' : ' days ago');
+  }
+  const whenText = ms => { const d = new Date(ms); return logDateFormat.format(d) + ', ' + logTimeFormat.format(d); };
+  const ACTIVITY_LABELS = {
+    login: ['🔑', 'signed in'], logout: ['🚪', 'signed out'],
+    delete: ['🗑️', 'deleted a transaction', true], clear: ['🧹', 'cleared transactions', true], restore: ['↩️', 'restored a transaction'],
+    staff_added: ['➕', 'added a team member'], staff_removed: ['⛔', 'removed access', true],
+    staff_restored: ['✅', 'restored access'], staff_deleted: ['❌', 'deleted a team member permanently', true]
+  };
+  function renderActivity(){
+    const teamEl = $('#activityTeam'), listEl = $('#activityList');
+    if(!teamEl || !listEl || role !== 'owner') return;
+    const lastLogin = {};
+    activityEvents.forEach(e => { if(e.type === 'login' && !(lastLogin[e.uid] > e.atMs)) lastLogin[e.uid] = e.atMs; });
+    const people = [bizId].concat(staffUids().filter(uid => teamMembers[uid].active));
+    teamEl.innerHTML = people.map(uid => {
+      const live = isLive(uid), seen = presence[uid] && presence[uid].lastSeenMs;
+      const status = live ? 'Online now' : (seen ? 'Last seen ' + agoText(seen) : 'Not seen yet');
+      const login = lastLogin[uid] ? 'Last sign-in: ' + whenText(lastLogin[uid]) : `No sign-in in the last ${ACTIVITY_DAYS} days`;
+      const roleText = uid === bizId ? 'OWNER' : (isTrainee(uid) ? 'STAFF (TRAINEE)' : 'STAFF');
+      return `<div class="activity-person"><div><span class="activity-name">${escapeHtml(nameFor(uid))}</span><span class="activity-role">${roleText}</span></div>
+        <div class="activity-status${live ? ' live' : ''}">${status}</div><div class="activity-meta">${login}</div></div>`;
+    }).join('');
+    listEl.innerHTML = activityEvents.length ? activityEvents.slice(0, 200).map(e => {
+      const [icon, text, warn] = ACTIVITY_LABELS[e.type] || ['•', e.type];
+      return `<div class="activity-item${warn ? ' warn' : ''}"><span class="activity-icon">${icon}</span>
+        <div><strong>${escapeHtml(nameFor(e.uid))}</strong> ${text}${e.detail ? `<div class="activity-detail">${escapeHtml(e.detail)}</div>` : ''}</div>
+        <div class="activity-time">${whenText(e.atMs)} · ${agoText(e.atMs)}</div></div>`;
+    }).join('') : `<div class="activity-empty">Nothing yet. Sign-ins, deletes and team changes will show here.</div>`;
+  }
   document.addEventListener('visibilitychange', ()=>{ if(presenceTimer) writePresence(document.visibilityState !== 'hidden'); });
   window.addEventListener('pagehide', ()=>{ if(presenceTimer) writePresence(false); });
   // Before signing out, note "away" (best effort: the next write may be refused once signed out).
@@ -3125,6 +3202,9 @@
 
   // "Delete" never erases: it marks the entry deleted, so the owner can still see it.
   function cloudSoftDelete(ids){
+    const byId = id => transactions.find(t => String(t.id) === String(id));
+    if(ids.length === 1) logActivity('delete', txSummary(byId(ids[0])));
+    else if(ids.length > 1) logActivity('clear', `${ids.length} entries · ${fmt(ids.reduce((s, id) => s + ((byId(id) || {}).amount || 0), 0))} in total`);
     const batch = fb.writeBatch(fb.db);
     ids.forEach(id => batch.update(bdoc('transactions', id), {
       deleted: true, deletedAt: fb.serverTimestamp(), deletedBy: currentUser.uid
@@ -3133,6 +3213,7 @@
     markLocal(ids, { deleted: true, deletedBy: currentUser.uid, deletedAtMs: Date.now() });
   }
   function cloudRestore(id){
+    logActivity('restore', txSummary(transactions.find(t => String(t.id) === String(id))));
     fb.updateDoc(bdoc('transactions', id), { deleted: false, deletedAt: null, deletedBy: null })
       .catch(err => setStatus('Could not restore: ' + err.message, 'error'));
     markLocal([id], { deleted: false, deletedBy: null, deletedAtMs: null });
@@ -3201,6 +3282,7 @@
       btn.addEventListener('click', ()=>{
         armTapTwice(btn, 'Remove access', 'Tap again to remove', ()=>{
           fb.updateDoc(bdoc('staff', btn.dataset.uid), { active: false, removedAt: fb.serverTimestamp() })
+            .then(()=> logActivity('staff_removed', nameFor(btn.dataset.uid)))
             .catch(err => setStatus('Could not remove: ' + err.message, 'error'));
         });
       });
@@ -3214,13 +3296,15 @@
           batch.delete(fb.doc(fb.db, 'users', btn.dataset.uid));
           const uname = (teamMembers[btn.dataset.uid] || {}).username;
           if(uname) batch.delete(fb.doc(fb.db, 'usernames', uname));
-          batch.commit().catch(err => setStatus('Could not delete: ' + err.message, 'error'));
+          const who = nameFor(btn.dataset.uid);
+          batch.commit().then(()=> logActivity('staff_deleted', who)).catch(err => setStatus('Could not delete: ' + err.message, 'error'));
         });
       });
     });
     el.querySelectorAll('.team-restore').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         fb.updateDoc(bdoc('staff', btn.dataset.uid), { active: true, removedAt: null })
+          .then(()=> logActivity('staff_restored', nameFor(btn.dataset.uid)))
           .catch(err => setStatus('Could not restore: ' + err.message, 'error'));
       });
     });
@@ -3330,6 +3414,7 @@
       }
       if(uid === bizId){ const e3 = new Error("That's your own login — it can't be added as staff."); e3.code = 'own-login'; throw e3; }
       await grantStaffAccess(uid, name, email, username);
+      logActivity('staff_added', existing ? name + ' (added back)' : name);
       st.className = 'status deepgreen';
       st.textContent = existing
         ? `${name} added back ✓ They can sign in with ${shown} and their existing password.`
@@ -3364,6 +3449,7 @@
     if(uid === bizId || /[\/\s]/.test(uid)){ st.textContent = "That UID doesn't look right."; return; }
     try{
       await grantStaffAccess(uid, name, email);
+      logActivity('staff_added', name);
       st.className = 'status deepgreen';
       st.textContent = `${name} added ✓`;
       $('#newStaffUid').value = ''; $('#newStaffName').value = ''; $('#newStaffEmail').value = '';
@@ -3798,6 +3884,8 @@
     startTeamListener();
     startTxListener();
     startPresence();
+    startActivityListener();
+    if(signingIn){ signingIn = false; logActivity('login'); }
     render();
     openDesktopCardsOnce();
   }
@@ -3881,10 +3969,12 @@
     st.className = 'status';
     st.textContent = 'Signing in…';
     try{
+      signingIn = true;
       await fb.signInWithEmailAndPassword(fb.auth, await resolveLogin($('#authEmail').value), $('#authPassword').value);
       $('#authPassword').value = '';
       st.textContent = '';
     }catch(err){
+      signingIn = false;
       st.textContent = authErrorMessage(err);
       st.className = 'status error';
     }finally{
@@ -4338,7 +4428,11 @@
       setStatus(`${pendingUploads} transaction${pendingUploads === 1 ? '' : 's'} not uploaded yet — connect to the internet before signing out.`, 'error');
       return;
     }
-    armTapTwice($('#signOutBtn'), 'Sign out', 'Confirm', ()=> signOutNow());
+    armTapTwice($('#signOutBtn'), 'Sign out', 'Confirm', async ()=>{
+      // Noted first (waiting a moment at most), since it can't be written once signed out.
+      await Promise.race([logActivity('logout'), new Promise(r => setTimeout(r, 1500))]);
+      signOutNow();
+    });
   });
   $('#authBlockedSignOut').addEventListener('click', ()=>{ if(fb) fb.signOut(fb.auth); });
 

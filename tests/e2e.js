@@ -42,7 +42,7 @@ function sideAware(p){
         let el = null; try{ el = document.querySelector(s); }catch(e){}
         const d = document.getElementById('sideDrawer');
         return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
-          full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
+          full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full') };
       }, sel).catch(()=> null);
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
       if(st && !st.inSide && st.open && !st.full){ if(await p.isVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
@@ -154,6 +154,19 @@ function sideAware(p){
   check('owner totals drop to 1', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction')), await op.textContent('#txCount'));
   await op.click('#logList .restore');
   check('owner restore brings it back for staff', await until(async()=> (await logCount(sp)) === 2));
+
+  // ---------- Activity (owner): who's on, last sign-ins, deletes ----------
+  await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#activityToggle'));
+  check("the owner's menu is titled Control Center", (await op.textContent('#sideDrawer .side-title')) === 'Control Center');
+  check("Activity is first in the owner's menu, above Tips and Settings", await op.evaluate(()=> { const ids = [...document.getElementById('sideCards').children].filter(e => e.offsetParent).map(e => e.id); return ids[0] === 'activityCard' && ids.indexOf('safetyCard') > 0 && ids.indexOf('settingsCard') > 0; }));
+  await op.click('#activityToggle');
+  check('...it opens full screen with a Back button', await until(()=> op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full'))) && await op.isVisible('#activityBackBtn'));
+  check('...listing the team: Test Staff online now, with a last sign-in time', await until(async()=> /Test Staff[\s\S]*Online now[\s\S]*Last sign-in: /.test(await op.textContent('#activityTeam')), 10000), (await op.textContent('#activityTeam')).replace(/\s+/g, ' '));
+  check('...and recent activity: their sign-in, the delete (with what it was) and the restore', await until(async()=> { const t = await op.textContent('#activityList'); return /Test Staff signed in/.test(t) && /Test Staff deleted a transaction/.test(t) && /logged by Test Staff/.test(t) && /restored a transaction/.test(t); }, 10000), (await op.textContent('#activityList')).replace(/\s+/g, ' ').slice(0, 300));
+  await op.click('#activityBackBtn');
+  check('...and Back returns to the menu', await until(async()=> !(await op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full')))) && await op.isVisible('#sideDrawer'));
+  await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer')));
+  check("staff don't have Activity", !(await sp.evaluate(()=> { const e = document.getElementById('activityCard'); return !!e && !!e.offsetParent; })));
 
   // ---------- offline logging ----------
   check('connection status shows Connected in green while online', (await sp.textContent('#syncBadge')) === 'Connected' && await sp.$eval('#syncBadge', e=> e.classList.contains('online')), await sp.textContent('#syncBadge'));
@@ -489,6 +502,9 @@ function sideAware(p){
     await pc.mouse.move(1200, 600); await pc.waitForTimeout(900);
     { const [x, y] = await centre('#sideMenuBtn'); await pc.mouse.move(x, y, { steps: 10 }); } await until(()=> pc.isVisible('#sideDrawer'));
     check('on a computer the menu has no × button', !(await pc.isVisible('#sideCloseBtn')));
+    await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300); // (straight, so the open menu stays open)
+    check('with the smaller text size (Aa) the menu still reaches the bottom of the screen', await until(()=> pc.evaluate(()=> { const e = document.elementFromPoint(10, innerHeight - 3); return !!e && document.getElementById('sideDrawer').contains(e); })));
+    await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
     await pc.keyboard.press('Escape');
     check('...Esc closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
     check('Performance Overview\'s Summary starts open', await pc.isVisible('#netProfit'));
