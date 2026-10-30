@@ -3896,26 +3896,48 @@
         btn.addEventListener('click', ()=> armTapTwice(btn, 'Decline', 'Tap again to decline', ()=>
           run('decline', ()=> fb.updateDoc(bizRef(btn.dataset.id), { declined: true, declinedAt: fb.serverTimestamp() }))));
       });
+      // Removing access and suspending ask for confirmation in a box on the card, saying
+      // exactly what will happen; nothing changes until "Yes" is tapped.
+      const askConfirm = (btn, message, yesLabel, onYes) => {
+        const card = btn.closest('.admin-biz');
+        list.querySelectorAll('.admin-confirm').forEach(el => el.remove());
+        const box = document.createElement('div');
+        box.className = 'admin-confirm';
+        box.innerHTML = `<div class="admin-confirm-msg">${message}</div><div class="admin-confirm-btns"><button type="button" class="admin-confirm-no">Cancel</button><button type="button" class="admin-confirm-yes">${yesLabel}</button></div>`;
+        card.appendChild(box);
+        box.querySelector('.admin-confirm-no').addEventListener('click', ()=> box.remove());
+        box.querySelector('.admin-confirm-yes').addEventListener('click', ()=>{
+          box.querySelectorAll('button').forEach(b => b.disabled = true);
+          onYes();
+        });
+        box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      };
+      const bizLabel = r => `<strong>${escapeHtml(r.name || 'this business')}</strong>${r.ownerName ? ` (${escapeHtml(r.ownerName)})` : ''}`;
       list.querySelectorAll('.admin-remove').forEach(btn=>{
-        btn.addEventListener('click', ()=> armTapTwice(btn, 'Remove access (3 months)', 'Tap again to remove for 3 months', ()=>
-          run('remove access', ()=>{
-            const r = byId(btn.dataset.id);
-            const until = fb.Timestamp.fromDate(new Date(Date.now() + REMOVE_DAYS * 86400e3));
-            const batch = fb.writeBatch(fb.db);
-            batch.update(bizRef(r.id), { removed: true, removedAt: fb.serverTimestamp(), removedUntil: until });
-            setBlocks(batch, r, until, 'removed');
-            return batch.commit();
-          })));
+        btn.addEventListener('click', ()=>{
+          const r = byId(btn.dataset.id);
+          const untilDate = new Date(Date.now() + REMOVE_DAYS * 86400e3);
+          askConfirm(btn, `Remove access for ${bizLabel(r)} for 3 months? Its owner and staff are locked out until <strong>${adminDateFormat.format(untilDate)}</strong>, and the owner's email and phone number can't create another account until then. You can restore them earlier.`,
+            'Yes, remove access', ()=> run('remove access', ()=>{
+              const until = fb.Timestamp.fromDate(untilDate);
+              const batch = fb.writeBatch(fb.db);
+              batch.update(bizRef(r.id), { removed: true, removedAt: fb.serverTimestamp(), removedUntil: until });
+              setBlocks(batch, r, until, 'removed');
+              return batch.commit();
+            }));
+        });
       });
       list.querySelectorAll('.admin-suspend').forEach(btn=>{
-        btn.addEventListener('click', ()=> armTapTwice(btn, 'Suspend', 'Tap again to suspend for good', ()=>
-          run('suspend', ()=>{
-            const r = byId(btn.dataset.id);
-            const batch = fb.writeBatch(fb.db);
-            batch.update(bizRef(r.id), { suspended: true, suspendedAt: fb.serverTimestamp() });
-            setBlocks(batch, r, null, 'suspended');
-            return batch.commit();
-          })));
+        btn.addEventListener('click', ()=>{
+          const r = byId(btn.dataset.id);
+          askConfirm(btn, `Suspend ${bizLabel(r)} for good? Its owner and staff are locked out straight away, and the owner's email and phone number can <strong>never</strong> create another Ledger account. Only you can restore them.`,
+            'Yes, suspend for good', ()=> run('suspend', ()=>{
+              const batch = fb.writeBatch(fb.db);
+              batch.update(bizRef(r.id), { suspended: true, suspendedAt: fb.serverTimestamp() });
+              setBlocks(batch, r, null, 'suspended');
+              return batch.commit();
+            }));
+        });
       });
       list.querySelectorAll('.admin-restore').forEach(btn=>{
         btn.addEventListener('click', ()=> run('restore', ()=>{

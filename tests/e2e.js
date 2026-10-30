@@ -601,7 +601,11 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   const adaRow = async () => op.$('#adminList .admin-biz:has-text("Ada Stores")');
   check("admin list shows Ada's owner email", /ada@test\.com/.test(await (await adaRow()).textContent()));
   // Remove access for 3 months
-  await (await (await adaRow()).$('.admin-remove')).click(); await wait(500); await (await (await adaRow()).$('.admin-remove')).click();
+  await (await (await adaRow()).$('.admin-remove')).click();
+  check('Remove access asks to confirm first, saying what will happen', await until(async()=> /Remove access for Ada Stores \(Ada\) for 3 months\?[\s\S]*locked out until/.test(await (await adaRow()).textContent())), (await (await adaRow()).textContent()).replace(/\s+/g,' ').slice(0,260));
+  await (await (await adaRow()).$('.admin-confirm-no')).click();
+  check('...Cancel changes nothing', await until(async()=> !(await (await adaRow()).$('.admin-confirm'))) && /Status\s*Active/.test(await (await adaRow()).textContent()) && await ap.isVisible('#appWrap'));
+  await (await (await adaRow()).$('.admin-remove')).click(); await (await (await adaRow()).$('.admin-confirm-yes')).click();
   check('admin removes Ada Stores\' access for 3 months', await until(async()=> /Access removed until/.test(await (await adaRow()).textContent())));
   check('Ada is locked out, told until when', await until(async()=> /access to Ledger has been removed until/.test(await ap.textContent('#authBlocked')), 15000) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authBlocked'));
   check("...and can't apply again before the 3 months are up", !(await ap.isVisible('#authApplyAgain')));
@@ -632,14 +636,16 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('...approving her opens her ledger again', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await ap.textContent('#whoLabel').catch(()=>''));
     // remove again, to try restoring early
     await until(async()=> /Status\s*Active/.test(await (await adaRow()).textContent()));
-    await (await (await adaRow()).$('.admin-remove')).click(); await wait(500); await (await (await adaRow()).$('.admin-remove')).click();
+    await (await (await adaRow()).$('.admin-remove')).click(); await (await (await adaRow()).$('.admin-confirm-yes')).click();
     await until(async()=> /access to Ledger has been removed until/.test(await ap.textContent('#authBlocked')), 15000);
   }
   await (await (await adaRow()).$('.admin-restore')).click();
   check('admin restores Ada Stores early', await until(async()=> /Status\s*Active/.test(await (await adaRow()).textContent())));
   check('...which opens her ledger again by itself', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await ap.textContent('#whoLabel').catch(()=>''));
   // Suspend (for good)
-  await (await (await adaRow()).$('.admin-suspend')).click(); await wait(500); await (await (await adaRow()).$('.admin-suspend')).click();
+  await (await (await adaRow()).$('.admin-suspend')).click();
+  check('Suspend asks to confirm first, saying it is for good', await until(async()=> /Suspend Ada Stores \(Ada\) for good\?[\s\S]*never/.test(await (await adaRow()).textContent())), (await (await adaRow()).textContent()).replace(/\s+/g,' ').slice(0,260));
+  await (await (await adaRow()).$('.admin-confirm-yes')).click();
   check('admin suspends Ada Stores', await until(async()=> /Suspended/.test(await (await adaRow()).textContent())));
   check('Ada is locked out straight away', await until(async()=> /has been suspended/.test(await ap.textContent('#authBlocked')), 15000), await ap.textContent('#authBlocked'));
   check("...and can't see the app", !(await ap.isVisible('#appWrap')));
