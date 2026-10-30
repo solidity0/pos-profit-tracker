@@ -575,6 +575,31 @@
   .brand-mark{ display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:52px; height:52px; border-radius:16px; color:#fff;
     background: linear-gradient(145deg, #4F8BFF 0%, #1D4ED8 100%); box-shadow: 0 10px 24px -10px rgba(37,99,235,0.9), inset 0 1px 0 rgba(255,255,255,0.25); }
   .brand-mark svg{ width:56%; height:56%; }
+  /* The Ledger logo opens the side menu (owners only; for staff it's just the logo). */
+  .brand-btn{ background:none; border:none; padding:0; margin:0; display:inline-flex; border-radius: 12px; cursor: default; -webkit-tap-highlight-color: transparent; }
+  body.has-side-menu .brand-btn{ cursor: pointer; }
+  body.has-side-menu .brand-btn .brand-mark{ transition: transform .15s ease, box-shadow .15s ease; }
+  body.has-side-menu .brand-btn:hover .brand-mark, body.has-side-menu .brand-btn[aria-expanded="true"] .brand-mark{ transform: scale(1.06); box-shadow: 0 0 0 3px rgba(96,165,250,0.35), 0 6px 14px -8px rgba(37,99,235,0.9); }
+  body:not(.has-side-menu) .brand-btn{ pointer-events: none; }
+  /* Side menu: slides in from the left over a dimmed page. */
+  .side-backdrop{ position: fixed; inset: 0; z-index: 890; background: rgba(0,0,0,0.5); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s; }
+  html.side-open .side-backdrop{ opacity: 1; visibility: visible; }
+  .side-drawer{ position: fixed; top: 0; bottom: 0; left: calc(-1 * min(440px, 92vw) - 24px); width: min(440px, 92vw); z-index: 900;
+    background: var(--bg); border-right: 1px solid var(--line-soft); box-shadow: 12px 0 40px -18px rgba(0,0,0,0.7);
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; visibility: hidden;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    transition: left .25s ease, visibility .25s; }
+  .side-drawer.open{ left: 0; visibility: visible; }
+  .side-head{ display:flex; align-items:center; gap: 10px; margin-bottom: 14px; }
+  .side-title{ flex: 1; font-family:'Space Grotesk',sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted-strong); }
+  .side-close{ width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--line-soft); background: var(--surface-2); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; }
+  .side-cards > .card, .side-cards > #safetyCard, .side-cards > #settingsCard{ margin: 0 0 14px; max-width: none; width: auto; }
+  html.side-open, html.side-open body{ overflow: hidden; }
+  /* Inside the menu the open cards just grow; the menu itself scrolls. */
+  .side-drawer #settingsCard.settings-open-inline:not(.settings-full){ height: auto; }
+  .side-drawer #settingsCard:not(.settings-full) #settingsContent{ max-height: none; overflow: visible; }
+  .side-drawer #safetyCard:has(#safetyContent[style*="block"]){ height: auto; }
+  .side-drawer #safetyContent{ max-height: none; overflow: visible; }
   .brand-mark.sm{ width:34px; height:34px; border-radius:11px; box-shadow: 0 6px 14px -8px rgba(37,99,235,0.9), inset 0 1px 0 rgba(255,255,255,0.25); }
   .auth-brand{ display:flex; flex-direction:column; align-items:center; gap: 10px; margin-bottom: 20px; }
   .auth-card h1{ font-size: 26px; margin: 0; letter-spacing:-0.03em; line-height:1.1; }
