@@ -121,13 +121,18 @@
   // Some mobile browsers (notably Chrome on iOS) only visually magnify on pinch-zoom
   // without actually reflowing the page, so labels like "Amount Withdrawn" can't react
   // to it. This toggle reflows for real, the same way on every browser and device.
+  // On a computer everything is drawn a step smaller to begin with (full-size reads as zoomed
+  // in on a monitor); Aa makes it smaller again from there, on phones and computers alike.
   let appScale = 1;
+  const DESKTOP_SCALE = 0.85;
+  const desktopView = window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)');
   function applyAppScale(scale){
     appScale = scale;
-    document.documentElement.style.setProperty('--app-zoom', scale);
+    document.documentElement.style.setProperty('--app-zoom', +(scale * (desktopView.matches ? DESKTOP_SCALE : 1)).toFixed(4));
     const btn = $('#textSizeToggle');
     btn.setAttribute('aria-pressed', scale < 1 ? 'true' : 'false');
   }
+  desktopView.addEventListener('change', ()=>{ applyAppScale(appScale); requestAnimationFrame(sizeEntryBody); });
   async function loadAppScale(){
     let scale = 1;
     try{
