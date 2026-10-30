@@ -23,7 +23,7 @@ function sideAware(p){
           full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
       }, sel).catch(()=> null);
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
-      if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
+      if(st && !st.inSide && st.open && !st.full){ if(await p.isVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
     }
     return realClick(sel, opts);
   };
