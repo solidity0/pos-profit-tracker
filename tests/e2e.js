@@ -502,7 +502,9 @@ function sideAware(p){
     await pc.mouse.move(1200, 600); await pc.waitForTimeout(900);
     { const [x, y] = await centre('#sideMenuBtn'); await pc.mouse.move(x, y, { steps: 10 }); } await until(()=> pc.isVisible('#sideDrawer'));
     check('on a computer the menu has no × button', !(await pc.isVisible('#sideCloseBtn')));
+    check('on a computer the app is drawn a step smaller to begin with (85%)', await pc.evaluate(()=> getComputedStyle(document.documentElement).getPropertyValue('--app-zoom').trim()) === '0.85');
     await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300); // (straight, so the open menu stays open)
+    check('...and Aa makes it smaller again', parseFloat(await pc.evaluate(()=> getComputedStyle(document.documentElement).getPropertyValue('--app-zoom'))) < 0.85);
     check('with the smaller text size (Aa) the menu still reaches the bottom of the screen', await until(()=> pc.evaluate(()=> { const e = document.elementFromPoint(10, innerHeight - 3); return !!e && document.getElementById('sideDrawer').contains(e); })));
     await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
     await pc.keyboard.press('Escape');
