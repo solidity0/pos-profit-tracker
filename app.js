@@ -1217,11 +1217,11 @@
       if(inMenu) $('#sideCards').appendChild(el);
       else if(el.parentNode !== sideHomes[id].parentNode) sideHomes[id].parentNode.insertBefore(el, sideHomes[id].nextSibling);
     });
-    const title = owner ? 'Tips & Settings' : 'Tips';
+    const title = owner ? 'Control Center' : 'Tips';
     $('#sideDrawer .side-title').textContent = title;
     $('#sideDrawer').setAttribute('aria-label', title);
     $('#sideMenuBtn').title = title;
-    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Tips & Settings: Educational & Safety Tips, Settings & rate table' : 'Tips: Educational & Safety Tips');
+    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Control Center: Activity, Educational & Safety Tips, Settings & rate table' : 'Tips: Educational & Safety Tips');
     if(!on) closeSide(true);
   }
   // The phone's back button closes it: a history step is added when it's opened by a tap or

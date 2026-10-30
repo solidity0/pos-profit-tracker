@@ -157,6 +157,7 @@ function sideAware(p){
 
   // ---------- Activity (owner): who's on, last sign-ins, deletes ----------
   await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#activityToggle'));
+  check("the owner's menu is titled Control Center", (await op.textContent('#sideDrawer .side-title')) === 'Control Center');
   check("Activity is first in the owner's menu, above Tips and Settings", await op.evaluate(()=> { const ids = [...document.getElementById('sideCards').children].filter(e => e.offsetParent).map(e => e.id); return ids[0] === 'activityCard' && ids.indexOf('safetyCard') > 0 && ids.indexOf('settingsCard') > 0; }));
   await op.click('#activityToggle');
   check('...it opens full screen with a Back button', await until(()=> op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full'))) && await op.isVisible('#activityBackBtn'));
