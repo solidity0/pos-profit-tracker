@@ -244,7 +244,12 @@ function sideAware(p){
   await sp.click('#periodTabs button[data-val="today"]');
   const spToday = await sp.textContent('#txCount'); const opNames = await sp.$$eval('#logList .log-item', els => els.filter(e => /by: New Person/.test(e.textContent) && !e.querySelector('.del')).length);
   check("...but can't delete it, and it isn't in their totals", opNames >= 1 && /^3 transactions/.test(spToday), `${spToday} / undeletable=${opNames}`);
-  check('a salesperson has no logged-by filter', !(await sp.isVisible('#loggedByFilter')));
+  check('staff see the team name chips too', await until(()=> sp.isVisible('#loggedByFilter button:has-text("New Person")')));
+  check('...with the owner, who has the app open, "breathing"', await until(async()=> (await sp.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()))).includes('Uweribe'), 15000), JSON.stringify(await sp.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()))));
+  await sp.click('#loggedByFilter button:has-text("New Person")');
+  check("...and tapping a name shows just that person's entries in their log", await until(async()=> { const by = await sp.$$eval('#logList .log-item', els => els.map(e => /by: New Person/.test(e.textContent))); return by.length > 0 && by.every(Boolean); }), JSON.stringify(await sp.$$eval('#logList .log-item', els => els.map(e => e.textContent.replace(/\s+/g,' ').slice(0,90)))));
+  check("...while their totals stay their own", (await sp.textContent('#txCount')) === spToday, await sp.textContent('#txCount'));
+  await sp.click('#loggedByFilter button:has-text("Everyone")');
   check('logged-by filter lists the new person', await until(async()=> (await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))).includes('New Person')));
 
   // ---------- remove / restore access ----------
@@ -571,12 +576,12 @@ function sideAware(p){
       const ago = m => new Date(Date.now() - m*60e3).toISOString();
       const oldTx = (id, amount, m) => admin(`businesses/0xxeZTLlaAeTzTgpezc58hwDxXp2/transactions/${id}`, { id:{stringValue:id}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:false }, date:{ stringValue: ago(m) }, createdAt:{ timestampValue: ago(m) }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:String(amount)}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'20'}, netProfit:{integerValue:'80'} });
       await oldTx('old-130m', 7130, 130); await oldTx('old-190m', 7190, 190);
-      const rowCtl = async (pg, amt) => pg.$$eval('#logList .log-item', (els, amt) => { const e = els.find(x => x.textContent.includes(amt)); return !e ? 'missing' : e.querySelector('.del') ? 'delete' : e.querySelector('.del-locked') ? 'locked' : 'none'; }, amt);
+      const rowCtl = async (pg, amt) => pg.$$eval('#logList .log-item', (els, amt) => { const e = els.find(x => x.textContent.includes(amt)); return !e ? 'missing' : e.querySelector('.del') ? 'delete' : 'none'; }, amt);
       const spLogWasOpen = await sp.isVisible('#logContent'); if(!spLogWasOpen) await sp.click('#logToggle');
-      check('staff: their own entry logged 2h10m ago is locked', await until(async()=> await rowCtl(sp, '7,130') === 'locked'), await rowCtl(sp, '7,130'));
+      check('staff: their own entry logged 2h10m ago has no delete link any more', await until(async()=> await rowCtl(sp, '7,130') === 'none'), await rowCtl(sp, '7,130'));
       if(!spLogWasOpen) await sp.click('#logToggle');
       check('owner: the same entry can still be deleted (under 3 hours)', await until(async()=> await rowCtl(op, '7,130') === 'delete'), await rowCtl(op, '7,130'));
-      check('owner: an entry logged 3h10m ago is locked', await rowCtl(op, '7,190') === 'locked', await rowCtl(op, '7,190'));
+      check('owner: an entry logged 3h10m ago has no delete link', await rowCtl(op, '7,190') === 'none', await rowCtl(op, '7,190'));
       await op.click('#clearLogBtn');
       const canDel = await op.$$eval('#logList .del', els => els.length);
       const clearLabel = await op.textContent('#clearLogBtn');

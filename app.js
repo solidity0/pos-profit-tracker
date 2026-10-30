@@ -2159,7 +2159,8 @@
       const periodOk = isInPeriod(t.date, state.period);
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
       // A salesperson's log shows everyone's entries; their reports stay their own.
-      return periodOk && provOk && (role === 'staff' || matchesLoggedBy(t)) && (!t.deleted || (role === 'owner' && deletedStillShown(t)));
+      const personOk = role === 'staff' ? (state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter) : matchesLoggedBy(t);
+      return periodOk && provOk && personOk && (!t.deleted || (role === 'owner' && deletedStillShown(t)));
     });
   }
 
@@ -2350,7 +2351,7 @@
           : (role === 'staff' && !ownEntry) ? ''
           : isDeletable
             ? (isDeleteArmed(t.id) ? `<button class="del armed" data-id="${t.id}">tap again to delete</button>` : `<button class="del" data-id="${t.id}">delete</button>`)
-            : `<span class="del-locked" title="${deleteLockedMsg()}">locked</span>`;
+            : ''; // once its time is up the delete link just goes
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
@@ -3057,7 +3058,8 @@
     if(presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
     writePresence(document.visibilityState !== 'hidden');
     presenceTimer = setInterval(()=>{ if(document.visibilityState !== 'hidden') writePresence(true); }, PRESENCE_EVERY_MS);
-    if(role === 'owner'){
+    {
+      // The whole team sees who has the app open (the name chips breathe).
       presenceUnsub = fb.onSnapshot(bcol('presence'), (snap)=>{
         presence = {};
         snap.forEach(d=>{
@@ -3356,7 +3358,9 @@
     if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)){
       state.loggedByFilter = 'All';
     }
-    if(role !== 'owner' || staff.length === 0){ el.style.display = 'none'; return; }
+    // The owner filters everything by person; staff filter just the Transaction Log (their
+    // totals and reports stay their own).
+    if(!role || staff.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([bizId].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';
     // Anyone with the app open right now is shown "breathing" (see isLive).
