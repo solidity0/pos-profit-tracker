@@ -3591,6 +3591,17 @@
     startTeamListener();
     startTxListener();
     render();
+    openDesktopCardsOnce();
+  }
+  // On a computer, Transaction Log, Performance Overview and Calculator start open each time
+  // the app opens (each can still be closed); on a phone they start closed.
+  let desktopCardsOpened = false;
+  function openDesktopCardsOnce(){
+    if(desktopCardsOpened || !desktopQuery.matches) return;
+    desktopCardsOpened = true;
+    if($('#logContent').style.display !== 'block') openLogDropdown();
+    if($('#summaryContent').style.display !== 'block'){ $('#summaryContent').style.display = 'block'; $('#summaryCaret').classList.add('open'); }
+    if($('#calcBody').style.display !== 'block') toggleCalculatorDropdown();
   }
 
   function authErrorMessage(err){

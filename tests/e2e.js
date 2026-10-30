@@ -372,7 +372,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await pc.setViewportSize({ width: 1500, height: 900 });
     await signIn(pc, 'owner@test.com', 'secret123');
     await until(()=> pc.isVisible('#appWrap'), 20000);
-    await pc.click('#calcToggle');
+    check('on a computer Transaction Log, Performance Overview and Calculator start open', await until(async()=> await pc.isVisible('#logContent') && await pc.isVisible('#summaryContent') && await pc.isVisible('#calcBody')));
     const isFull = () => pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
     const ch = await pc.evaluate(()=> [document.getElementById('calcCard').offsetHeight, document.getElementById('entryCard').offsetHeight]);
     check('on a computer the calculator opens as a dropdown', !(await isFull()) && await pc.isVisible('#calcBody') && await pc.isVisible('#calcExpandBtn'));
@@ -387,6 +387,9 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('...so does Back', await until(async()=> !(await isFull()) && await pc.isVisible('#calcBody')));
     await pc.click('#calcToggle');
     check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#calcBody'))));
+    await pc.click('#logToggle');
+    check('...the Transaction Log closes too', await until(async()=> !(await pc.isVisible('#logContent'))));
+    await pc.click('#logToggle'); await pc.click('#calcToggle');
     // Settings on a computer: a dropdown as tall as Log a Transaction, with a full-screen button.
     await pc.click('#settingsToggle');
     const sh = await pc.evaluate(()=>{ const s = document.getElementById('settingsCard'), e = document.getElementById('entryCard'); return { full: s.classList.contains('settings-full'), s: s.offsetHeight, e: e.offsetHeight }; });
@@ -402,7 +405,6 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#settingsContent'))));
     // Performance Overview / Tips column: never taller than Log a Transaction once open.
     const colH = () => pc.evaluate(()=> [document.getElementById('perfCard').parentElement.offsetHeight, document.getElementById('entryCard').offsetHeight]);
-    await pc.click('#summaryToggle');
     for(const id of ['perfFilters','perfTotals','perfReports']) if(!(await pc.$eval('#'+id, e=>e.classList.contains('open')))) await pc.click('#'+id+' .perf-section-toggle');
     let ph = await colH();
     check('on a computer open Performance Overview is as tall as Log a Transaction', Math.abs(ph[0]-ph[1]) <= 2, JSON.stringify(ph));
