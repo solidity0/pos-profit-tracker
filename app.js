@@ -3426,7 +3426,8 @@
     }
     batch.set(fb.doc(fb.db, 'businesses', uid, 'staff', uid), { name: ownerName, email: currentUser.email || '' }, { merge: true });
     const bizDoc = {
-      name, ownerUid: uid, ownerEmail: currentUser.email || '', createdAt: fb.serverTimestamp(),
+      // The owner's name (required at sign-up) is kept here too, so the admin list always has it.
+      name, ownerUid: uid, ownerName, ownerEmail: currentUser.email || '', createdAt: fb.serverTimestamp(),
       termsAcceptedAt: fb.serverTimestamp(), termsVersion: TERMS_VERSION,
       // New businesses wait for the platform admin's approval (the rules insist on it).
       approved: uid === PLATFORM_ADMIN_UID
@@ -3736,11 +3737,14 @@
       const rows = await Promise.all(snap.docs.map(async d=>{
         const data = d.data() || {};
         let email = data.ownerEmail || '';
+        // The name in their Team row (kept up to date if they rename themselves), else the
+        // name given at sign-up.
         let ownerName = '';
         try{
           const o = await fb.getDoc(fb.doc(fb.db, 'businesses', d.id, 'staff', d.id));
           if(o.exists()){ ownerName = o.data().name || ''; email = email || o.data().email || ''; }
         }catch(e){}
+        ownerName = ownerName || (data.ownerName || '').trim();
         const created = data.createdAt && data.createdAt.toDate ? adminDateFormat.format(data.createdAt.toDate()) : '—';
         return { id: d.id, name: data.name || '(no name)', ownerName, email, phone: data.ownerPhone || '', created, suspended: !!data.suspended, pending: data.approved === false && data.declined !== true, declined: data.approved === false && data.declined === true, createdMs: data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0 };
       }));
