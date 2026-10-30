@@ -4,14 +4,14 @@
 // cache when offline. Libraries (Firebase SDK, jsPDF, fonts) are versioned URLs, so they're
 // served from the cache once downloaded. Firestore and sign-in traffic is never touched; the
 // Firebase SDK keeps its own offline copy of the records.
-const CACHE = 'ledger-v1';
+const CACHE = 'ledger-v2'; // bumped when a library version changes, so old copies are cleared
 const APP_FILES = ['./', 'index.html', 'app.css', 'app.js', 'terms.html', 'privacy.html', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const LIBRARIES = [
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js',
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js'
 ];
 const LIBRARY_HOSTS = ['www.gstatic.com', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
