@@ -563,6 +563,27 @@ function sideAware(p){
     check('an entry deleted an hour ago is still shown to the owner', await until(async()=> /6,111/.test(await op.textContent('#logList'))));
     check('an entry deleted three hours ago is gone from the log', !/6,333/.test(await op.textContent('#logList')));
   }
+  // Deleting (and Clear) only works on the day an entry was logged: staff within 2 hours, the owner within 3.
+  {
+    const minsToday = ms => { const d = new Date(ms); return d.getHours()*60 + d.getMinutes(); };
+    const watMins = Math.floor(((Date.now() + 3600e3) % 86400e3) / 60e3);
+    if(Math.min(minsToday(Date.now()), watMins) > 200){
+      const ago = m => new Date(Date.now() - m*60e3).toISOString();
+      const oldTx = (id, amount, m) => admin(`businesses/0xxeZTLlaAeTzTgpezc58hwDxXp2/transactions/${id}`, { id:{stringValue:id}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:false }, date:{ stringValue: ago(m) }, createdAt:{ timestampValue: ago(m) }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:String(amount)}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'20'}, netProfit:{integerValue:'80'} });
+      await oldTx('old-130m', 7130, 130); await oldTx('old-190m', 7190, 190);
+      const rowCtl = async (pg, amt) => pg.$$eval('#logList .log-item', (els, amt) => { const e = els.find(x => x.textContent.includes(amt)); return !e ? 'missing' : e.querySelector('.del') ? 'delete' : e.querySelector('.del-locked') ? 'locked' : 'none'; }, amt);
+      const spLogWasOpen = await sp.isVisible('#logContent'); if(!spLogWasOpen) await sp.click('#logToggle');
+      check('staff: their own entry logged 2h10m ago is locked', await until(async()=> await rowCtl(sp, '7,130') === 'locked'), await rowCtl(sp, '7,130'));
+      if(!spLogWasOpen) await sp.click('#logToggle');
+      check('owner: the same entry can still be deleted (under 3 hours)', await until(async()=> await rowCtl(op, '7,130') === 'delete'), await rowCtl(op, '7,130'));
+      check('owner: an entry logged 3h10m ago is locked', await rowCtl(op, '7,190') === 'locked', await rowCtl(op, '7,190'));
+      await op.click('#clearLogBtn');
+      const canDel = await op.$$eval('#logList .del', els => els.length);
+      const clearLabel = await op.textContent('#clearLogBtn');
+      check("owner: Clear only counts entries that can still be deleted", new RegExp('Clear ' + canDel + '\\?').test(clearLabel), `${clearLabel} vs ${canDel} deletable`);
+      await wait(3500); // let the Clear confirmation lapse
+    } else console.log('(skipped the 2h/3h delete-window checks: too close to midnight)');
+  }
   {
     await op.click('#periodTabs button[data-val="all"]'); await wait(500);
     const shown = parseInt(await op.textContent('#txCount'));

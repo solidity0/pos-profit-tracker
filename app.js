@@ -1102,7 +1102,22 @@
   $('#autosaveFlat').addEventListener('change', async ()=>{ settings.autosaveFlat = numVal('#autosaveFlat'); await saveSettings(); refreshAuto(); render(); });
   $('#stampOnWithdrawal').addEventListener('change', async ()=>{ settings.stampOnWithdrawal = $('#stampOnWithdrawal').checked; await saveSettings(); refreshAuto(); render(); });
 
-  const DELETE_LOCK_MINUTES = 230; // 3 hours 50 minutes — salesperson only; the Firebase rules enforce it too
+  // An entry can be deleted (or cleared) only on the day it was logged, and within 2 hours of
+  // logging for staff (their own entries) or 3 hours for the owner. The Firebase rules enforce
+  // it too, by the server's clock and Nigerian time (UTC+1).
+  const DELETE_WINDOW_MINUTES = { owner: 180, staff: 120 };
+  const watDay = ms => Math.floor((ms + 3600000) / 86400000);
+  function canDeleteTx(t){
+    if(!t || t.deleted || !currentUser) return false;
+    if(role !== 'owner' && t.loggedBy !== currentUser.uid) return false;
+    const limit = role === 'owner' ? DELETE_WINDOW_MINUTES.owner : DELETE_WINDOW_MINUTES.staff;
+    const now = Date.now(), today = new Date().toDateString();
+    // When it was logged, and (once saved) when the server got it: both must be recent.
+    const times = [Date.parse(t.date)];
+    if(t.createdAtMs) times.push(t.createdAtMs);
+    return times.every(ms => !isNaN(ms) && new Date(ms).toDateString() === today && watDay(ms) === watDay(now)
+      && (now - ms) / 60000 < limit);
+  }
   // Signing in as the owner replaces the old shared settings password, so "unlocked" now
   // just means "signed in as the owner".
   let settingsUnlocked = false;
@@ -1941,14 +1956,20 @@
 
   $('#clearLogBtn').addEventListener('click', ()=>{
     const visible = getTodayLogEntries();
-    if(visible.length === 0){ setStatus('Nothing to clear'); return; }
+    if(visible.length === 0){ setStatus("Nothing to clear (only today's entries within " + (role === 'owner' ? '3 hours' : '2 hours') + ' of logging can be cleared)'); return; }
     armTapTwice($('#clearLogBtn'), 'Clear', `Clear ${visible.length}?`, ()=>{
-      cloudSoftDelete(visible.map(t=>t.id));
+      const ids = getTodayLogEntries().map(t=>t.id); // checked again: some may have locked meanwhile
+      if(ids.length) cloudSoftDelete(ids);
     });
   });
 
   function deleteTx(id){
+    const t = transactions.find(x => String(x.id) === String(id));
+    if(!canDeleteTx(t)){ setStatus(deleteLockedMsg(), 'error'); render(); return; }
     cloudSoftDelete([id]);
+  }
+  function deleteLockedMsg(){
+    return `Locked: entries can only be deleted on the day they're logged, within ${role === 'owner' ? '3 hours' : '2 hours'}.`;
   }
   // Deleting takes two taps, for owners and staff alike: the first turns the link into
   // "tap again to delete" for 3 seconds, the second deletes. Remembered by entry (not by
@@ -2145,15 +2166,12 @@
   function getTodayLogEntries(){
     // Clear is always scoped to today only, regardless of any period filter set elsewhere
     // in the app (e.g. Performance Overview) — it should never reach into previous days.
-    // It also respects the same delete-lock window as individual entries, so it can't be
-    // used to bulk-bypass that protection. Unlike individual delete, Clear has no password
-    // override — locked entries stay locked no matter what.
+    // It also respects the same delete window as individual entries (see canDeleteTx), so it
+    // can't be used to get round it.
     return transactions.filter(t=>{
       const todayOk = isInPeriod(t.date, 'today');
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      const loggedMs = t.createdAtMs || new Date(t.date).getTime();
-      const unlocked = role === 'owner' || (t.loggedBy === currentUser.uid && (Date.now() - loggedMs) / 60000 <= DELETE_LOCK_MINUTES);
-      return todayOk && provOk && matchesLoggedBy(t) && !t.deleted && unlocked;
+      return todayOk && provOk && matchesLoggedBy(t) && canDeleteTx(t);
     });
   }
 
@@ -2325,16 +2343,14 @@
         const isSameBankTitle = (t.type === 'WithdrawTransfer' || t.type === 'Transfer') && t.manualFee;
         const providerColorClass = t.provider === 'Opay' ? 'samebank-op' : 'samebank-mp';
         const typeClass = isSameBankTitle ? providerColorClass : (t.type === 'Withdrawal' ? 'flow-in' : (t.type === 'Transfer' || t.type === 'Bill') ? 'flow-out' : '');
-        const loggedMs = t.createdAtMs || d.getTime();
-        const minutesSinceLogged = (Date.now() - loggedMs) / 60000;
         const ownEntry = t.loggedBy === (currentUser && currentUser.uid);
-        const isDeletable = !t.deleted && (role === 'owner' || (ownEntry && minutesSinceLogged <= DELETE_LOCK_MINUTES));
+        const isDeletable = canDeleteTx(t);
         const deleteControl = t.deleted
           ? (role === 'owner' ? `<button class="restore" data-id="${t.id}">restore</button>` : '')
           : (role === 'staff' && !ownEntry) ? ''
           : isDeletable
             ? (isDeleteArmed(t.id) ? `<button class="del armed" data-id="${t.id}">tap again to delete</button>` : `<button class="del" data-id="${t.id}">delete</button>`)
-            : `<span class="del-locked" title="Entries can only be deleted within 3h 50m of logging">locked</span>`;
+            : `<span class="del-locked" title="${deleteLockedMsg()}">locked</span>`;
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.

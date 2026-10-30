@@ -130,6 +130,32 @@ async function backdate(path, fields){
   if(!r.ok) throw new Error('backdate failed ' + r.status);
 }
 
+console.log('--- delete window (only the day logged; staff 2 hours, owner 3 hours)');
+{
+  const minsAgo = m => new Date(Date.now() - m*60e3).toISOString();
+  // Minutes since midnight in Nigeria (UTC+1): an entry only counts as "today" after it.
+  const watMins = Math.floor(((Date.now() + 3600e3) % 86400e3) / 60e3);
+  const yesterdayLate = new Date(Date.now() - (watMins + 5)*60e3).toISOString(); // 23:55 yesterday, Nigerian time
+  const seed = async (id, by, createdAt) => { await setDoc(biz('A', A,'transactions',id), tx(by)); if(createdAt) await backdate(`businesses/${A}/transactions/${id}`, { createdAt }); };
+  const softDel = (who, id) => ()=>updateDoc(biz(who, A,'transactions',id), {deleted:true, deletedBy:accounts[who], deletedAt:serverTimestamp()});
+  await seed('w1', SA); await expect('staff deletes their own entry just logged', true, softDel('SA','w1'));
+  await seed('w2', SA, minsAgo(125)); await expect('staff deletes their own entry after 2 hours', false, softDel('SA','w2'));
+  await seed('w3', A); await expect("staff deletes the owner's entry", false, softDel('SA','w3'));
+  await seed('w4', SA, yesterdayLate); await expect("staff deletes their own entry from yesterday", false, softDel('SA','w4'));
+  await seed('w5', SA); await expect("owner deletes a staff entry just logged", true, softDel('A','w5'));
+  await seed('w6', SA, minsAgo(185)); await expect('owner deletes an entry after 3 hours', false, softDel('A','w6'));
+  await seed('w7', A, yesterdayLate); await expect("owner deletes an entry from yesterday (even if under 3 hours ago)", false, softDel('A','w7'));
+  if(watMins > 135){ await seed('w8', SA, minsAgo(130)); await expect('owner deletes an entry 2h10m old (same day)', true, softDel('A','w8')); }
+  await expect("owner moves an old entry's logged time to delete it", false, ()=>updateDoc(biz('A', A,'transactions','w6'), {createdAt: serverTimestamp(), deleted:true, deletedBy:A, deletedAt:serverTimestamp()}));
+  await expect("owner moves an old entry's logged time", false, ()=>updateDoc(biz('A', A,'transactions','w6'), {createdAt: serverTimestamp()}));
+  await expect('owner hard-deletes an old entry', false, ()=>deleteDoc(biz('A', A,'transactions','w6')));
+  await expect('owner hard-deletes an entry just logged', true, ()=>deleteDoc(biz('A', A,'transactions','w3')));
+  await expect('Clear in one go including an old entry is refused', false, ()=>{ const bt = writeBatch(db.A); ['w6','w7'].forEach(id => bt.update(biz('A', A,'transactions',id), {deleted:true, deletedBy:A, deletedAt:serverTimestamp()})); return bt.commit(); });
+  await backdate(`businesses/${A}/transactions/w1`, { createdAt: minsAgo(300) });
+  await expect('owner restores an older deleted entry', true, ()=>updateDoc(biz('A', A,'transactions','w1'), {deleted:false, deletedAt:null, deletedBy:null}));
+  await expect('...but cannot delete it again', false, softDel('A','w1'));
+}
+
 console.log('--- edit limits (name and own name every 30 days, phone every 90; email fixed)');
 await expect('B renames its business again straight away', false, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: serverTimestamp() }));
 await expect('B fakes an old change time to rename', false, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: Timestamp.fromDate(new Date(Date.now() - 40*86400e3)) }));
