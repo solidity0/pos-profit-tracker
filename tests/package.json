@@ -8,7 +8,13 @@
   "dependencies": {
     "firebase": "13.1.0",
     "firebase-tools": "^15.34.1",
-    "jspdf": "2.5.1",
+    "jspdf": "4.2.1",
     "playwright": "^1.48.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
+    "uuid": "^11.1.0",
+    "@opentelemetry/core": "^2.2.0",
+    "re2": "^1.27.0"
   }
 }

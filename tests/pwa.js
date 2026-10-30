@@ -23,7 +23,7 @@ function sideAware(p){
           full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
       }, sel).catch(()=> null);
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
-      if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
+      if(st && !st.inSide && st.open && !st.full){ if(await p.isVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
     }
     return realClick(sel, opts);
   };
@@ -52,7 +52,7 @@ function sideAware(p){
   await p.click('#authRole button[data-val="owner"]'); await p.fill('#authEmail', 'owner@test.com'); await p.fill('#authPassword', 'secret123'); await p.click('#authSubmit');
   check('owner signs in online', await until(async()=> /^Offline Shop · /.test(await p.textContent('#whoLabel')), 20000), await p.textContent('#whoLabel').catch(()=>''));
   check('service worker takes control', await until(()=> p.evaluate(()=> navigator.serviceWorker.ready.then(()=> !!navigator.serviceWorker.controller)), 15000) || (await p.reload(), await until(()=> p.evaluate(()=> !!navigator.serviceWorker.controller))));
-  await until(()=> p.evaluate(async ()=> (await (await caches.open('ledger-v1')).keys()).length >= 8));
+  await until(()=> p.evaluate(async ()=> (await (await caches.open('ledger-v2')).keys()).length >= 8));
   await wait(1500);
 
   await p.fill('#amount', '4321'); await p.fill('#customerFee', '100'); await p.click('#addBtn');

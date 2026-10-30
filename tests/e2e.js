@@ -45,7 +45,7 @@ function sideAware(p){
           full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
       }, sel).catch(()=> null);
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
-      if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
+      if(st && !st.inSide && st.open && !st.full){ if(await p.isVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
     }
     return realClick(sel, opts);
   };
@@ -452,7 +452,9 @@ function sideAware(p){
     check('...Esc closes them and leaves the menu open', await until(async()=> !(await tipsFull())) && await pc.isVisible('#sideDrawer'));
     await pc.click('#safetyToggle'); await until(tipsFull); await pc.click('#tipsBackBtn');
     check('...so does Back', await until(async()=> !(await tipsFull())));
-    await pc.click('#sideCloseBtn');
+    check('on a computer the menu has no × button', !(await pc.isVisible('#sideCloseBtn')));
+    await pc.keyboard.press('Escape');
+    check('...Esc closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
     check('Performance Overview\'s Summary starts open', await pc.isVisible('#netProfit'));
     // Performance Overview: never taller than Log a Transaction once open.
     const colH = () => pc.evaluate(()=> [document.getElementById('perfCard').parentElement.offsetHeight, document.getElementById('entryCard').offsetHeight]);
