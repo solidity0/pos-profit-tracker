@@ -157,6 +157,28 @@ console.log('--- delete window (staff: the day logged, within 2 hours; owner: wi
   await expect('...but cannot delete it again', false, softDel('A','w1'));
 }
 
+console.log('--- activity (everyone notes their own; only the owner reads; nobody edits or removes)');
+{
+  const act = (who, id) => doc(db[who], 'businesses', A, 'activity', id);
+  const ev = (uid, type, extra={}) => ({ type, uid, at: serverTimestamp(), ...extra });
+  await expect('staff notes their own sign-in', true, ()=>setDoc(act('SA','a1'), ev(SA, 'login')));
+  await expect('staff notes a delete with its details', true, ()=>setDoc(act('SA','a2'), ev(SA, 'delete', { detail:'Transfer ₦12,000 · Moniepoint' })));
+  await expect('staff notes a sign-in as someone else', false, ()=>setDoc(act('SA','a3'), ev(A, 'login')));
+  await expect('staff backdates an entry', false, ()=>setDoc(act('SA','a4'), { type:'login', uid:SA, at: Timestamp.fromDate(new Date(Date.now() - 86400e3)) }));
+  await expect('staff notes a team change (owner only)', false, ()=>setDoc(act('SA','a5'), ev(SA, 'staff_added', { detail:'x' })));
+  await expect('staff notes an unknown kind of event', false, ()=>setDoc(act('SA','a6'), ev(SA, 'anything')));
+  await expect('staff adds extra fields', false, ()=>setDoc(act('SA','a7'), ev(SA, 'login', { note:'hi' })));
+  await expect('staff adds an over-long detail', false, ()=>setDoc(act('SA','a8'), ev(SA, 'delete', { detail:'x'.repeat(201) })));
+  await expect('staff reads the activity', false, ()=>getDocs(collection(db.SA,'businesses',A,'activity')));
+  await expect('owner notes a team change', true, ()=>setDoc(act('A','a9'), ev(A, 'staff_removed', { detail:'Test Staff' })));
+  await expect('owner reads the activity', true, ()=>getDocs(collection(db.A,'businesses',A,'activity')));
+  await expect('owner edits an activity entry', false, ()=>updateDoc(act('A','a1'), { type:'logout' }));
+  await expect('owner removes an activity entry', false, ()=>deleteDoc(act('A','a2')));
+  await expect('staff removes their own activity entry', false, ()=>deleteDoc(act('SA','a1')));
+  await expect('a stranger notes activity in A', false, ()=>setDoc(doc(db.X,'businesses',A,'activity','x1'), ev(X, 'login')));
+  await expect("another owner reads A's activity", false, ()=>getDocs(collection(db.B,'businesses',A,'activity')));
+}
+
 console.log('--- edit limits (name and own name every 30 days, phone every 90; email fixed)');
 await expect('B renames its business again straight away', false, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: serverTimestamp() }));
 await expect('B fakes an old change time to rename', false, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: Timestamp.fromDate(new Date(Date.now() - 40*86400e3)) }));
