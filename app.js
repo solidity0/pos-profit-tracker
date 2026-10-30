@@ -366,9 +366,22 @@
     return div.innerHTML;
   }
 
+  // Each tip's box grows to show the whole tip (measured again once Settings is on screen,
+  // since a hidden box has no size).
+  function fitTipBox(ta){
+    if(!ta.offsetParent) return;
+    ta.style.height = 'auto';
+    ta.style.height = (ta.scrollHeight + 3) + 'px';
+  }
+  let tipBoxObserver = null;
   function renderSafetyTipsEditor(){
     const el = $('#safetyTipsEditor');
     if(!el) return;
+    if(!tipBoxObserver && window.ResizeObserver){
+      let lastW = 0;
+      tipBoxObserver = new ResizeObserver(()=>{ const w = el.clientWidth; if(w === lastW) return; lastW = w; el.querySelectorAll('.tip-textarea').forEach(fitTipBox); });
+      tipBoxObserver.observe(el);
+    }
     el.innerHTML = (settings.safetyTips || []).map((tip, i) => `
       <div class="tip-row" data-idx="${i}">
         <textarea class="tip-textarea">${escapeHtml(tip)}</textarea>
@@ -376,6 +389,8 @@
       </div>
     `).join('');
     el.querySelectorAll('.tip-textarea').forEach((ta, i)=>{
+      fitTipBox(ta);
+      ta.addEventListener('input', ()=> fitTipBox(ta));
       ta.addEventListener('change', async ()=>{
         settings.safetyTips[i] = ta.value;
         await saveSettings();
