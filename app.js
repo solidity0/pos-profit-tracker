@@ -1121,7 +1121,7 @@
     const card = $('#settingsCard');
     if(card.classList.contains('settings-full')) return;
     card.classList.add('settings-full');
-    if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
+    if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
     try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
   }
   function closeSettingsFull(fromHistory){
@@ -1208,6 +1208,7 @@
     if(!sideOpen()) return;
     clearTimeout(sideLeaveTimer);
     sideClosedAt = Date.now();
+    sideHoverHold = false;
     sideDrawer.classList.remove('open');
     document.documentElement.classList.remove('side-open');
     sideDrawer.setAttribute('aria-hidden', 'true');
@@ -1215,6 +1216,9 @@
     if(fromHistory !== true && history.state && history.state.ledgerSide){ try{ history.back(); }catch(e){} }
   }
   let sideOpenedAt = 0, sideClosedAt = 0;
+  // Back from Tips / Settings (opened from the menu) can leave the pointer beside the menu: it
+  // stays open until the pointer has been back in it, instead of closing a moment later.
+  let sideHoverHold = false;
   // A click straight after pointing at the logo (which already opened it) keeps it open.
   $('#sideMenuBtn').addEventListener('click', ()=>{
     if(!sideOpen()) openSide();
@@ -1229,12 +1233,15 @@
   // (Not straight after closing: the dimmed layer going away can leave the pointer on the logo.)
   $('#sideMenuBtn').addEventListener('mouseenter', ()=>{ if(canHover.matches && Date.now() - sideClosedAt > 800) openSide(true); });
   sideDrawer.addEventListener('mouseenter', ()=> clearTimeout(sideLeaveTimer));
+  sideDrawer.addEventListener('mousemove', ()=>{
+    if(sideHoverHold && !$('#settingsCard').classList.contains('settings-full') && !$('#safetyCard').classList.contains('tips-full')) sideHoverHold = false;
+  });
   sideDrawer.addEventListener('mouseleave', ()=>{
     if(!canHover.matches || !sideOpen()) return;
     clearTimeout(sideLeaveTimer);
     const openedAt = sideOpenedAt; // only for this opening (not one that's since been closed and reopened)
     sideLeaveTimer = setTimeout(()=>{
-      if(!sideOpen() || sideOpenedAt !== openedAt) return;
+      if(!sideOpen() || sideOpenedAt !== openedAt || sideHoverHold) return;
       const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
       const fullScreen = $('#settingsCard').classList.contains('settings-full') || $('#safetyCard').classList.contains('tips-full');
       if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
@@ -1300,7 +1307,7 @@
     $('#safetyCaret').classList.add('open');
     card.classList.add('tips-full');
     $('#safetyContent').scrollTop = 0;
-    if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
+    if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
     try{ history.pushState({ ledgerTips: true }, ''); }catch(e){}
   }
   function closeTipsFull(fromHistory){

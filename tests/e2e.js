@@ -454,13 +454,24 @@ function sideAware(p){
     check('...so does Back', await until(async()=> !(await tipsFull())));
     // Opened by pointing (no history step of its own), Back from Tips / Settings still returns to the menu.
     await pc.keyboard.press('Escape'); await until(async()=> !(await pc.isVisible('#sideDrawer')));
-    await pc.waitForTimeout(900); await pc.hover('#sideMenuBtn'); await until(()=> pc.isVisible('#safetyToggle'));
-    await pc.click('#safetyToggle'); await until(tipsFull); await pc.click('#tipsBackBtn');
-    await until(async()=> !(await tipsFull())); await pc.waitForTimeout(600);
+    // (Real pointer moves: on a wide screen the full-screen Back button sits beside the menu.)
+    const centre = async sel => { const r = await pc.locator(sel).boundingBox(); return [r.x + r.width/2, r.y + r.height/2]; };
+    const pointAndClick = async sel => { const [x, y] = await centre(sel); await pc.mouse.move(x, y, { steps: 10 }); await pc.mouse.down(); await pc.mouse.up(); };
+    await pc.setViewportSize({ width: 1920, height: 900 }); await pc.waitForTimeout(300);
+    await pc.mouse.move(1500, 600, { steps: 5 }); await pc.waitForTimeout(900);
+    { const [x, y] = await centre('#sideMenuBtn'); await pc.mouse.move(x, y, { steps: 10 }); } await until(()=> pc.isVisible('#safetyToggle'));
+    await pointAndClick('#safetyToggle'); await until(tipsFull); await pointAndClick('#tipsBackBtn');
+    await until(async()=> !(await tipsFull())); await pc.waitForTimeout(1000);
     check('opened by pointing, Back from Tips returns to the menu (not the home page)', await pc.isVisible('#sideDrawer') && await pc.isVisible('#safetyToggle'));
-    await pc.click('#settingsToggle'); await until(settingsFull); await pc.click('#settingsBackBtn');
-    await until(async()=> !(await settingsFull())); await pc.waitForTimeout(600);
+    await pointAndClick('#settingsToggle'); await until(settingsFull); await pointAndClick('#settingsBackBtn');
+    await until(async()=> !(await settingsFull())); await pc.waitForTimeout(1000);
     check('...and so does Back from Settings', await pc.isVisible('#sideDrawer') && await pc.isVisible('#settingsToggle'));
+    { const [x, y] = await centre('#safetyToggle'); await pc.mouse.move(x, y, { steps: 10 }); } await pc.waitForTimeout(200);
+    await pc.mouse.move(1500, 600, { steps: 10 });
+    check('...and once the pointer has been back in the menu, moving away closes it as usual', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
+    await pc.setViewportSize({ width: 1500, height: 900 }); await pc.waitForTimeout(300);
+    await pc.mouse.move(1200, 600); await pc.waitForTimeout(900);
+    { const [x, y] = await centre('#sideMenuBtn'); await pc.mouse.move(x, y, { steps: 10 }); } await until(()=> pc.isVisible('#sideDrawer'));
     check('on a computer the menu has no × button', !(await pc.isVisible('#sideCloseBtn')));
     await pc.keyboard.press('Escape');
     check('...Esc closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
