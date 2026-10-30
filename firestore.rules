@@ -6,9 +6,10 @@
 // marked inactive. users/{uid} tells a salesperson's login which business it belongs to.
 // No one can read or change another business's data.
 //
-// The platform admin (the UID in isAdmin) can list every business, approve new ones, and
-// suspend or restore one. A new business waits for the admin's approval (approved == false)
-// before its owner can use it; businesses created before approval existed have no
+// The platform admin (the UID in isAdmin) can list every business, approve or decline new
+// ones, and suspend or restore one. A new business waits for the admin's approval (approved == false)
+// before its owner can use it (a declined one stays unapproved, marked declined); businesses
+// created before approval existed have no
 // "approved" field and count as approved. A suspended or not-yet-approved business's owner
 // and salespeople have no access to its data. The admin can see business names, owners and
 // teams, not their transactions.
@@ -39,15 +40,16 @@ service cloud.firestore {
         && (request.auth.token.email_verified == true || isAdmin())
         && request.resource.data.termsAcceptedAt == request.time
         && request.resource.data.termsVersion is string
-        && !('suspended' in request.resource.data)
+        && !('suspended' in request.resource.data) && !('declined' in request.resource.data)
         && (request.resource.data.get('approved', null) == false || isAdmin());
-      // The owner edits their business (e.g. its name) but can't lift a suspension or approve
-      // it; the admin can only approve, suspend or restore.
+      // The owner edits their business (e.g. its name) but can't lift a suspension, approve it
+      // or clear a decline; the admin can only approve, decline, suspend or restore.
       allow update: if (isOwnerOf(b) && bizActive(b)
           && request.resource.data.ownerUid == b
           && request.resource.data.get('suspended', false) == resource.data.get('suspended', false)
-          && request.resource.data.get('approved', true) == resource.data.get('approved', true))
-        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt', 'approved', 'approvedAt']));
+          && request.resource.data.get('approved', true) == resource.data.get('approved', true)
+          && request.resource.data.get('declined', false) == resource.data.get('declined', false))
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt', 'approved', 'approvedAt', 'declined', 'declinedAt']));
       allow delete: if false;
 
       match /transactions/{txId} {

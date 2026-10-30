@@ -557,7 +557,13 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // the platform admin approves Ada from Settings
   await op.click('#settingsToggle'); await until(()=> op.isVisible('#adminRefreshBtn')); await op.click('#adminRefreshBtn');
   check('admin sees Ada waiting for approval, at the top of the list', await until(async()=> { const first = await op.$('#adminList .admin-biz'); return !!first && /Ada Stores/.test(await first.textContent()) && /Waiting for approval/.test(await first.textContent()); }) && /1 waiting for approval/.test(await op.textContent('#adminStatus')), await op.textContent('#adminStatus'));
-  await op.click('#adminList .admin-biz.pending .admin-approve');
+  check('...with Approve and Decline, not Suspend', await op.isVisible('#adminList .admin-biz.pending .admin-approve') && await op.isVisible('#adminList .admin-biz.pending .admin-decline') && !(await op.$('#adminList .admin-biz.pending .admin-suspend')));
+  await op.click('#adminList .admin-biz.pending .admin-decline');
+  check('...Decline asks to confirm first', /Tap again to decline/.test(await op.textContent('#adminList .admin-biz.pending .admin-decline')));
+  await wait(400); await op.click('#adminList .admin-biz.pending .admin-decline');
+  check('a declined owner is told their account wasn\'t approved', await until(async()=> /wasn't approved/.test(await ap.textContent('#authBlocked')), 20000) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authBlocked'));
+  check('...and the admin list shows Declined, with "Approve after all"', await until(async()=> /Ada Stores[\s\S]*Status: Declined/.test(await op.textContent('#adminList')) && await op.isVisible('#adminList .admin-approve')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
+  await op.click('#adminList .admin-approve');
   check('...approving it opens Ada\'s ledger by itself', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 20000), await ap.textContent('#whoLabel').catch(()=>''));
   check('...and the list shows Ada as Active', await until(async()=> /Ada Stores[\s\S]*Status: Active/.test(await op.textContent('#adminList'))), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
   await op.click('#settingsBackBtn');
