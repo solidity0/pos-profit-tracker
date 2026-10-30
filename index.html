@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Ledger" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="app.css?v=f9158519" />
+<link rel="stylesheet" href="app.css?v=c8716817" />
 </head>
 <body>
 <div class="auth-gate" id="authGate">
@@ -63,6 +63,7 @@
       <div class="auth-msg" style="margin-bottom:12px;" id="setupIntro"></div>
       <input type="text" id="setupBizName" placeholder="Business name" autocomplete="organization" required />
       <input type="text" id="setupOwnerName" placeholder="Your name" autocomplete="name" required />
+      <input type="tel" id="setupPhone" placeholder="Phone number" autocomplete="tel" inputmode="tel" />
       <label class="terms-check"><input type="checkbox" id="setupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <button class="addbtn" id="setupSubmit" type="submit">Create my business</button>
       <button class="calc-history-clear" id="setupSignOut" type="button" style="margin-top:12px; font-size:12px;">Sign out</button>
@@ -74,6 +75,7 @@
       <button class="calc-history-clear" id="verifySignOut" type="button" style="margin-top:12px; font-size:12px;">Sign out</button>
     </div>
     <div id="authBlocked" class="auth-msg" style="display:none;"></div>
+    <button class="addbtn" id="authApplyAgain" type="button" style="display:none;">Apply again</button>
     <button class="pdfbtn" id="authBlockedSignOut" type="button" style="display:none;">Sign out</button>
     <div class="status" id="authStatus"></div>
   </div>
@@ -429,7 +431,7 @@
 
       <div id="adminSection" style="display:none;">
         <h3>Master admin · all businesses</h3>
-        <div class="hint">Only you see this. New business owners can't use Ledger until you approve them; those waiting show first. Approve or decline each sign-up (a declined one can still be approved later). Suspend is for an approved business that misuses the app: it shuts its owner and staff out straight away; restoring lets them back in. You see who signed up, not their transactions.</div>
+        <div class="hint">Only you see this. New business owners can't use Ledger until you approve them; those waiting show first. Approve or decline each sign-up (a declined one can still be approved later). For an approved business that misuses the app: Remove access shuts its owner and staff out for 3 months (their email and phone can't sign up again until then; after that they can apply again), and Suspend shuts them out for good (their email and phone can never sign up again). Restore lets them back in. You see who signed up, not their transactions.</div>
         <button class="pdfbtn" id="adminRefreshBtn" type="button">Load businesses</button>
         <div class="status" id="adminStatus"></div>
         <div id="adminList"></div>
@@ -437,6 +439,13 @@
 
       <h3>Business</h3>
       <div class="field"><label>Business name</label><input type="text" id="bizNameInput" autocomplete="off" placeholder="Business name" /></div>
+      <div class="hint edit-limit" id="bizNameLimit">Can be changed once every 30 days.</div>
+      <div class="field"><label>Your phone number</label><input type="tel" id="ownerPhoneInput" autocomplete="tel" inputmode="tel" placeholder="e.g. 0803 123 4567" /></div>
+      <button class="pdfbtn" id="ownerPhoneBtn" type="button" style="margin-top:0;">Save phone number</button>
+      <div class="status" id="ownerPhoneStatus"></div>
+      <div class="hint edit-limit" id="ownerPhoneLimit">Can be changed once every 3 months.</div>
+      <div class="field"><label>Your email</label><input type="email" id="ownerEmailShown" disabled /></div>
+      <div class="hint edit-limit">Your email stays as you signed up with.</div>
       <div class="field"><label>Your username</label><input type="text" id="ownerUsernameInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. uweribe" /></div>
       <button class="pdfbtn" id="ownerUsernameBtn" type="button" style="margin-top:0;">Save username</button>
       <div class="status" id="ownerUsernameStatus"></div>
@@ -567,6 +576,6 @@
 
 </div>
 
-<script src="app.js?v=ad0e051c"></script>
+<script src="app.js?v=99ee1451"></script>
 </body>
 </html>

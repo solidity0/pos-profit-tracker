@@ -8,10 +8,12 @@ const cfg = { apiKey:'x', projectId:'ledger-3c7f0', authDomain:'x' };
 const accounts = { A:'0xxeZTLlaAeTzTgpezc58hwDxXp2', SA:'LDtRV9smFfdcudaBjiWixXyyg9A2', B:'ownerBuid0000000000000000002', SB:'staffBuid0000000000000000003', X:'strangerUid000000000000000001' };
 // B owns a business, so its email is confirmed; U signed up but never confirmed theirs.
 accounts.U = 'unverifiedUid0000000000000004';
-await emu.reset(Object.entries(accounts).map(([k, uid]) => ({ uid, email: k.toLowerCase()+'@mt.test', verified: k === 'B' })));
+// C is a confirmed login with no business yet (for the sign-up block tests).
+accounts.C = 'cleanOwnerUid000000000000005';
+await emu.reset(Object.entries(accounts).map(([k, uid]) => ({ uid, email: k.toLowerCase()+'@mt.test', verified: k === 'B' || k === 'C' })));
 async function as(k){ const app = initializeApp(cfg, k); const auth=getAuth(app); connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true}); const db=getFirestore(app); connectFirestoreEmulator(db,'127.0.0.1',8080); await signInWithEmailAndPassword(auth,k.toLowerCase()+'@mt.test','secret123'); return db; }
-const db = { A: await as('A'), SA: await as('SA'), B: await as('B'), SB: await as('SB'), X: await as('X'), U: await as('U') };
-const { A, SA, B, SB, X, U } = accounts;
+const db = { A: await as('A'), SA: await as('SA'), B: await as('B'), SB: await as('SB'), X: await as('X'), U: await as('U'), C: await as('C') };
+const { A, SA, B, SB, X, U, C } = accounts;
 let pass=0, fail=0;
 async function expect(label, allow, fn){ let ok; try{ await fn(); ok=true; }catch(e){ ok=false; if(e.code!=='permission-denied') console.log('   (',e.code,e.message,')'); } const good=ok===allow; good?pass++:fail++; console.log(`${good?'PASS':'FAIL'}  ${allow?'allow':'deny '}  ${label}`); }
 const tx = (by, extra={}) => ({ amount:1000, date:new Date().toISOString(), loggedBy:by, deleted:false, createdAt:serverTimestamp(), ...extra });
@@ -29,7 +31,10 @@ await expect('U creates a business without confirming their email', false, ()=>s
 await expect('B creates its own business without marking it as waiting for approval', false, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, ...T() }));
 await expect('B creates its own business pre-marked declined', false, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, approved:false, declined:false, ...T() }));
 await expect('B creates its own business already approved', false, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, approved:true, ...T() }));
-await expect('B creates its own business (terms accepted, waiting for approval)', true, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, approved:false, ...T() }));
+await expect('B creates its own business without a phone number', false, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, approved:false, ...T() }));
+await expect('B creates its own business with a badly formatted phone number', false, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, approved:false, ownerPhone:'0803 123 4567', ...T() }));
+await expect('B creates its own business pre-marked removed', false, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, approved:false, ownerPhone:'08031234567', removed:false, ...T() }));
+await expect('B creates its own business (terms accepted, waiting for approval)', true, ()=>setDoc(biz('B', B), { name:'B Stores', ownerUid:B, ownerName:'Bee', ownerEmail:'b@mt.test', approved:false, ownerPhone:'08031234567', ...T() }));
 console.log('--- waiting for approval');
 await expect('waiting B reads its business doc (to show the message)', true, ()=>getDoc(biz('B', B)));
 await expect('waiting B approves itself', false, ()=>updateDoc(biz('B', B), { approved:true }));
@@ -47,7 +52,8 @@ await expect('approved B can\'t un-approve itself', false, ()=>updateDoc(biz('B'
 await expect('X creates a business under B\'s id', false, ()=>setDoc(biz('X', B), { name:'hijack', ownerUid:X, ...T() }));
 await expect('X creates own business naming someone else owner', false, ()=>setDoc(biz('X', X), { name:'x', ownerUid:B, ...T() }));
 await expect('X takes over B\'s business doc', false, ()=>updateDoc(biz('X', B), { name:'hijack' }));
-await expect('B renames own business', true, ()=>updateDoc(biz('B', B), { name:'B Stores Ltd' }));
+await expect('B renames own business without recording when', false, ()=>updateDoc(biz('B', B), { name:'B Stores Ltd' }));
+await expect('B renames own business', true, ()=>updateDoc(biz('B', B), { name:'B Stores Ltd', nameChangedAt: serverTimestamp() }));
 await expect('B changes owner of own business', false, ()=>updateDoc(biz('B', B), { ownerUid:X }));
 
 console.log('--- migration of the original ledger (A)');
@@ -114,6 +120,60 @@ await expect('suspended B lifts its own suspension', false, ()=>updateDoc(biz('B
 await expect('suspended B renames itself', false, ()=>updateDoc(biz('B', B), { name:'sneaky' }));
 await expect('admin restores B', true, ()=>updateDoc(biz('A', B), { suspended:false, suspendedAt:null }));
 await expect('restored B reads its transactions again', true, ()=>getDocs(collection(db.B,'businesses',B,'transactions')));
+// Sets fields straight in the database (as if time had passed), bypassing the rules.
+const DOCS = 'http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/';
+const daysAgo = n => new Date(Date.now() - n*86400e3).toISOString();
+async function backdate(path, fields){
+  const mask = Object.keys(fields).map(f => 'updateMask.fieldPaths=' + f).join('&');
+  const body = { fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { timestampValue: v }])) };
+  const r = await fetch(DOCS + path + '?' + mask, { method:'PATCH', headers:{ Authorization:'Bearer owner', 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  if(!r.ok) throw new Error('backdate failed ' + r.status);
+}
+
+console.log('--- edit limits (name and own name every 30 days, phone every 90; email fixed)');
+await expect('B renames its business again straight away', false, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: serverTimestamp() }));
+await expect('B fakes an old change time to rename', false, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: Timestamp.fromDate(new Date(Date.now() - 40*86400e3)) }));
+await backdate('businesses/' + B, { nameChangedAt: daysAgo(31) });
+await expect('B renames its business 31 days later', true, ()=>updateDoc(biz('B', B), { name:'B Stores 2', nameChangedAt: serverTimestamp() }));
+await expect('B changes its own name (first change)', true, ()=>{ const w=writeBatch(db.B); w.update(biz('B', B), { ownerName:'Bee Two', ownerNameChangedAt: serverTimestamp() }); w.set(biz('B', B,'staff',B), { name:'Bee Two' }, { merge:true }); return w.commit(); });
+await expect('B changes its own name again straight away', false, ()=>{ const w=writeBatch(db.B); w.update(biz('B', B), { ownerName:'Bee Three', ownerNameChangedAt: serverTimestamp() }); w.set(biz('B', B,'staff',B), { name:'Bee Three' }, { merge:true }); return w.commit(); });
+await expect('B renames its own Team row to something else (dodging the limit)', false, ()=>setDoc(biz('B', B,'staff',B), { name:'Sneaky' }, { merge:true }));
+await expect('B renames a salesperson\'s row freely', true, ()=>setDoc(biz('B', B,'staff','someStaff'), { name:'Anyone' }, { merge:true }));
+await expect('B changes its phone number (first change)', true, ()=>updateDoc(biz('B', B), { ownerPhone:'08030000001', phoneChangedAt: serverTimestamp() }));
+await backdate('businesses/' + B, { phoneChangedAt: daysAgo(40) });
+await expect('B changes its phone again 40 days later', false, ()=>updateDoc(biz('B', B), { ownerPhone:'08030000002', phoneChangedAt: serverTimestamp() }));
+await backdate('businesses/' + B, { phoneChangedAt: daysAgo(91) });
+await expect('B changes its phone to a badly formatted number', false, ()=>updateDoc(biz('B', B), { ownerPhone:'0803-000', phoneChangedAt: serverTimestamp() }));
+await expect('B changes its phone again 91 days later', true, ()=>updateDoc(biz('B', B), { ownerPhone:'08030000002', phoneChangedAt: serverTimestamp() }));
+await expect('B changes its email', false, ()=>updateDoc(biz('B', B), { ownerEmail:'new@mt.test' }));
+await expect('the admin renames their own business as often as they like', true, async ()=>{ await updateDoc(biz('A', A), { name:'A one' }); await updateDoc(biz('A', A), { name:'A two' }); });
+
+console.log('--- remove access for 3 months, then apply again');
+await expect('X removes B\'s access', false, ()=>updateDoc(biz('X', B), { removed:true }));
+await expect('admin removes B\'s access for 3 months', true, ()=>updateDoc(biz('A', B), { removed:true, removedAt: serverTimestamp(), removedUntil: Timestamp.fromDate(new Date(Date.now() + 90*86400e3)) }));
+await expect('removed B still reads its business doc (to show the message)', true, ()=>getDoc(biz('B', B)));
+await expect('removed B reads its transactions', false, ()=>getDocs(collection(db.B,'businesses',B,'transactions')));
+await expect('removed B lifts the removal itself', false, ()=>updateDoc(biz('B', B), { removed:false }));
+await expect('removed B applies again before 3 months are up', false, ()=>updateDoc(biz('B', B), { removed:false, approved:false, appliedAgainAt: serverTimestamp() }));
+await backdate('businesses/' + B, { removedUntil: daysAgo(1) });
+await expect('removed B applies again straight back to approved', false, ()=>updateDoc(biz('B', B), { removed:false, approved:true, appliedAgainAt: serverTimestamp() }));
+await expect('removed B applies again after 3 months', true, ()=>updateDoc(biz('B', B), { removed:false, approved:false, declined:false, appliedAgainAt: serverTimestamp() }));
+await expect('B, applied again, still can\'t read transactions until approved', false, ()=>getDocs(collection(db.B,'businesses',B,'transactions')));
+await expect('admin approves B again', true, ()=>updateDoc(biz('A', B), { approved:true, approvedAt: serverTimestamp(), removed:false }));
+await expect('re-approved B reads its transactions', true, ()=>getDocs(collection(db.B,'businesses',B,'transactions')));
+
+console.log('--- sign-up blocks (removed: 3 months; suspended: for good)');
+await expect('X blocks a phone number', false, ()=>setDoc(doc(db.X,'blocked','p:08099999999'), { until:null }));
+await expect('admin blocks a suspended owner\'s phone for good', true, ()=>setDoc(doc(db.A,'blocked','p:08099999999'), { until:null, reason:'suspended' }));
+await expect('admin blocks a removed owner\'s email for 3 months', true, ()=>setDoc(doc(db.A,'blocked','e:c@mt.test'), { until: Timestamp.fromDate(new Date(Date.now() + 90*86400e3)), reason:'removed' }));
+await expect('anyone can check whether a detail is blocked', true, ()=>getDoc(doc(db.X,'blocked','p:08099999999')));
+await expect('X lists the blocks', false, ()=>getDocs(collection(db.X,'blocked')));
+await expect('C signs up with a phone blocked for good', false, ()=>setDoc(biz('C', C), { name:'C Shop', ownerUid:C, ownerName:'Cee', approved:false, ownerPhone:'08099999999', ...T() }));
+await expect('C signs up with an email blocked for 3 months', false, ()=>setDoc(biz('C', C), { name:'C Shop', ownerUid:C, ownerName:'Cee', approved:false, ownerPhone:'08077777777', ...T() }));
+await backdate('blocked/e:c@mt.test', { until: daysAgo(1) });
+await expect('C signs up once the 3 months are over', true, ()=>setDoc(biz('C', C), { name:'C Shop', ownerUid:C, ownerName:'Cee', approved:false, ownerPhone:'08077777777', ...T() }));
+await expect('C changes its phone to one blocked for good', false, ()=>updateDoc(biz('C', C), { ownerPhone:'08099999999', phoneChangedAt: serverTimestamp() }));
+
 console.log('--- usernames');
 {
   const { initializeApp: ia } = await import('firebase/app');

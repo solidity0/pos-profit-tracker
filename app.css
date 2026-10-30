@@ -640,12 +640,26 @@
   .legal-footer a{ white-space: nowrap; }
   .admin-biz{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 12px; }
   .admin-biz.suspended{ border-color: var(--loss); }
-  .admin-biz .admin-name{ font-weight:700; color: var(--text); font-size: 13px; }
+  .admin-biz .admin-name{ font-weight:700; color: var(--text); }
+  .admin-biz .admin-top{ display:flex; justify-content:center; margin-bottom: 6px; }
+  .admin-biz .admin-row{ display:flex; gap: 10px; padding: 3px 0; border-bottom: 1px dashed var(--line-soft); align-items: baseline; }
+  .admin-biz .admin-row:last-of-type{ border-bottom: none; }
+  .admin-biz .admin-label{ flex: 0 0 104px; color: var(--muted); font-size: 11.5px; }
+  .admin-biz .admin-value{ flex: 1; min-width: 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; text-align: right; }
+  .admin-confirm{ margin-top: 10px; padding: 10px 12px; border: 1.5px solid var(--loss); border-radius: var(--radius-sm); background: rgba(251,122,122,0.08); }
+  .admin-confirm-msg{ font-size: 12px; line-height: 1.45; color: var(--text); text-align: center; }
+  .admin-confirm-btns{ display:flex; gap: 8px; margin-top: 10px; }
+  .admin-confirm-btns button{ flex: 1; padding: 9px 8px; border-radius: 10px; font-family:'Inter',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .admin-confirm-no{ background: var(--surface-2); color: var(--text); border: 1.5px solid var(--line-soft); }
+  .admin-confirm-yes{ background: var(--loss); color: #1A0E0E; border: 1.5px solid var(--loss); }
+  .admin-confirm-btns button:disabled{ opacity: 0.6; cursor: default; }
+  .admin-biz .admin-none{ color: var(--muted-2); font-weight: 500; }
   .admin-biz .admin-meta{ color: var(--muted); margin-top: 3px; overflow-wrap:anywhere; }
   .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
   .admin-biz.suspended .admin-status{ color: var(--loss); }
   .admin-biz.pending{ border-color: var(--accent); }
-  .admin-biz .admin-master{ font-weight: 800; color: var(--mp-soft); letter-spacing: 0.04em; }
+  .admin-biz .admin-type{ display:inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px; vertical-align: 1px; color: var(--muted-strong); border: 1px solid var(--line-soft); white-space: nowrap; }
+  .admin-biz .admin-type.master{ color: var(--mp-soft); border-color: var(--mp-soft); }
   .admin-biz.pending .admin-status{ color: var(--accent); }
   .team-actions button.admin-approve{ color: var(--profit); font-weight: 800; }
   .who{ min-width:0; display:flex; flex-direction:column; gap: 5px; }
