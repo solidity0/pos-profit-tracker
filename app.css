@@ -490,7 +490,6 @@
   .log-right .profit.neg{ color: var(--loss); }
   .log-right .del.armed{ color: var(--loss); font-weight: 800; text-decoration: none; }
   .log-right .del{ background:none; border:none; color: var(--muted-2); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; }
-  .log-right .del-locked{ display:inline-block; background:none; border:none; color: var(--muted-2); font-size: 10.5px; cursor:pointer; text-decoration: underline; padding: 3px 0 0; font-family: 'Inter', sans-serif; font-weight:500; opacity:0.7; }
 
   .empty{ text-align:center; color: var(--muted); font-size: 13px; padding: 24px 0; }
 
@@ -619,6 +618,10 @@
   @media (max-width: 1023px){
     .side-drawer{ width: 100vw; left: calc(-100vw - 24px); border-right: none; box-shadow: none; }
     .side-backdrop{ display: none; }
+    /* Nothing of the page shows behind it (an iPhone back swipe can redraw the strip under
+       Safari's toolbar from the page): hidden once the menu has slid in, back at once on close. */
+    #appWrap > .top, #appWrap > .dashboard-row, #appWrap > .legal-footer{ transition: visibility 0s; }
+    html.side-open #appWrap > .top, html.side-open #appWrap > .dashboard-row, html.side-open #appWrap > .legal-footer{ visibility: hidden; transition: visibility 0s .25s; }
   }
   /* Inside the menu the open cards just grow; the menu itself scrolls. */
   .side-drawer #settingsCard.settings-open-inline:not(.settings-full){ height: auto; }

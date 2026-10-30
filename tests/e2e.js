@@ -90,8 +90,11 @@ function sideAware(p){
   check('...tapping the Ledger logo opens the side menu with Tips and Settings', await until(async()=> await op.isVisible('#sideDrawer') && await op.isVisible('#safetyToggle') && await op.isVisible('#settingsToggle')));
   const drawerBox = () => op.evaluate(()=>{ const r = document.getElementById('sideDrawer').getBoundingClientRect(); return { left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), vw: innerWidth, vh: innerHeight }; });
   check('...and on a phone it fills the screen', await until(async()=>{ const d = await drawerBox(); return d.left === 0 && d.width === d.vw && d.height >= d.vh; }), JSON.stringify(await drawerBox()));
+  const pageBehindHidden = () => op.evaluate(()=> ['.top', '.dashboard-row', '.legal-footer'].every(c => getComputedStyle(document.querySelector('#appWrap > ' + c)).visibility === 'hidden'));
+  check('...with the page behind it hidden once it has slid in (nothing shows through after an iPhone back swipe)', await until(pageBehindHidden));
   await op.goBack();
   check("...so does the phone's back button", await until(async()=> !(await op.isVisible('#sideDrawer')) && await op.isVisible('#appWrap')));
+  check('...and the page is back straight away', !(await op.evaluate(()=> ['.top', '.dashboard-row', '.legal-footer'].some(c => getComputedStyle(document.querySelector('#appWrap > ' + c)).visibility === 'hidden'))));
   await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#sideDrawer')); await op.click('#sideCloseBtn');
   check('...and the × button', await until(async()=> !(await op.isVisible('#sideDrawer'))));
   // team names + import
@@ -241,7 +244,12 @@ function sideAware(p){
   await sp.click('#periodTabs button[data-val="today"]');
   const spToday = await sp.textContent('#txCount'); const opNames = await sp.$$eval('#logList .log-item', els => els.filter(e => /by: New Person/.test(e.textContent) && !e.querySelector('.del')).length);
   check("...but can't delete it, and it isn't in their totals", opNames >= 1 && /^3 transactions/.test(spToday), `${spToday} / undeletable=${opNames}`);
-  check('a salesperson has no logged-by filter', !(await sp.isVisible('#loggedByFilter')));
+  check('staff see the team name chips too', await until(()=> sp.isVisible('#loggedByFilter button:has-text("New Person")')));
+  check('...with the owner, who has the app open, "breathing"', await until(async()=> (await sp.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()))).includes('Uweribe'), 15000), JSON.stringify(await sp.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()))));
+  await sp.click('#loggedByFilter button:has-text("New Person")');
+  check("...and tapping a name shows just that person's entries in their log", await until(async()=> { const by = await sp.$$eval('#logList .log-item', els => els.map(e => /by: New Person/.test(e.textContent))); return by.length > 0 && by.every(Boolean); }), JSON.stringify(await sp.$$eval('#logList .log-item', els => els.map(e => e.textContent.replace(/\s+/g,' ').slice(0,90)))));
+  check("...while their totals stay their own", (await sp.textContent('#txCount')) === spToday, await sp.textContent('#txCount'));
+  await sp.click('#loggedByFilter button:has-text("Everyone")');
   check('logged-by filter lists the new person', await until(async()=> (await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))).includes('New Person')));
 
   // ---------- remove / restore access ----------
@@ -543,6 +551,7 @@ function sideAware(p){
     check("salesperson's PDF covers only their own entries", /by Test Staff/.test(raw) && !/Uweribe/.test(raw));
   }
   check('salesperson sees Share PDF and Excel, but not Download PDF', await sp.isVisible('#sharePdfBtn') && await sp.isVisible('#csvBtn') && !(await sp.isVisible('#downloadPdfBtn')));
+  if(await op.isVisible('#sideDrawer')){ await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer'))); }
   check('owner sees Download PDF', await op.isVisible('#downloadPdfBtn'));
   {
     const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#csvBtn') ]);
@@ -558,6 +567,30 @@ function sideAware(p){
     await delTx('del-1h', 6111, 1); await delTx('del-3h', 6333, 3);
     check('an entry deleted an hour ago is still shown to the owner', await until(async()=> /6,111/.test(await op.textContent('#logList'))));
     check('an entry deleted three hours ago is gone from the log', !/6,333/.test(await op.textContent('#logList')));
+  }
+  // Staff can delete (and Clear) only on the day an entry was logged, within 2 hours; the owner within 24 hours.
+  {
+    const minsToday = ms => { const d = new Date(ms); return d.getHours()*60 + d.getMinutes(); };
+    const watMins = Math.floor(((Date.now() + 3600e3) % 86400e3) / 60e3);
+    if(Math.min(minsToday(Date.now()), watMins) > 200){
+      const ago = m => new Date(Date.now() - m*60e3).toISOString();
+      const oldTx = (id, amount, m) => admin(`businesses/0xxeZTLlaAeTzTgpezc58hwDxXp2/transactions/${id}`, { id:{stringValue:id}, loggedBy:{ stringValue:'LDtRV9smFfdcudaBjiWixXyyg9A2' }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:false }, date:{ stringValue: ago(m) }, createdAt:{ timestampValue: ago(m) }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:String(amount)}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'20'}, netProfit:{integerValue:'80'} });
+      await oldTx('old-130m', 7130, 130); await oldTx('old-190m', 7190, 190); await oldTx('old-25h', 7250, 25*60);
+      const rowCtl = async (pg, amt) => pg.$$eval('#logList .log-item', (els, amt) => { const e = els.find(x => x.textContent.includes(amt)); return !e ? 'missing' : e.querySelector('.del') ? 'delete' : 'none'; }, amt);
+      const spLogWasOpen = await sp.isVisible('#logContent'); if(!spLogWasOpen) await sp.click('#logToggle');
+      check('staff: their own entry logged 2h10m ago has no delete link any more', await until(async()=> await rowCtl(sp, '7,130') === 'none'), await rowCtl(sp, '7,130'));
+      if(!spLogWasOpen) await sp.click('#logToggle');
+      check('owner: the same entry can still be deleted (under 24 hours)', await until(async()=> await rowCtl(op, '7,130') === 'delete'), await rowCtl(op, '7,130'));
+      check('owner: an entry logged 3h10m ago can still be deleted', await rowCtl(op, '7,190') === 'delete', await rowCtl(op, '7,190'));
+      await op.click('#periodTabs button[data-val="all"]');
+      check('owner: an entry logged 25 hours ago has no delete link', await until(async()=> await rowCtl(op, '7,250') === 'none'), await rowCtl(op, '7,250'));
+      await op.click('#periodTabs button[data-val="today"]'); await wait(300);
+      await op.click('#clearLogBtn');
+      const canDel = await op.$$eval('#logList .del', els => els.length);
+      const clearLabel = await op.textContent('#clearLogBtn');
+      check("owner: Clear only counts entries that can still be deleted", new RegExp('Clear ' + canDel + '\\?').test(clearLabel), `${clearLabel} vs ${canDel} deletable`);
+      await wait(3500); // let the Clear confirmation lapse
+    } else console.log('(skipped the 2h/3h delete-window checks: too close to midnight)');
   }
   {
     await op.click('#periodTabs button[data-val="all"]'); await wait(500);

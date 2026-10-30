@@ -52,6 +52,16 @@ service cloud.firestore {
     }
     function isMemberOf(b) { return (isOwnerOf(b) || isStaffOf(b)) && bizActive(b); }
 
+    // Staff can delete a transaction only on the day it was logged (Nigerian time, UTC+1) and
+    // within 2 hours; the owner within 24 hours of logging. By the server's time, so a phone's
+    // clock can't stretch it.
+    function watDay(t) { return math.floor((t.toMillis() + 3600000) / 86400000); }
+    function staffDeleteOk() {
+      return request.time < resource.data.createdAt + duration.value(120, 'm')
+        && watDay(request.time) == watDay(resource.data.createdAt);
+    }
+    function ownerDeleteOk() { return request.time < resource.data.createdAt + duration.value(24, 'h'); }
+
     match /businesses/{b} {
       // Its own team can always read the business document (so the app can tell them it's
       // suspended); the admin can read and list them all.
@@ -108,18 +118,23 @@ service cloud.firestore {
           && request.resource.data.deleted == false
           && request.resource.data.createdAt == request.time);
 
-        // A salesperson can't erase anything: "delete" only marks their own entry as deleted,
-        // within 3h50m of logging. The owner still sees it, with who deleted it and when.
-        allow update: if (isOwnerOf(b) && bizActive(b)) || (isMemberOf(b) && isStaffOf(b)
+        // Deleting only marks an entry as deleted (the owner still sees it, with who and when),
+        // staff only their own entries, on the day logged and within 2 hours; the owner any entry
+        // within 24 hours. The owner can't move an entry's logged time.
+        allow update: if (isOwnerOf(b) && bizActive(b)
+            && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
+            && (request.resource.data.get('deleted', false) != true || resource.data.get('deleted', false) == true
+                || ownerDeleteOk()))
+          || (isMemberOf(b) && isStaffOf(b)
           && resource.data.loggedBy == request.auth.uid
           && resource.data.deleted == false
-          && request.time < resource.data.createdAt + duration.value(230, 'm')
+          && staffDeleteOk()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy'])
           && request.resource.data.deleted == true
           && request.resource.data.deletedBy == request.auth.uid
           && request.resource.data.deletedAt == request.time);
 
-        allow delete: if isOwnerOf(b) && bizActive(b);
+        allow delete: if isOwnerOf(b) && bizActive(b) && ownerDeleteOk();
       }
 
       // Fee rates and tips: the team reads, only the owner changes.
@@ -205,15 +220,19 @@ service cloud.firestore {
         && request.resource.data.loggedBy == request.auth.uid
         && request.resource.data.deleted == false
         && request.resource.data.createdAt == request.time;
-      allow update: if isLegacyOwner() || (isLegacyStaff()
+      allow update: if (isLegacyOwner()
+          && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
+          && (request.resource.data.get('deleted', false) != true || resource.data.get('deleted', false) == true
+              || ownerDeleteOk()))
+        || (isLegacyStaff()
         && resource.data.loggedBy == request.auth.uid
         && resource.data.deleted == false
-        && request.time < resource.data.createdAt + duration.value(230, 'm')
+        && staffDeleteOk()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy'])
         && request.resource.data.deleted == true
         && request.resource.data.deletedBy == request.auth.uid
         && request.resource.data.deletedAt == request.time);
-      allow delete: if isLegacyOwner();
+      allow delete: if isLegacyOwner() && ownerDeleteOk();
     }
     match /settings/{doc} {
       allow read: if isLegacyMember();
