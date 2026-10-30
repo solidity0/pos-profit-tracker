@@ -425,7 +425,7 @@
   /* Four fixed sections, top to bottom: history, running answer, display, keypad. Their
      sizes depend only on the screen, never on what's in them; the history and the display
      each scroll inside themselves. */
-  #calcCard.calc-full #calcBody{ display:grid !important; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 28px 15vh min(52vh, 460px); row-gap: 6px; flex:1; min-height:0; width:100%; max-width:560px; margin: 0 auto; }
+  #calcCard.calc-full #calcBody{ display:grid !important; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 28px calc(15vh / var(--app-zoom, 1)) calc(min(52vh, 460px) / var(--app-zoom, 1)); /* screen-sized, whatever the text size (Aa) */ row-gap: 6px; flex:1; min-height:0; width:100%; max-width:560px; margin: 0 auto; }
   #calcCard.calc-full #calcHistoryWrap{ grid-row: 1; }
   #calcCard.calc-full #calcPreview{ grid-row: 2; }
   #calcCard.calc-full #calcDisplay{ grid-row: 3; }
@@ -447,7 +447,7 @@
   /* On a wide screen (full-screen calculator opened from the sign-in page) keep the
      calculator phone-shaped, so the keys stay roughly square instead of wide and flat. */
   @media (min-width: 700px){
-    #calcCard.calc-full .calc-topbar, #calcCard.calc-full #calcBody{ max-width: min(440px, 46vh); }
+    #calcCard.calc-full .calc-topbar, #calcCard.calc-full #calcBody{ max-width: calc(min(440px, 46vh) / var(--app-zoom, 1)); }
   }
   #calcCard.calc-full .calc-btn{ aspect-ratio:auto; min-height: 0; font-size: clamp(24px, 4.6vh, 40px); }
   .calc-btn{ background: var(--surface-2); border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); aspect-ratio: 1.02; padding: 0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size: 32px; color: var(--text); cursor:pointer; transition: background 0.12s, transform 0.08s; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
