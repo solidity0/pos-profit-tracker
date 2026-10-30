@@ -1143,8 +1143,9 @@
   $('#settingsExpandBtn').addEventListener('click', openSettingsFull);
   window.addEventListener('popstate', ()=>{ if($('#settingsCard').classList.contains('settings-full')) leaveSettingsFull(true); });
   // Each settings section (a heading and everything under it) gets its own bordered box.
-  (function groupSettingsSections(){
-    const root = $('#settingsContent');
+  // Settings are grouped into categories that open and close on their own (like Performance
+  // Overview's Filter / Summary / Reports); inside each, every heading gets a bordered box.
+  document.querySelectorAll('#settingsContent .settings-cat-body').forEach(function groupSettingsSections(root){
     let box = null;
     Array.from(root.children).forEach(el=>{
       const isOwnSection = el.tagName === 'DIV' && el.firstElementChild && el.firstElementChild.tagName === 'H3';
@@ -1157,9 +1158,93 @@
       }
       if(box) box.appendChild(el);
     });
-  })();
+  });
   document.addEventListener('keydown', (e)=>{
     if(e.key === 'Escape' && $('#settingsCard').classList.contains('settings-full')){ e.preventDefault(); leaveSettingsFull(); }
+  });
+
+  // ---------- Side menu (owners) ----------
+  // Tapping the Ledger logo (or, on a computer, pointing at it) slides out a menu holding
+  // Educational & Safety Tips and Settings & rate table. Owners only: staff keep the Tips
+  // card on the page and the logo does nothing for them. Closed with ×, the dimmed page,
+  // Esc or the phone's back button; on a computer also by moving the pointer away (unless
+  // something in it is being typed into).
+  const sideDrawer = $('#sideDrawer');
+  const sideHomes = {};
+  ['safetyCard', 'settingsCard'].forEach(id=>{
+    const el = document.getElementById(id);
+    sideHomes[id] = document.createComment(id + ' goes here');
+    el.parentNode.insertBefore(sideHomes[id], el);
+  });
+  $('#sideDrawer .side-logo').innerHTML = $('#sideMenuBtn .brand-mark').innerHTML;
+  const sideMenuOn = () => document.body.classList.contains('has-side-menu');
+  const sideOpen = () => sideDrawer.classList.contains('open');
+  function placeSideCards(){
+    const owner = role === 'owner';
+    document.body.classList.toggle('has-side-menu', owner);
+    ['safetyCard', 'settingsCard'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(owner) $('#sideCards').appendChild(el);
+      else if(el.parentNode !== sideHomes[id].parentNode) sideHomes[id].parentNode.insertBefore(el, sideHomes[id].nextSibling);
+    });
+    if(!owner) closeSide(true);
+  }
+  // The phone's back button closes it: a history step is added when it's opened by a tap or
+  // click (browsers ignore steps added without one, e.g. on pointing).
+  function pushSideHistory(){
+    if(history.state && history.state.ledgerSide) return;
+    try{ history.pushState({ ledgerSide: true }, ''); }catch(e){}
+  }
+  function openSide(byPointing){
+    if(!sideMenuOn() || sideOpen()) return;
+    sideOpenedAt = Date.now();
+    sideDrawer.classList.add('open');
+    document.documentElement.classList.add('side-open');
+    sideDrawer.setAttribute('aria-hidden', 'false');
+    $('#sideMenuBtn').setAttribute('aria-expanded', 'true');
+    if(!byPointing) pushSideHistory();
+  }
+  function closeSide(fromHistory){
+    if(!sideOpen()) return;
+    clearTimeout(sideLeaveTimer);
+    sideClosedAt = Date.now();
+    sideDrawer.classList.remove('open');
+    document.documentElement.classList.remove('side-open');
+    sideDrawer.setAttribute('aria-hidden', 'true');
+    $('#sideMenuBtn').setAttribute('aria-expanded', 'false');
+    if(fromHistory !== true && history.state && history.state.ledgerSide){ try{ history.back(); }catch(e){} }
+  }
+  let sideOpenedAt = 0, sideClosedAt = 0;
+  // A click straight after pointing at the logo (which already opened it) keeps it open.
+  $('#sideMenuBtn').addEventListener('click', ()=>{
+    if(!sideOpen()) openSide();
+    else if(Date.now() - sideOpenedAt > 600) closeSide();
+    else pushSideHistory();
+  });
+  $('#sideCloseBtn').addEventListener('click', ()=> closeSide());
+  $('#sideBackdrop').addEventListener('click', ()=> closeSide());
+  // Pointing (computers with a mouse): open on the logo, close a moment after leaving the menu.
+  const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
+  let sideLeaveTimer = null;
+  // (Not straight after closing: the dimmed layer going away can leave the pointer on the logo.)
+  $('#sideMenuBtn').addEventListener('mouseenter', ()=>{ if(canHover.matches && Date.now() - sideClosedAt > 800) openSide(true); });
+  sideDrawer.addEventListener('mouseenter', ()=> clearTimeout(sideLeaveTimer));
+  sideDrawer.addEventListener('mouseleave', ()=>{
+    if(!canHover.matches || !sideOpen()) return;
+    clearTimeout(sideLeaveTimer);
+    const openedAt = sideOpenedAt; // only for this opening (not one that's since been closed and reopened)
+    sideLeaveTimer = setTimeout(()=>{
+      if(!sideOpen() || sideOpenedAt !== openedAt) return;
+      const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      const fullScreen = $('#settingsCard').classList.contains('settings-full');
+      if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
+    }, 450);
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && sideOpen() && !$('#settingsCard').classList.contains('settings-full') && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
+  });
+  window.addEventListener('popstate', ()=>{
+    if(sideOpen() && !(history.state && history.state.ledgerSide) && !$('#settingsCard').classList.contains('settings-full')) closeSide(true);
   });
 
   function openLogDropdown(){
@@ -1824,6 +1909,7 @@
 
   $('#settingsDoneBtn').addEventListener('click', ()=>{
     hideSettingsPanels();
+    closeSide(); // Done with the menu too
   });
   $('#settingsBackBtn').addEventListener('click', ()=> leaveSettingsFull());
 
@@ -3309,7 +3395,7 @@
     teamNames = {}; teamMembers = {}; pendingUploads = 0;
     hideSettingsPanels();
     if(!user){
-      role = null; settingsUnlocked = false;
+      role = null; settingsUnlocked = false; placeSideCards();
       delete document.body.dataset.role;
       showGate('form');
       if(loginMismatchMsg){
@@ -3323,7 +3409,7 @@
       }
       return;
     }
-    role = null; settingsUnlocked = false; bizId = null; bizName = '';
+    role = null; settingsUnlocked = false; bizId = null; bizName = ''; placeSideCards();
     findBusiness(user);
   }
 
@@ -3544,6 +3630,7 @@
   function waitForApproval(declined){
     stopListeners();
     role = null; settingsUnlocked = false;
+    placeSideCards();
     recentTx = []; olderTx = []; transactions = [];
     delete document.body.dataset.role;
     showGate('blocked', declined ? DECLINED_MSG : PENDING_MSG);
@@ -3553,6 +3640,7 @@
     stopListeners();
     stopAccessListeners();
     role = null; settingsUnlocked = false;
+    placeSideCards();
     recentTx = []; olderTx = []; transactions = [];
     delete document.body.dataset.role;
     showGate('blocked', message);
@@ -3576,6 +3664,7 @@
     role = newRole;
     document.body.dataset.role = role;
     settingsUnlocked = role === 'owner';
+    placeSideCards();
     state.loggedByFilter = 'All';
     $('#authGate').style.display = 'none';
     $('#appWrap').style.display = '';
@@ -3590,6 +3679,17 @@
     startTeamListener();
     startTxListener();
     render();
+    openDesktopCardsOnce();
+  }
+  // On a computer, Transaction Log, Performance Overview and Calculator start open each time
+  // the app opens (each can still be closed); on a phone they start closed.
+  let desktopCardsOpened = false;
+  function openDesktopCardsOnce(){
+    if(desktopCardsOpened || !desktopQuery.matches) return;
+    desktopCardsOpened = true;
+    if($('#logContent').style.display !== 'block') openLogDropdown();
+    if($('#summaryContent').style.display !== 'block'){ $('#summaryContent').style.display = 'block'; $('#summaryCaret').classList.add('open'); }
+    if($('#calcBody').style.display !== 'block') toggleCalculatorDropdown();
   }
 
   function authErrorMessage(err){
@@ -3805,7 +3905,9 @@
   });
 
   function renderAdminUI(){
-    $('#adminSection').style.display = (role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID) ? '' : 'none';
+    const isAdminNow = role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID;
+    $('#adminSection').style.display = isAdminNow ? '' : 'none';
+    $('#setCatAdmin').style.display = isAdminNow ? '' : 'none';
   }
   const adminDateFormat = new Intl.DateTimeFormat('en-NG', { day:'numeric', month:'short', year:'numeric' });
   const adminTimeFormat = new Intl.DateTimeFormat('en-NG', { hour:'numeric', minute:'2-digit', hour12: true });

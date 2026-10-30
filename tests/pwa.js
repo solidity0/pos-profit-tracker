@@ -10,6 +10,26 @@ const check = (label, ok, extra='') => { if(!ok) failures++; console.log(`${ok?'
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function until(fn, ms=10000){ const t = Date.now(); while(Date.now()-t < ms){ try{ if(await fn()) return true; }catch(e){} await wait(200); } return false; }
 
+// Owners reach Tips and Settings through the side menu: like a person would, open it before
+// tapping something inside it, and close it before tapping something on the page.
+function sideAware(p){
+  const realClick = p.click.bind(p);
+  p.click = async (sel, opts) => {
+    if(typeof sel === 'string' && sel !== '#sideMenuBtn' && sel !== '#sideCloseBtn' && sel !== '#sideBackdrop'){
+      const st = await p.evaluate(s => {
+        let el = null; try{ el = document.querySelector(s); }catch(e){}
+        const d = document.getElementById('sideDrawer');
+        return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
+          full: !!document.querySelector('#settingsCard.settings-full') };
+      }, sel).catch(()=> null);
+      if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
+      if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
+    }
+    return realClick(sel, opts);
+  };
+  return p;
+}
+
 (async()=>{
   await emu.reset(emu.TEST_ACCOUNTS);
   // a business to open
@@ -21,7 +41,9 @@ async function until(fn, ms=10000){ const t = Date.now(); while(Date.now()-t < m
   await c.route('https://www.gstatic.com/firebasejs/**', r => r.fulfill({ path: FB + path.basename(new URL(r.request().url()).pathname), contentType:'text/javascript' }));
   await c.route('https://cdnjs.cloudflare.com/ajax/libs/jspdf/**', r => r.fulfill({ path: path.join(__dirname, 'node_modules/jspdf/dist/jspdf.umd.min.js'), contentType:'text/javascript' }));
   await c.route('https://fonts.googleapis.com/**', r => r.fulfill({ body:'', contentType:'text/css' }));
-  const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  // Settings categories start open in this test (what the page remembers is kept after that).
+  await c.addInitScript(()=>{ try{ const k = 'ledger_perfOpen'; if(!localStorage.getItem(k)){ const o = {}; ['setCatAdmin','setCatBusiness','setCatTeam','setCatRates','setCatFees','setCatTips','setCatBackup'].forEach(id => o[id] = true); localStorage.setItem(k, JSON.stringify(o)); } }catch(e){} });
+  const p = sideAware(await c.newPage()); const errs = []; p.on('pageerror', e => errs.push(e.message));
 
   await p.goto(PAGE);
   const manifest = await (await fetch('http://127.0.0.1:8000/manifest.webmanifest')).json();

@@ -14,10 +14,11 @@ async function ctx(b, name){
   await c.route('https://www.gstatic.com/firebasejs/**', r => { const f = path.basename(new URL(r.request().url()).pathname); r.fulfill({ path: FB + f, contentType:'text/javascript' }); });
   await c.route('https://cdnjs.cloudflare.com/ajax/libs/jspdf/**', r => r.fulfill({ path: JSPDF, contentType:'text/javascript' }));
   await c.route('https://fonts.googleapis.com/**', r => r.abort());
-  // Performance Overview's Filter / Summary / Reports panels start open in these tests.
-  await c.addInitScript(()=>{ try{ if(!localStorage.getItem('ledger_perfOpen')) localStorage.setItem('ledger_perfOpen', JSON.stringify({ perfFilters:true, perfTotals:true, perfReports:true })); }catch(e){} });
+  // Performance Overview's Filter / Summary / Reports panels and the Settings categories start
+  // open in these tests (once: after that, what the page remembers is kept).
+  await c.addInitScript(()=>{ try{ const k = 'ledger_perfOpen'; if(!localStorage.getItem(k)){ const o = { perfFilters:true, perfTotals:true, perfReports:true }; ['setCatAdmin','setCatBusiness','setCatTeam','setCatRates','setCatFees','setCatTips','setCatBackup'].forEach(id => o[id] = true); localStorage.setItem(k, JSON.stringify(o)); } }catch(e){} });
   await c.addInitScript(()=>{ window.__appShown = false; document.addEventListener('DOMContentLoaded', ()=>{ const el = document.getElementById('appWrap'); new MutationObserver(()=>{ if(el.style.display !== 'none') window.__appShown = true; }).observe(el, { attributes:true, attributeFilter:['style'] }); }); });
-  const p = await c.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(name+': '+e.message));
+  const p = sideAware(await c.newPage()); p.errs = []; p.on('pageerror', e => p.errs.push(name+': '+e.message));
   p.on('console', m => { if(m.type()==='error' && !/net::ERR|Failed to load resource/.test(m.text())) p.errs.push(name+' console: '+m.text().slice(0,200)); });
   return { c, p };
 }
@@ -30,6 +31,26 @@ async function logTx(p, type, amount, fee){
 const logCount = p => p.$$eval('#logList .log-item:not(.deleted)', e => e.length);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms){ try{ if(await fn()) return true; }catch(e){} await wait(200); } return false; }
+
+// Owners reach Tips and Settings through the side menu: like a person would, open it before
+// tapping something inside it, and close it before tapping something on the page.
+function sideAware(p){
+  const realClick = p.click.bind(p);
+  p.click = async (sel, opts) => {
+    if(typeof sel === 'string' && sel !== '#sideMenuBtn' && sel !== '#sideCloseBtn' && sel !== '#sideBackdrop'){
+      const st = await p.evaluate(s => {
+        let el = null; try{ el = document.querySelector(s); }catch(e){}
+        const d = document.getElementById('sideDrawer');
+        return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
+          full: !!document.querySelector('#settingsCard.settings-full') };
+      }, sel).catch(()=> null);
+      if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
+      if(st && !st.inSide && st.open && !st.full){ await realClick('#sideCloseBtn'); await p.waitForTimeout(300); }
+    }
+    return realClick(sel, opts);
+  };
+  return p;
+}
 
 (async()=>{
   await emu.reset(emu.TEST_ACCOUNTS);
@@ -64,7 +85,15 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.check('#setupTerms'); await op.click('#setupSubmit');
   check('owner signs in and sees the app', await until(()=> op.isVisible('#appWrap'), 20000));
   check('header shows the business', await until(async()=> /^Triumph Ventures · /.test(await op.textContent('#whoLabel'))), await op.textContent('#whoLabel'));
-  check('owner sees Performance Overview + Settings', await op.isVisible('#perfCard') && await op.isVisible('#settingsCard'));
+  check('owner sees Performance Overview; Tips and Settings are in the side menu, not on the page', await op.isVisible('#perfCard') && !(await op.isVisible('#settingsCard')) && !(await op.isVisible('#safetyCard')) && await op.evaluate(()=> ['safetyCard','settingsCard'].every(id => document.getElementById('sideCards').contains(document.getElementById(id)))));
+  await op.click('#sideMenuBtn');
+  check('...tapping the Ledger logo opens the side menu with Tips and Settings', await until(async()=> await op.isVisible('#sideDrawer') && await op.isVisible('#safetyToggle') && await op.isVisible('#settingsToggle')));
+  await op.click('#sideBackdrop', { position: { x: 375, y: 420 } });
+  check('...tapping the dimmed page closes it', await until(async()=> !(await op.isVisible('#sideDrawer'))));
+  await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#sideDrawer')); await op.goBack();
+  check("...so does the phone's back button", await until(async()=> !(await op.isVisible('#sideDrawer')) && await op.isVisible('#appWrap')));
+  await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#sideDrawer')); await op.click('#sideCloseBtn');
+  check('...and the × button', await until(async()=> !(await op.isVisible('#sideDrawer'))));
   // team names + import
   await fetch('http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/staff/LDtRV9smFfdcudaBjiWixXyyg9A2', { method:'PATCH', headers:{ Authorization:'Bearer owner', 'Content-Type':'application/json' }, body: JSON.stringify({ fields:{ name:{ stringValue:'Test Staff' } } }) });
   await op.click('#settingsToggle');
@@ -88,7 +117,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('staff signs in', await until(()=> sp.isVisible('#appWrap')));
   check('staff header shows their name', await until(async()=> (await sp.textContent('#whoLabel')) === 'Triumph Ventures · Test Staff · STAFF'), await sp.textContent('#whoLabel'));
   check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
-  check('staff sees Performance Overview (with money in/out under Filter), not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && !(await sp.isVisible('#settingsCard')));
+  check('staff sees Performance Overview (with money in/out under Filter) and Tips on the page, no side menu, not Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && await sp.isVisible('#safetyCard') && !(await sp.$('#sideCards #safetyCard')) && !(await sp.evaluate(()=> document.body.classList.contains('has-side-menu'))) && !(await sp.isVisible('#settingsCard')));
   await logTx(sp, 'Withdrawal', '20000', '300');
   await logTx(sp, 'Transfer', '15000', '250');
   check('staff sees its 2 entries', await until(async()=> (await logCount(sp)) === 2), String(await logCount(sp)));
@@ -371,7 +400,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     await pc.setViewportSize({ width: 1500, height: 900 });
     await signIn(pc, 'owner@test.com', 'secret123');
     await until(()=> pc.isVisible('#appWrap'), 20000);
-    await pc.click('#calcToggle');
+    check('on a computer Transaction Log, Performance Overview and Calculator start open', await until(async()=> await pc.isVisible('#logContent') && await pc.isVisible('#summaryContent') && await pc.isVisible('#calcBody')));
     const isFull = () => pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
     const ch = await pc.evaluate(()=> [document.getElementById('calcCard').offsetHeight, document.getElementById('entryCard').offsetHeight]);
     check('on a computer the calculator opens as a dropdown', !(await isFull()) && await pc.isVisible('#calcBody') && await pc.isVisible('#calcExpandBtn'));
@@ -386,11 +415,23 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('...so does Back', await until(async()=> !(await isFull()) && await pc.isVisible('#calcBody')));
     await pc.click('#calcToggle');
     check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#calcBody'))));
-    // Settings on a computer: a dropdown as tall as Log a Transaction, with a full-screen button.
+    await pc.click('#logToggle');
+    check('...the Transaction Log closes too', await until(async()=> !(await pc.isVisible('#logContent'))));
+    await pc.click('#logToggle'); await pc.click('#calcToggle');
+    // The side menu on a computer: pointing at the logo opens it; moving away closes it.
+    await pc.hover('#sideMenuBtn');
+    check('on a computer pointing at the Ledger logo opens the side menu', await until(()=> pc.isVisible('#settingsToggle')));
+    await pc.mouse.move(1200, 600);
+    check('...and moving the pointer away closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
+    check('...with only the four working cards on the page', await pc.evaluate(()=> [...document.querySelector('.dashboard-row').children].filter(e => e.offsetParent).length) === 4);
+    // Settings on a computer open inside the menu, with a full-screen button.
     await pc.click('#settingsToggle');
     const sh = await pc.evaluate(()=>{ const s = document.getElementById('settingsCard'), e = document.getElementById('entryCard'); return { full: s.classList.contains('settings-full'), s: s.offsetHeight, e: e.offsetHeight }; });
-    check('on a computer settings open as a dropdown', !sh.full && await pc.isVisible('#settingsContent') && await pc.isVisible('#settingsExpandBtn'), JSON.stringify(sh));
-    check('...as tall as the Log a Transaction card', Math.abs(sh.s - sh.e) <= 2, JSON.stringify(sh));
+    check('on a computer settings open as a dropdown in the menu', !sh.full && await pc.isVisible('#settingsContent') && await pc.isVisible('#settingsExpandBtn'), JSON.stringify(sh));
+    await pc.click('#setCatRates .perf-section-toggle');
+    check('a Settings category closes from its heading', await until(async()=> !(await pc.isVisible('#billFee'))));
+    await pc.click('#setCatRates .perf-section-toggle');
+    check('...and opens again', await until(()=> pc.isVisible('#billFee')));
     await pc.click('#settingsExpandBtn');
     check('...the full-screen button opens them full screen', await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full')) && await pc.isVisible('#settingsBackBtn'));
     await pc.keyboard.press('Escape');
@@ -399,16 +440,13 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
     check('...so does Back', await until(async()=> !(await pc.evaluate(()=> document.getElementById('settingsCard').classList.contains('settings-full'))) && await pc.isVisible('#settingsContent')));
     await pc.click('#settingsToggle');
     check('...and the heading closes the dropdown', await until(async()=> !(await pc.isVisible('#settingsContent'))));
-    // Performance Overview / Tips column: never taller than Log a Transaction once open.
+    // Performance Overview: never taller than Log a Transaction once open.
     const colH = () => pc.evaluate(()=> [document.getElementById('perfCard').parentElement.offsetHeight, document.getElementById('entryCard').offsetHeight]);
-    await pc.click('#summaryToggle');
     for(const id of ['perfFilters','perfTotals','perfReports']) if(!(await pc.$eval('#'+id, e=>e.classList.contains('open')))) await pc.click('#'+id+' .perf-section-toggle');
     let ph = await colH();
     check('on a computer open Performance Overview is as tall as Log a Transaction', Math.abs(ph[0]-ph[1]) <= 2, JSON.stringify(ph));
     check('...and scrolls inside', await pc.$eval('#summaryContent', e=> e.scrollHeight > e.clientHeight));
-    await pc.click('#safetyToggle'); ph = await colH();
-    check('...also with Educational & Safety Tips open', Math.abs(ph[0]-ph[1]) <= 2, JSON.stringify(ph));
-    await pc.click('#summaryToggle'); await pc.click('#safetyToggle');
+    await pc.click('#summaryToggle');
     await PC.c.close();
   }
 
