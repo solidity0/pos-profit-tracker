@@ -2720,6 +2720,8 @@
     }catch(e){}
     return `${name}@${STAFF_LOGIN_DOMAIN}`;
   }
+  const PENDING_MSG = 'Thanks for signing up! Your business account is waiting for approval by the Ledger team. Your ledger will open here by itself as soon as it\'s approved — you can leave this page open.';
+  const DECLINED_MSG = 'Your business account wasn\'t approved, so this ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
   const SUSPENDED_MSG = 'This business account has been suspended, so its ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
   // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
   // Older entries are fetched once per session, only when All Time or an older Custom range
@@ -3307,6 +3309,12 @@
         if(snap.metadata.fromCache && navigator.onLine) return;
         decided = true; lockOut(SUSPENDED_MSG); return;
       }
+      if(snap.exists() && snap.data().approved === false){
+        // Waiting for the platform admin's approval, or declined. Keep listening (unlike
+        // lockOut), so the ledger opens by itself the moment it's approved.
+        if(snap.metadata.fromCache && navigator.onLine) return;
+        decided = true; waitForApproval(snap.data().declined === true); return;
+      }
       if(snap.exists()){
         decided = true;
         bizId = user.uid;
@@ -3360,7 +3368,7 @@
     }, async ()=>{
       // Denied: either they were removed, or the whole business was suspended.
       let suspended = false;
-      try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); suspended = !!(biz.exists() && biz.data().suspended); }catch(e){}
+      try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); suspended = !!(biz.exists() && (biz.data().suspended || biz.data().approved === false)); }catch(e){}
       lockOut(suspended ? SUSPENDED_MSG : (role === 'staff' ? REMOVED_MSG : notAddedMsg));
     }));
     // Live: if the business is suspended mid-shift, lock them out.
@@ -3400,7 +3408,7 @@
   }
 
   // Creates businesses/{uid} last, so the app opens only once everything is in place.
-  async function createBusiness(name, ownerName, statusEl, isLegacy){
+  async function createBusiness(name, ownerName, statusEl, isLegacy, username, phone){
     // termsAcceptedAt must be the server time of this write (the rules check it).
     const uid = currentUser.uid;
     bizId = uid;
@@ -3417,11 +3425,22 @@
       });
     }
     batch.set(fb.doc(fb.db, 'businesses', uid, 'staff', uid), { name: ownerName, email: currentUser.email || '' }, { merge: true });
-    batch.set(fb.doc(fb.db, 'businesses', uid), {
+    const bizDoc = {
       name, ownerUid: uid, ownerEmail: currentUser.email || '', createdAt: fb.serverTimestamp(),
-      termsAcceptedAt: fb.serverTimestamp(), termsVersion: TERMS_VERSION
-    });
+      termsAcceptedAt: fb.serverTimestamp(), termsVersion: TERMS_VERSION,
+      // New businesses wait for the platform admin's approval (the rules insist on it).
+      approved: uid === PLATFORM_ADMIN_UID
+    };
+    if(phone) bizDoc.ownerPhone = phone;
+    // The username picked at sign-up goes in the same batch: once the business exists and is
+    // waiting for approval, the owner can't change it until it's approved.
+    if(username){
+      bizDoc.ownerUsername = username;
+      batch.set(fb.doc(fb.db, 'usernames', username), { email: currentUser.email, businessId: uid });
+    }
+    batch.set(fb.doc(fb.db, 'businesses', uid), bizDoc);
     await batch.commit();
+    if(username) ownerUsername = username;
   }
 
   // Copies the original single-business ledger (top-level collections) into the owner's
@@ -3450,6 +3469,14 @@
       await batch.commit();
     }
     return { copied: docs.length, staff: staffSnap.docs, settings: settingsSnap.exists() ? settingsSnap.data() : null };
+  }
+
+  function waitForApproval(declined){
+    stopListeners();
+    role = null; settingsUnlocked = false;
+    recentTx = []; olderTx = []; transactions = [];
+    delete document.body.dataset.role;
+    showGate('blocked', declined ? DECLINED_MSG : PENDING_MSG);
   }
 
   function lockOut(message){
@@ -3597,9 +3624,12 @@
     const name = $('#signupBizName').value.trim();
     const ownerName = $('#signupOwnerName').value.trim();
     const email = $('#signupEmail').value.trim();
+    const phone = $('#signupPhone').value.trim();
     const password = $('#signupPassword').value;
     const st = $('#authStatus');
-    if(!name || !ownerName || !email || !password){ st.className = 'status error'; st.textContent = 'Enter the business name, your name, your email and a password.'; return; }
+    if(!name || !ownerName || !email || !phone || !password){ st.className = 'status error'; st.textContent = 'Enter the business name, your name, your email, your phone number and a password.'; return; }
+    // A real number helps the Ledger team check new sign-ups before approving them.
+    if(!/^\+?[0-9][0-9 ()-]{8,}$/.test(phone) || phone.replace(/\D/g, '').length < 10 || phone.replace(/\D/g, '').length > 15){ st.className = 'status error'; st.textContent = 'Enter a valid phone number, e.g. 0803 123 4567.'; return; }
     if(!$('#signupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
     const username = $('#signupUsername').value.trim().toLowerCase();
     if(username){
@@ -3615,7 +3645,7 @@
     try{
       const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, password);
       currentUser = cred.user;
-      savePending({ name, ownerName, username });
+      savePending({ name, ownerName, username, phone });
       await fb.sendEmailVerification(cred.user);
       $('#signupPassword').value = '';
       st.textContent = '';
@@ -3643,9 +3673,11 @@
       if(pending && pending.name && pending.ownerName){
         st.textContent = 'Setting up your business…';
         pendingSignup = pending;
-        await createBusiness(pending.name, pending.ownerName, st, false);
-        // The username was free when they signed up; if someone took it since, they can pick another in Settings.
-        if(pending.username){ try{ if(!(await ownerUsernameProblem(pending.username))) await saveOwnerUsername(pending.username); }catch(e){} }
+        // The username was free when they signed up; if someone took it since, it's left off
+        // and they can pick another in Settings once approved.
+        let username = '';
+        if(pending.username){ try{ if(!(await ownerUsernameProblem(pending.username))) username = pending.username; }catch(e){} }
+        await createBusiness(pending.name, pending.ownerName, st, false, username, pending.phone || '');
         clearPending();
         st.textContent = '';
         if(!role) findBusiness(currentUser);
@@ -3710,18 +3742,41 @@
           if(o.exists()){ ownerName = o.data().name || ''; email = email || o.data().email || ''; }
         }catch(e){}
         const created = data.createdAt && data.createdAt.toDate ? adminDateFormat.format(data.createdAt.toDate()) : '—';
-        return { id: d.id, name: data.name || '(no name)', ownerName, email, created, suspended: !!data.suspended, createdMs: data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0 };
+        return { id: d.id, name: data.name || '(no name)', ownerName, email, phone: data.ownerPhone || '', created, suspended: !!data.suspended, pending: data.approved === false && data.declined !== true, declined: data.approved === false && data.declined === true, createdMs: data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0 };
       }));
-      rows.sort((a,b)=> b.createdMs - a.createdMs);
-      list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended ? ' suspended' : ''}">
+      // Waiting for approval first, then newest first.
+      rows.sort((a,b)=> (b.pending - a.pending) || (b.createdMs - a.createdMs));
+      const waiting = rows.filter(r => r.pending).length;
+      list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended || r.declined ? ' suspended' : ''}${r.pending ? ' pending' : ''}">
         <div class="admin-name">${escapeHtml(r.name)}${r.id === PLATFORM_ADMIN_UID ? ' (you)' : ''}</div>
-        <div class="admin-meta">${escapeHtml(r.ownerName || 'OWNER')} · ${escapeHtml(r.email || 'no email')} · created ${r.created}</div>
-        <div class="admin-meta">Status: <span class="admin-status">${r.suspended ? 'Suspended' : 'Active'}</span></div>
-        ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${r.suspended
-          ? `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
+        <div class="admin-meta">${r.id === PLATFORM_ADMIN_UID ? `<span class="admin-master">MASTER ADMIN</span> · ${r.ownerName ? escapeHtml(r.ownerName) + ' · ' : ''}` : escapeHtml(r.ownerName || 'OWNER') + ' · '}${escapeHtml(r.email || 'no email')}${r.phone ? ' · ' + escapeHtml(r.phone) : ''} · created ${r.created}</div>
+        <div class="admin-meta">Status: <span class="admin-status">${r.pending ? 'Waiting for approval' : r.declined ? 'Declined' : (r.suspended ? 'Suspended' : 'Active')}</span></div>
+        ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${
+          // New sign-ups: Approve or Decline. A declined one can still be approved later.
+          // Suspending is only for businesses already approved (misuse of the app).
+          r.pending ? `<button type="button" class="admin-approve" data-id="${r.id}">Approve</button><button type="button" class="admin-decline danger" data-id="${r.id}">Decline</button>`
+          : r.declined ? `<button type="button" class="admin-approve" data-id="${r.id}">Approve after all</button>`
+          : r.suspended ? `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
           : `<button type="button" class="admin-suspend danger" data-id="${r.id}">Suspend business</button>`}</div>`}
       </div>`).join('');
-      st.textContent = `${rows.length} business${rows.length === 1 ? '' : 'es'}`;
+      st.textContent = `${rows.length} business${rows.length === 1 ? '' : 'es'}` + (waiting ? ` · ${waiting} waiting for approval` : '');
+      list.querySelectorAll('.admin-approve').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if(offlineBlock(st)) return;
+          btn.disabled = true;
+          try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { approved: true, approvedAt: fb.serverTimestamp(), declined: false }); loadAdminList(); }
+          catch(err){ btn.disabled = false; st.className = 'status error'; st.textContent = 'Could not approve: ' + err.message; }
+        });
+      });
+      list.querySelectorAll('.admin-decline').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          armTapTwice(btn, 'Decline', 'Tap again to decline', async ()=>{
+            if(offlineBlock(st)) return;
+            try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { declined: true, declinedAt: fb.serverTimestamp() }); loadAdminList(); }
+            catch(err){ st.className = 'status error'; st.textContent = 'Could not decline: ' + err.message; }
+          });
+        });
+      });
       list.querySelectorAll('.admin-suspend').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           armTapTwice(btn, 'Suspend business', 'Tap again to suspend', async ()=>{
