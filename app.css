@@ -589,9 +589,10 @@
   body.has-side-menu .brand-btn:hover .brand-mark, body.has-side-menu .brand-btn[aria-expanded="true"] .brand-mark{ transform: scale(1.06); box-shadow: 0 0 0 3px rgba(96,165,250,0.35), 0 6px 14px -8px rgba(37,99,235,0.9); }
   body:not(.has-side-menu) .brand-btn{ pointer-events: none; }
   /* Side menu: slides in from the left over a dimmed page. */
-  .side-backdrop{ position: fixed; inset: 0; z-index: 890; background: rgba(0,0,0,0.5); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s; }
+  /* The page behind the menu is dimmed and blurred so its card lines don't show through. */
+  .side-backdrop{ position: fixed; inset: 0; z-index: 890; background: rgba(0,0,0,0.72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s; }
   html.side-open .side-backdrop{ opacity: 1; visibility: visible; }
-  .side-drawer{ position: fixed; top: 0; bottom: 0; left: calc(-1 * min(440px, 92vw) - 24px); width: min(440px, 92vw); z-index: 900;
+  .side-drawer{ position: fixed; top: 0; bottom: 0; left: calc(-1 * min(520px, 92vw) - 24px); width: min(520px, 92vw); z-index: 900;
     background: var(--bg); border-right: 1px solid var(--line-soft); box-shadow: 12px 0 40px -18px rgba(0,0,0,0.7);
     overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; visibility: hidden;
     padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 20px);
