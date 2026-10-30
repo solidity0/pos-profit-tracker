@@ -3748,8 +3748,8 @@
       rows.sort((a,b)=> (b.pending - a.pending) || (b.createdMs - a.createdMs));
       const waiting = rows.filter(r => r.pending).length;
       list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended || r.declined ? ' suspended' : ''}${r.pending ? ' pending' : ''}">
-        <div class="admin-name">${escapeHtml(r.name)}${r.id === PLATFORM_ADMIN_UID ? ' (you)' : ''}</div>
-        <div class="admin-meta">${r.id === PLATFORM_ADMIN_UID ? `<span class="admin-master">MASTER ADMIN</span> · ${r.ownerName ? escapeHtml(r.ownerName) + ' · ' : ''}` : escapeHtml(r.ownerName || 'OWNER') + ' · '}${escapeHtml(r.email || 'no email')}${r.phone ? ' · ' + escapeHtml(r.phone) : ''} · created ${r.created}</div>
+        <div class="admin-name">${escapeHtml(r.name)} <span class="admin-type${r.id === PLATFORM_ADMIN_UID ? ' master' : ''}">${r.id === PLATFORM_ADMIN_UID ? 'MASTER ADMIN' : 'BUSINESS OWNER'}</span></div>
+        <div class="admin-meta">${r.ownerName ? escapeHtml(r.ownerName) + ' · ' : ''}${escapeHtml(r.email || 'no email')}${r.phone ? ' · ' + escapeHtml(r.phone) : ''} · created ${r.created}</div>
         <div class="admin-meta">Status: <span class="admin-status">${r.pending ? 'Waiting for approval' : r.declined ? 'Declined' : (r.suspended ? 'Suspended' : 'Active')}</span></div>
         ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${
           // New sign-ups: Approve or Decline. A declined one can still be approved later.

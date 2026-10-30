@@ -561,7 +561,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#settingsToggle'); await until(()=> op.isVisible('#adminRefreshBtn')); await op.click('#adminRefreshBtn');
   check('admin sees Ada waiting for approval, at the top of the list', await until(async()=> { const first = await op.$('#adminList .admin-biz'); return !!first && /Ada Stores/.test(await first.textContent()) && /Waiting for approval/.test(await first.textContent()); }) && /1 waiting for approval/.test(await op.textContent('#adminStatus')), await op.textContent('#adminStatus'));
   check('...showing the phone number given at sign-up', /0803 123 4567/.test(await op.textContent('#adminList .admin-biz.pending')), await op.textContent('#adminList .admin-biz.pending'));
-  check('...and the admin\'s own business says MASTER ADMIN', /MASTER ADMIN/.test(await op.textContent('#adminList')));
+  check('...and each business shows its account type (MASTER ADMIN / BUSINESS OWNER), with no "(you)"', /MASTER ADMIN/.test(await op.textContent('#adminList')) && /Ada Stores\s*BUSINESS OWNER/.test(await op.textContent('#adminList')) && !/\(you\)/.test(await op.textContent('#adminList')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,220));
   check('...with Approve and Decline, not Suspend', await op.isVisible('#adminList .admin-biz.pending .admin-approve') && await op.isVisible('#adminList .admin-biz.pending .admin-decline') && !(await op.$('#adminList .admin-biz.pending .admin-suspend')));
   await op.click('#adminList .admin-biz.pending .admin-decline');
   check('...Decline asks to confirm first', /Tap again to decline/.test(await op.textContent('#adminList .admin-biz.pending .admin-decline')));

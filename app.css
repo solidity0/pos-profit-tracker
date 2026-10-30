@@ -645,7 +645,8 @@
   .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
   .admin-biz.suspended .admin-status{ color: var(--loss); }
   .admin-biz.pending{ border-color: var(--accent); }
-  .admin-biz .admin-master{ font-weight: 800; color: var(--mp-soft); letter-spacing: 0.04em; }
+  .admin-biz .admin-type{ display:inline-block; margin-left: 6px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px; vertical-align: 1px; color: var(--muted-strong); border: 1px solid var(--line-soft); white-space: nowrap; }
+  .admin-biz .admin-type.master{ color: var(--mp-soft); border-color: var(--mp-soft); }
   .admin-biz.pending .admin-status{ color: var(--accent); }
   .team-actions button.admin-approve{ color: var(--profit); font-weight: 800; }
   .who{ min-width:0; display:flex; flex-direction:column; gap: 5px; }
