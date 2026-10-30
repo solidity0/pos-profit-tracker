@@ -538,9 +538,12 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await ap.goto(PAGE); await ap.waitForSelector('#authForm', { state:'visible' });
   check('sign-in screen offers "Create a business account"', await ap.isVisible('#showSignup'));
   await ap.click('#showSignup');
-  await ap.fill('#signupBizName', 'Ada Stores'); await ap.fill('#signupOwnerName', 'Ada'); await ap.fill('#signupEmail', 'owner@test.com'); await ap.fill('#signupPassword', 'secret123'); await ap.check('#signupTerms'); await ap.click('#signupSubmit');
+  await ap.fill('#signupBizName', 'Ada Stores'); await ap.fill('#signupOwnerName', 'Ada'); await ap.fill('#signupEmail', 'owner@test.com'); await ap.fill('#signupPhone', '0803 123 4567'); await ap.fill('#signupPassword', 'secret123'); await ap.check('#signupTerms'); await ap.click('#signupSubmit');
   check('signing up with an email that already has an account is refused', await until(async()=> /already has an account/.test(await ap.textContent('#authStatus'))), await ap.textContent('#authStatus'));
   check('sign-up form links the Terms of Use and Privacy Policy', !!(await ap.$('#signupForm a[href="terms.html"]')) && !!(await ap.$('#signupForm a[href="privacy.html"]')));
+  await ap.fill('#signupEmail', 'ada@test.com'); await ap.fill('#signupPhone', '12345'); await ap.click('#signupSubmit');
+  check('sign-up with a bad phone number is refused', await until(async()=> /valid phone number/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#verifyForm')), await ap.textContent('#authStatus'));
+  await ap.fill('#signupPhone', '0803 123 4567');
   await ap.uncheck('#signupTerms'); await ap.fill('#signupEmail', 'ada@test.com'); await ap.click('#signupSubmit');
   check('sign-up without ticking the terms box is refused', await until(async()=> /Tick the box to agree/.test(await ap.textContent('#authStatus'))) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authStatus'));
   await ap.check('#signupTerms'); await ap.fill('#signupUsername', 'uweribe'); await ap.click('#signupSubmit');
@@ -557,6 +560,8 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // the platform admin approves Ada from Settings
   await op.click('#settingsToggle'); await until(()=> op.isVisible('#adminRefreshBtn')); await op.click('#adminRefreshBtn');
   check('admin sees Ada waiting for approval, at the top of the list', await until(async()=> { const first = await op.$('#adminList .admin-biz'); return !!first && /Ada Stores/.test(await first.textContent()) && /Waiting for approval/.test(await first.textContent()); }) && /1 waiting for approval/.test(await op.textContent('#adminStatus')), await op.textContent('#adminStatus'));
+  check('...showing the phone number given at sign-up', /0803 123 4567/.test(await op.textContent('#adminList .admin-biz.pending')), await op.textContent('#adminList .admin-biz.pending'));
+  check('...and the admin\'s own business says MASTER ADMIN', /MASTER ADMIN/.test(await op.textContent('#adminList')));
   check('...with Approve and Decline, not Suspend', await op.isVisible('#adminList .admin-biz.pending .admin-approve') && await op.isVisible('#adminList .admin-biz.pending .admin-decline') && !(await op.$('#adminList .admin-biz.pending .admin-suspend')));
   await op.click('#adminList .admin-biz.pending .admin-decline');
   check('...Decline asks to confirm first', /Tap again to decline/.test(await op.textContent('#adminList .admin-biz.pending .admin-decline')));

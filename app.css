@@ -645,6 +645,7 @@
   .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
   .admin-biz.suspended .admin-status{ color: var(--loss); }
   .admin-biz.pending{ border-color: var(--accent); }
+  .admin-biz .admin-master{ font-weight: 800; color: var(--mp-soft); letter-spacing: 0.04em; }
   .admin-biz.pending .admin-status{ color: var(--accent); }
   .team-actions button.admin-approve{ color: var(--profit); font-weight: 800; }
   .who{ min-width:0; display:flex; flex-direction:column; gap: 5px; }

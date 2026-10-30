@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Ledger" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="app.css?v=1f60c2f6" />
+<link rel="stylesheet" href="app.css?v=f9158519" />
 </head>
 <body>
 <div class="auth-gate" id="authGate">
@@ -52,6 +52,7 @@
       <input type="text" id="signupBizName" placeholder="Business name" autocomplete="organization" required />
       <input type="text" id="signupOwnerName" placeholder="Your name" autocomplete="name" required />
       <input type="email" id="signupEmail" placeholder="Email" autocomplete="username" inputmode="email" required />
+      <input type="tel" id="signupPhone" placeholder="Phone number" autocomplete="tel" inputmode="tel" required />
       <input type="text" id="signupUsername" placeholder="Username (optional, for quicker sign-in)" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
       <input type="password" id="signupPassword" placeholder="Password (6+ characters)" autocomplete="new-password" required />
       <label class="terms-check"><input type="checkbox" id="signupTerms" /><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
@@ -427,7 +428,7 @@
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
       <div id="adminSection" style="display:none;">
-        <h3>Platform admin · all businesses</h3>
+        <h3>Master admin · all businesses</h3>
         <div class="hint">Only you see this. New business owners can't use Ledger until you approve them; those waiting show first. Approve or decline each sign-up (a declined one can still be approved later). Suspend is for an approved business that misuses the app: it shuts its owner and staff out straight away; restoring lets them back in. You see who signed up, not their transactions.</div>
         <button class="pdfbtn" id="adminRefreshBtn" type="button">Load businesses</button>
         <div class="status" id="adminStatus"></div>
@@ -566,6 +567,6 @@
 
 </div>
 
-<script src="app.js?v=1abcc1d1"></script>
+<script src="app.js?v=ad0e051c"></script>
 </body>
 </html>
