@@ -452,6 +452,7 @@ function sideAware(p){
     await pc.click('#settingsToggle');
     check('on a computer settings open full screen, with Back and no full-screen button', await until(settingsFull) && await pc.isVisible('#settingsBackBtn') && !(await pc.isVisible('#settingsExpandBtn')));
     await pc.click('#setCatRates .perf-section-toggle');
+    check('each tip in Settings shows in full while editing (its box fits the text)', await until(()=> pc.evaluate(()=> { const t = [...document.querySelectorAll('#safetyTipsEditor .tip-textarea')]; return t.length > 0 && t.every(x => x.scrollHeight <= x.clientHeight + 2); })));
     check('a Settings category closes from its heading', await until(async()=> !(await pc.isVisible('#billFee'))));
     await pc.click('#setCatRates .perf-section-toggle');
     check('...and opens again', await until(()=> pc.isVisible('#billFee')));
