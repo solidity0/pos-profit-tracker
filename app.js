@@ -1143,8 +1143,9 @@
   $('#settingsExpandBtn').addEventListener('click', openSettingsFull);
   window.addEventListener('popstate', ()=>{ if($('#settingsCard').classList.contains('settings-full')) leaveSettingsFull(true); });
   // Each settings section (a heading and everything under it) gets its own bordered box.
-  (function groupSettingsSections(){
-    const root = $('#settingsContent');
+  // Settings are grouped into categories that open and close on their own (like Performance
+  // Overview's Filter / Summary / Reports); inside each, every heading gets a bordered box.
+  document.querySelectorAll('#settingsContent .settings-cat-body').forEach(function groupSettingsSections(root){
     let box = null;
     Array.from(root.children).forEach(el=>{
       const isOwnSection = el.tagName === 'DIV' && el.firstElementChild && el.firstElementChild.tagName === 'H3';
@@ -1157,7 +1158,7 @@
       }
       if(box) box.appendChild(el);
     });
-  })();
+  });
   document.addEventListener('keydown', (e)=>{
     if(e.key === 'Escape' && $('#settingsCard').classList.contains('settings-full')){ e.preventDefault(); leaveSettingsFull(); }
   });
@@ -3805,7 +3806,9 @@
   });
 
   function renderAdminUI(){
-    $('#adminSection').style.display = (role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID) ? '' : 'none';
+    const isAdminNow = role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID;
+    $('#adminSection').style.display = isAdminNow ? '' : 'none';
+    $('#setCatAdmin').style.display = isAdminNow ? '' : 'none';
   }
   const adminDateFormat = new Intl.DateTimeFormat('en-NG', { day:'numeric', month:'short', year:'numeric' });
   const adminTimeFormat = new Intl.DateTimeFormat('en-NG', { hour:'numeric', minute:'2-digit', hour12: true });

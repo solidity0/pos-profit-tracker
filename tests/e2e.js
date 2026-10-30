@@ -14,8 +14,9 @@ async function ctx(b, name){
   await c.route('https://www.gstatic.com/firebasejs/**', r => { const f = path.basename(new URL(r.request().url()).pathname); r.fulfill({ path: FB + f, contentType:'text/javascript' }); });
   await c.route('https://cdnjs.cloudflare.com/ajax/libs/jspdf/**', r => r.fulfill({ path: JSPDF, contentType:'text/javascript' }));
   await c.route('https://fonts.googleapis.com/**', r => r.abort());
-  // Performance Overview's Filter / Summary / Reports panels start open in these tests.
-  await c.addInitScript(()=>{ try{ if(!localStorage.getItem('ledger_perfOpen')) localStorage.setItem('ledger_perfOpen', JSON.stringify({ perfFilters:true, perfTotals:true, perfReports:true })); }catch(e){} });
+  // Performance Overview's Filter / Summary / Reports panels and the Settings categories start
+  // open in these tests (once: after that, what the page remembers is kept).
+  await c.addInitScript(()=>{ try{ const k = 'ledger_perfOpen'; if(!localStorage.getItem(k)){ const o = { perfFilters:true, perfTotals:true, perfReports:true }; ['setCatAdmin','setCatBusiness','setCatTeam','setCatRates','setCatFees','setCatTips','setCatBackup'].forEach(id => o[id] = true); localStorage.setItem(k, JSON.stringify(o)); } }catch(e){} });
   await c.addInitScript(()=>{ window.__appShown = false; document.addEventListener('DOMContentLoaded', ()=>{ const el = document.getElementById('appWrap'); new MutationObserver(()=>{ if(el.style.display !== 'none') window.__appShown = true; }).observe(el, { attributes:true, attributeFilter:['style'] }); }); });
   const p = await c.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(name+': '+e.message));
   p.on('console', m => { if(m.type()==='error' && !/net::ERR|Failed to load resource/.test(m.text())) p.errs.push(name+' console: '+m.text().slice(0,200)); });

@@ -362,6 +362,13 @@
   /* Full-screen calculator: a top bar with Back, then the history, display and a keypad
      that fills the rest of the screen. */
   .calc-topbar{ display:none; }
+  /* Settings categories (open and close like Performance Overview's sections), each with
+     a one-line description of what's inside. */
+  .settings-cat .perf-section-toggle{ text-align:left; }
+  .settings-cat .perf-section-title{ display:flex; flex-direction:column; gap: 3px; }
+  .settings-cat-desc{ font-family:'Inter',sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); line-height: 1.35; }
+  .settings-cat-body > .settings-section:first-child{ margin-top: 0; }
+  #settingsContent > .settings-cat:first-child{ margin-top: 0; }
   /* Settings sections, each in its own bordered box. */
   .settings-section{ border: 1px solid var(--line-soft); border-radius: 16px; padding: 4px 14px 14px; margin-top: 14px; background: var(--surface); }
   .settings-section > h3:first-child{ margin-top: 12px; }

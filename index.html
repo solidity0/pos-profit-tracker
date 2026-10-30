@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Ledger" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="app.css?v=c8716817" />
+<link rel="stylesheet" href="app.css?v=7f05a1cd" />
 </head>
 <body>
 <div class="auth-gate" id="authGate">
@@ -429,139 +429,174 @@
 
       <div class="settings-content settings scroll-panel" id="settingsContent" style="display:none;">
 
-      <div id="adminSection" style="display:none;">
-        <h3>Master admin · all businesses</h3>
-        <div class="hint">Only you see this. New business owners can't use Ledger until you approve them; those waiting show first. Approve or decline each sign-up (a declined one can still be approved later). For an approved business that misuses the app: Remove access shuts its owner and staff out for 3 months (their email and phone can't sign up again until then; after that they can apply again), and Suspend shuts them out for good (their email and phone can never sign up again). Restore lets them back in. You see who signed up, not their transactions.</div>
-        <button class="pdfbtn" id="adminRefreshBtn" type="button">Load businesses</button>
-        <div class="status" id="adminStatus"></div>
-        <div id="adminList"></div>
-      </div>
-
-      <h3>Business</h3>
-      <div class="field"><label>Business name</label><input type="text" id="bizNameInput" autocomplete="off" placeholder="Business name" /></div>
-      <div class="hint edit-limit" id="bizNameLimit">Can be changed once every 30 days.</div>
-      <div class="field"><label>Your phone number</label><input type="tel" id="ownerPhoneInput" autocomplete="tel" inputmode="tel" placeholder="e.g. 0803 123 4567" /></div>
-      <button class="pdfbtn" id="ownerPhoneBtn" type="button" style="margin-top:0;">Save phone number</button>
-      <div class="status" id="ownerPhoneStatus"></div>
-      <div class="hint edit-limit" id="ownerPhoneLimit">Can be changed once every 3 months.</div>
-      <div class="field"><label>Your email</label><input type="email" id="ownerEmailShown" disabled /></div>
-      <div class="hint edit-limit">Your email stays as you signed up with.</div>
-      <div class="field"><label>Your username</label><input type="text" id="ownerUsernameInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. uweribe" /></div>
-      <button class="pdfbtn" id="ownerUsernameBtn" type="button" style="margin-top:0;">Save username</button>
-      <div class="status" id="ownerUsernameStatus"></div>
-      <div class="hint" style="text-align:center;">Sign in with this or your email. 3–30 letters, numbers, dots, dashes or underscores, not already used on Ledger. Leave it empty and save to remove it.</div>
-
-      <h3>Team</h3>
-      <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name. After removing someone you can delete them permanently, which takes them off this list for good.</div>
-      <div id="teamInputs"></div>
-      <div class="team-add">
-        <div class="team-add-title">Add staff</div>
-        <div class="field"><label>Name</label><input type="text" id="newStaffName" autocomplete="off" placeholder="e.g. Ada Obi" /></div>
-        <div class="field"><label>Username</label><input type="text" id="newStaffUsername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. ada" /></div>
-        <div class="field"><label>Email</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
-        <div class="field"><label>Password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this password" /></div>
-        <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email. Password reset links go to the email. Usernames are 3–30 letters, numbers, dots, dashes or underscores, and can't already be used on Ledger.</div>
-        <button class="addbtn" id="addStaffBtn" type="button">Add staff</button>
-        <div class="status" id="addStaffStatus"></div>
-        <button class="pdfbtn" id="addStaffResetBtn" type="button" style="display:none; margin-top:6px;">Send them a password reset email</button>
-        <details style="margin-top:8px;">
-          <summary class="hint" style="cursor:pointer; text-align:center;">They already have a login?</summary>
-          <div class="hint">Find their <strong>User UID</strong> in Firebase → Authentication → Users, and paste it here with their name above.</div>
-          <div class="field" style="margin-top:8px;"><label>User UID</label><input type="text" id="newStaffUid" autocomplete="off" placeholder="e.g. LDtRV9smFf…" /></div>
-          <button class="pdfbtn" id="addStaffByUidBtn" type="button" style="margin-top:0;">Add by UID</button>
-        </details>
-      </div>
-
-      <h3>Backup</h3>
-      <div class="hint">Downloads every transaction this business has ever logged — everyone's, including deleted ones (marked) — as a spreadsheet that opens in Excel or Google Sheets. Keep a copy somewhere safe, e.g. once a week.</div>
-      <button class="pdfbtn" id="backupBtn" type="button">Download full backup (CSV)</button>
-      <div class="status" id="backupStatus"></div>
-
-      <div id="legacySection" style="display:none;">
-        <h3>Old ledger (before businesses)</h3>
-        <div class="hint">Your ledger from before the switch to separate businesses is kept untouched as a backup. If a phone was still on the old version and logged something there, this copies across anything missing. Nothing gets duplicated or overwritten.</div>
-        <button class="pdfbtn" id="legacyRecopyBtn" type="button">Copy missing entries from the old ledger</button>
-        <div class="status" id="legacyStatus"></div>
-      </div>
-
-      <div id="importSection" style="display:none;">
-        <h3>Old records on this phone</h3>
-        <div class="hint" id="importHint"></div>
-        <div class="row2" style="margin-top:12px;">
-          <button class="pdfbtn" id="importBtn" type="button" style="margin-top:0;"></button>
-          <button class="pdfbtn" id="importIgnoreBtn" type="button" style="margin-top:0;">Ignore</button>
+      <section class="perf-section settings-cat" id="setCatAdmin" style="display:none;">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatAdminBody"><span class="perf-section-title">Master admin<span class="settings-cat-desc">Approve sign-ups, remove access, suspend</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatAdminBody" hidden>
+        <div id="adminSection" style="display:none;">
+          <h3>Master admin · all businesses</h3>
+          <div class="hint">Only you see this. New business owners can't use Ledger until you approve them; those waiting show first. Approve or decline each sign-up (a declined one can still be approved later). For an approved business that misuses the app: Remove access shuts its owner and staff out for 3 months (their email and phone can't sign up again until then; after that they can apply again), and Suspend shuts them out for good (their email and phone can never sign up again). Restore lets them back in. You see who signed up, not their transactions.</div>
+          <button class="pdfbtn" id="adminRefreshBtn" type="button">Load businesses</button>
+          <div class="status" id="adminStatus"></div>
+          <div id="adminList"></div>
         </div>
-        <div class="status" id="importStatus"></div>
-      </div>
+       </div>
+      </section>
 
-      <h3 class="mp-heading">Moniepoint rates</h3>
-      <div class="row2">
-        <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="mp_pct" step="0.01" /></div>
-        <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_flat" /></div>
-      </div>
-      <div class="row2">
-        <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_threshold" /></div>
-        <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_transfer" /></div>
-      </div>
-      <div class="field"><label>VAT rate (%)</label><input type="number" id="mp_vatRate" step="0.1" /></div>
-      <div class="field"><label>Auto-save per transaction (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="autosaveFlat" /></div>
-      <div class="switchrow"><label>Track auto-save automatically</label><input type="checkbox" id="autosaveEnabled" checked /></div>
-      <div class="hint">Currently set to exact 0.5%. Use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
+      <section class="perf-section settings-cat" id="setCatBusiness">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatBusinessBody"><span class="perf-section-title">My business<span class="settings-cat-desc">Business name, your phone, email and username</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatBusinessBody" hidden>
+        <h3>Business</h3>
+        <div class="field"><label>Business name</label><input type="text" id="bizNameInput" autocomplete="off" placeholder="Business name" /></div>
+        <div class="hint edit-limit" id="bizNameLimit">Can be changed once every 30 days.</div>
+        <div class="field"><label>Your phone number</label><input type="tel" id="ownerPhoneInput" autocomplete="tel" inputmode="tel" placeholder="e.g. 0803 123 4567" /></div>
+        <button class="pdfbtn" id="ownerPhoneBtn" type="button" style="margin-top:0;">Save phone number</button>
+        <div class="status" id="ownerPhoneStatus"></div>
+        <div class="hint edit-limit" id="ownerPhoneLimit">Can be changed once every 3 months.</div>
+        <div class="field"><label>Your email</label><input type="email" id="ownerEmailShown" disabled /></div>
+        <div class="hint edit-limit">Your email stays as you signed up with.</div>
+        <div class="field"><label>Your username</label><input type="text" id="ownerUsernameInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. uweribe" /></div>
+        <button class="pdfbtn" id="ownerUsernameBtn" type="button" style="margin-top:0;">Save username</button>
+        <div class="status" id="ownerUsernameStatus"></div>
+        <div class="hint" style="text-align:center;">Sign in with this or your email. 3–30 letters, numbers, dots, dashes or underscores, not already used on Ledger. Leave it empty and save to remove it.</div>
+       </div>
+      </section>
 
-      <h3 class="op-heading">OPay rates</h3>
-      <div class="row2">
-        <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="op_pct" step="0.01" /></div>
-        <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_flat" /></div>
-      </div>
-      <div class="row2">
-        <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_threshold" /></div>
-        <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_transfer" /></div>
-      </div>
-      <div class="field"><label>VAT rate (%)</label><input type="number" id="op_vatRate" step="0.1" /></div>
+      <section class="perf-section settings-cat" id="setCatTeam">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatTeamBody"><span class="perf-section-title">Team<span class="settings-cat-desc">Who can sign in, and adding staff</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatTeamBody" hidden>
+        <h3>Team</h3>
+        <div class="hint">Everyone who can sign in to this ledger. Names show next to each transaction. Removing someone blocks them straight away; their past entries keep their name. After removing someone you can delete them permanently, which takes them off this list for good.</div>
+        <div id="teamInputs"></div>
+        <div class="team-add">
+          <div class="team-add-title">Add staff</div>
+          <div class="field"><label>Name</label><input type="text" id="newStaffName" autocomplete="off" placeholder="e.g. Ada Obi" /></div>
+          <div class="field"><label>Username</label><input type="text" id="newStaffUsername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="e.g. ada" /></div>
+          <div class="field"><label>Email</label><input type="email" id="newStaffEmail" autocomplete="off" inputmode="email" autocapitalize="none" placeholder="e.g. ada@gmail.com" /></div>
+          <div class="field"><label>Password (6+ characters)</label><input type="text" id="newStaffPassword" autocomplete="off" placeholder="Tell them this password" /></div>
+          <div class="hint" style="text-align:center; margin:-4px 0 10px;">They can sign in with the username or the email. Password reset links go to the email. Usernames are 3–30 letters, numbers, dots, dashes or underscores, and can't already be used on Ledger.</div>
+          <button class="addbtn" id="addStaffBtn" type="button">Add staff</button>
+          <div class="status" id="addStaffStatus"></div>
+          <button class="pdfbtn" id="addStaffResetBtn" type="button" style="display:none; margin-top:6px;">Send them a password reset email</button>
+          <details style="margin-top:8px;">
+            <summary class="hint" style="cursor:pointer; text-align:center;">They already have a login?</summary>
+            <div class="hint">Find their <strong>User UID</strong> in Firebase → Authentication → Users, and paste it here with their name above.</div>
+            <div class="field" style="margin-top:8px;"><label>User UID</label><input type="text" id="newStaffUid" autocomplete="off" placeholder="e.g. LDtRV9smFf…" /></div>
+            <button class="pdfbtn" id="addStaffByUidBtn" type="button" style="margin-top:0;">Add by UID</button>
+          </details>
+        </div>
+       </div>
+      </section>
 
-      <h3>VAT on machine fee</h3>
-      <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free. Rate is set per-provider above — set a provider's VAT rate to 0 to turn it off.</div>
+      <section class="perf-section settings-cat" id="setCatRates">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatRatesBody"><span class="perf-section-title">Provider rates & charges<span class="settings-cat-desc">What Moniepoint and OPay deduct: fees, VAT, stamp duty, bills, betting</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatRatesBody" hidden>
+        <h3 class="mp-heading">Moniepoint rates</h3>
+        <div class="row2">
+          <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="mp_pct" step="0.01" /></div>
+          <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_flat" /></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_threshold" /></div>
+          <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="mp_transfer" /></div>
+        </div>
+        <div class="field"><label>VAT rate (%)</label><input type="number" id="mp_vatRate" step="0.1" /></div>
+        <div class="field"><label>Auto-save per transaction (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="autosaveFlat" /></div>
+        <div class="switchrow"><label>Track auto-save automatically</label><input type="checkbox" id="autosaveEnabled" checked /></div>
+        <div class="hint">Currently set to exact 0.5%. Use "override fee" on the entry form if a specific transaction doesn't match what Moniepoint actually shows. Table below updates live with whatever rates and auto-save amount you set above.</div>
 
-      <h3>Stamp Duty (EMTL)</h3>
-      <div class="row2">
-        <div class="field"><label>Flat charge (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampFlat" /></div>
-        <div class="field"><label>Applies at/above amount (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampThreshold" /></div>
-      </div>
-      <div class="switchrow"><label>Also apply to Withdrawals</label><input type="checkbox" id="stampOnWithdrawal" /></div>
-      <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too. Set the flat charge to 0 to turn stamp duty off entirely.</div>
+        <h3 class="op-heading">OPay rates</h3>
+        <div class="row2">
+          <div class="field"><label>Withdrawal % (up to threshold)</label><input type="number" id="op_pct" step="0.01" /></div>
+          <div class="field"><label>Flat fee above threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_flat" /></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Threshold (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_threshold" /></div>
+          <div class="field"><label>Transfer flat fee (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="op_transfer" /></div>
+        </div>
+        <div class="field"><label>VAT rate (%)</label><input type="number" id="op_vatRate" step="0.1" /></div>
 
-      <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes)</h3>
-      <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
-      <div class="hint">Your record book shows a dash under MC for Electricity/GOTV rows — no machine charge on bill payments — so this defaults to ₦0 and your full fee is profit. Edit if that ever changes.</div>
+        <h3>VAT on machine fee</h3>
+        <div class="hint">Confirmed as Transfer-only: your statement shows ₦1.50 VAT on every ₦20 transfer fee (exactly 7.5%), but no VAT line at all on Withdrawal/Purchase credits — their "Our fee" figure is the full deduction, VAT-free. Rate is set per-provider above — set a provider's VAT rate to 0 to turn it off.</div>
 
-      <h3>Betting</h3>
-      <div class="field"><label>Machine charge on betting top-ups (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="bettingFee" /></div>
-      <div class="hint">Betting top-ups default to ₦0 machine fee, same as other bill payments. Edit if your terminal actually charges something for it.</div>
+        <h3>Stamp Duty (EMTL)</h3>
+        <div class="row2">
+          <div class="field"><label>Flat charge (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampFlat" /></div>
+          <div class="field"><label>Applies at/above amount (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="stampThreshold" /></div>
+        </div>
+        <div class="switchrow"><label>Also apply to Withdrawals</label><input type="checkbox" id="stampOnWithdrawal" /></div>
+        <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too. Set the flat charge to 0 to turn stamp duty off entirely.</div>
 
-      <div class="fee-table-wrap">
-        <button class="fee-table-title" id="mpFeeTableToggle" type="button">
-          <span>Moniepoint: Total deducted, by amount</span>
-          <span class="fee-table-caret" id="mpFeeTableCaret">▶</span>
-        </button>
-        <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
-      </div>
+        <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes)</h3>
+        <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
+        <div class="hint">Your record book shows a dash under MC for Electricity/GOTV rows — no machine charge on bill payments — so this defaults to ₦0 and your full fee is profit. Edit if that ever changes.</div>
 
-      <h3>Service Fee Table <span style="display:block; font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
-      <div class="hint">Set the fee you charge customers at each amount tier. Edit any box — this also shows as a quick reference in Educational &amp; Safety Tips.</div>
-      <div class="row2" id="serviceFeeInputs"></div>
-      <div class="field"><label>Above ₦20,000 — fee per ₦10,000 (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="serviceFeeAboveInput" /></div>
+        <h3>Betting</h3>
+        <div class="field"><label>Machine charge on betting top-ups (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="bettingFee" /></div>
+        <div class="hint">Betting top-ups default to ₦0 machine fee, same as other bill payments. Edit if your terminal actually charges something for it.</div>
 
-      <h3>Withdraw+Transfer Service Fees <span style="display:block; font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers, by amount range)</span></h3>
-      <div class="row2" id="comboFeeInputs"></div>
+        <div class="fee-table-wrap">
+          <button class="fee-table-title" id="mpFeeTableToggle" type="button">
+            <span>Moniepoint: Total deducted, by amount</span>
+            <span class="fee-table-caret" id="mpFeeTableCaret">▶</span>
+          </button>
+          <div class="fee-table" id="mpFeeTable" style="display:none;"></div>
+        </div>
 
-      <h3>Educational &amp; Safety Tips</h3>
-      <div class="hint">Edit any tip below, remove one, or add a new one — updates instantly on the Educational &amp; Safety Tips card.</div>
-      <div id="safetyTipsEditor"></div>
-      <button class="pdfbtn" id="addTipBtn" type="button" style="margin-top:8px;">+ Add tip</button>
+        <div class="disclaimer">
+          This is built from an actual terminal statement. Annual income tax (progressive, on total yearly profit) is separate and not calculated here — use your Net Profit totals for that when you file.
+        </div>
+       </div>
+      </section>
 
-      <div class="disclaimer">
-        This is built from an actual terminal statement. Annual income tax (progressive, on total yearly profit) is separate and not calculated here — use your Net Profit totals for that when you file.
-      </div>
+      <section class="perf-section settings-cat" id="setCatFees">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatFeesBody"><span class="perf-section-title">What you charge customers<span class="settings-cat-desc">Your service fee tables</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatFeesBody" hidden>
+        <h3>Service Fee Table <span style="display:block; font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers)</span></h3>
+        <div class="hint">Set the fee you charge customers at each amount tier. Edit any box — this also shows as a quick reference in Educational &amp; Safety Tips.</div>
+        <div class="row2" id="serviceFeeInputs"></div>
+        <div class="field"><label>Above ₦20,000 — fee per ₦10,000 (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="serviceFeeAboveInput" /></div>
+
+        <h3>Withdraw+Transfer Service Fees <span style="display:block; font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;">(what you charge customers, by amount range)</span></h3>
+        <div class="row2" id="comboFeeInputs"></div>
+       </div>
+      </section>
+
+      <section class="perf-section settings-cat" id="setCatTips">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatTipsBody"><span class="perf-section-title">Educational & safety tips<span class="settings-cat-desc">Edit the tips your team sees</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatTipsBody" hidden>
+        <h3>Educational &amp; Safety Tips</h3>
+        <div class="hint">Edit any tip below, remove one, or add a new one — updates instantly on the Educational &amp; Safety Tips card.</div>
+        <div id="safetyTipsEditor"></div>
+        <button class="pdfbtn" id="addTipBtn" type="button" style="margin-top:8px;">+ Add tip</button>
+       </div>
+      </section>
+
+      <section class="perf-section settings-cat" id="setCatBackup">
+       <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="setCatBackupBody"><span class="perf-section-title">Backup & old records<span class="settings-cat-desc">Download everything, and records from older versions</span></span><span class="perf-caret">▶</span></button>
+       <div class="perf-section-body settings-cat-body" id="setCatBackupBody" hidden>
+        <h3>Backup</h3>
+        <div class="hint">Downloads every transaction this business has ever logged — everyone's, including deleted ones (marked) — as a spreadsheet that opens in Excel or Google Sheets. Keep a copy somewhere safe, e.g. once a week.</div>
+        <button class="pdfbtn" id="backupBtn" type="button">Download full backup (CSV)</button>
+        <div class="status" id="backupStatus"></div>
+
+        <div id="legacySection" style="display:none;">
+          <h3>Old ledger (before businesses)</h3>
+          <div class="hint">Your ledger from before the switch to separate businesses is kept untouched as a backup. If a phone was still on the old version and logged something there, this copies across anything missing. Nothing gets duplicated or overwritten.</div>
+          <button class="pdfbtn" id="legacyRecopyBtn" type="button">Copy missing entries from the old ledger</button>
+          <div class="status" id="legacyStatus"></div>
+        </div>
+
+        <div id="importSection" style="display:none;">
+          <h3>Old records on this phone</h3>
+          <div class="hint" id="importHint"></div>
+          <div class="row2" style="margin-top:12px;">
+            <button class="pdfbtn" id="importBtn" type="button" style="margin-top:0;"></button>
+            <button class="pdfbtn" id="importIgnoreBtn" type="button" style="margin-top:0;">Ignore</button>
+          </div>
+          <div class="status" id="importStatus"></div>
+        </div>
+       </div>
+      </section>
 
       <div class="settings-bottom-row" style="justify-content:flex-end;">
         <button class="donebtn" id="settingsDoneBtn" type="button">Done</button>
@@ -576,6 +611,6 @@
 
 </div>
 
-<script src="app.js?v=99ee1451"></script>
+<script src="app.js?v=1b3da1f0"></script>
 </body>
 </html>
