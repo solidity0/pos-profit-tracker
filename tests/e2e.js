@@ -416,6 +416,13 @@ function sideAware(p){
     await op.click('#calcToggle');
     const full = await op.evaluate(()=>{ const r = document.getElementById('calcCard').getBoundingClientRect(); return r.top === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; });
     check('calculator opens full screen with a Back button', full && await op.isVisible('#calcBackBtn'));
+    // Where the keypad starts on the actual screen (found by probing, so the text-size zoom can't skew it).
+    const keypadTop = () => op.evaluate(()=>{ const g = document.querySelector('#calcCard .calc-grid'); const x = innerWidth / 2; for(let y = 0; y < innerHeight; y += 2){ const e = document.elementFromPoint(x, y); if(e && g.contains(e)) return y; } return -1; });
+    const topNormal = await keypadTop();
+    await op.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
+    const topSmall = await keypadTop();
+    await op.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
+    check("the calculator's sections keep their size with the smaller text (Aa)", Math.abs(topNormal - topSmall) <= 12, `keypad starts at ${topNormal}px / ${topSmall}px`);
     const press = async ks => { for(const k of ks) await op.click(`#calcBody .calc-btn[data-calc="${k}"]`); };
     const shown = async () => (await op.textContent('#calcDisplay')).replace(/\s+/g,' ').trim();
     await press(['clear','5','0','%','3','=']); check('a digit after % starts a new number', (await shown()) === '3', await shown());
