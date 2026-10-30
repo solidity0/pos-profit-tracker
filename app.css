@@ -640,12 +640,18 @@
   .legal-footer a{ white-space: nowrap; }
   .admin-biz{ border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 12px; }
   .admin-biz.suspended{ border-color: var(--loss); }
-  .admin-biz .admin-name{ font-weight:700; color: var(--text); font-size: 13px; }
+  .admin-biz .admin-name{ font-weight:700; color: var(--text); }
+  .admin-biz .admin-top{ display:flex; justify-content:flex-end; margin-bottom: 4px; }
+  .admin-biz .admin-row{ display:flex; gap: 10px; padding: 3px 0; border-bottom: 1px dashed var(--line-soft); align-items: baseline; }
+  .admin-biz .admin-row:last-of-type{ border-bottom: none; }
+  .admin-biz .admin-label{ flex: 0 0 104px; color: var(--muted); font-size: 11.5px; }
+  .admin-biz .admin-value{ flex: 1; min-width: 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; text-align: right; }
+  .admin-biz .admin-none{ color: var(--muted-2); font-weight: 500; }
   .admin-biz .admin-meta{ color: var(--muted); margin-top: 3px; overflow-wrap:anywhere; }
   .admin-biz .admin-status{ font-weight:700; color: var(--profit); }
   .admin-biz.suspended .admin-status{ color: var(--loss); }
   .admin-biz.pending{ border-color: var(--accent); }
-  .admin-biz .admin-type{ display:inline-block; margin-left: 6px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px; vertical-align: 1px; color: var(--muted-strong); border: 1px solid var(--line-soft); white-space: nowrap; }
+  .admin-biz .admin-type{ display:inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px; vertical-align: 1px; color: var(--muted-strong); border: 1px solid var(--line-soft); white-space: nowrap; }
   .admin-biz .admin-type.master{ color: var(--mp-soft); border-color: var(--mp-soft); }
   .admin-biz.pending .admin-status{ color: var(--accent); }
   .team-actions button.admin-approve{ color: var(--profit); font-weight: 800; }

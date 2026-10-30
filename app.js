@@ -2689,6 +2689,7 @@
   const STAFF_LOGIN_DOMAIN = 'ledger-3c7f0.firebaseapp.com';
   const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,29}$/;
   let ownerUsername = '';  // the business owner's own username (businesses/{id}.ownerUsername)
+  let bizMeta = {};        // the business document (name, owner details and when each was last changed)
   // Returns why a username can't be used by this owner, or '' if it's free (or already theirs).
   async function ownerUsernameProblem(u){
     if(!USERNAME_RE.test(u)) return 'Usernames are 3–30 letters, numbers, dots, dashes or underscores, starting with a letter or number.';
@@ -2721,7 +2722,38 @@
     return `${name}@${STAFF_LOGIN_DOMAIN}`;
   }
   const PENDING_MSG = 'Thanks for signing up! Your business account is waiting for approval by the Ledger team. Your ledger will open here by itself as soon as it\'s approved — you can leave this page open.';
+  // Phone numbers are stored as digits only, Nigerian numbers in their 0... form (so
+  // "+234 803 123 4567" and "0803 123 4567" are the same number); the rules check the format.
+  function normalizePhone(raw){
+    let d = String(raw || '').replace(/\D/g, '');
+    if(/^234\d{10}$/.test(d)) d = '0' + d.slice(3);
+    return d;
+  }
+  const validPhone = d => /^\d{10,15}$/.test(d);
+  function formatPhone(raw){
+    const d = normalizePhone(raw);
+    return /^0\d{10}$/.test(d) ? `${d.slice(0,4)} ${d.slice(4,7)} ${d.slice(7)}` : (raw || '');
+  }
+  // Removing access (3 months) or suspending (for good) blocks that owner's email and phone
+  // from signing up again; blocked/{"e:"+email | "p:"+phone}. Returns the block, if in force.
+  const blockKeyEmail = email => 'e:' + String(email || '').trim().toLowerCase();
+  const blockKeyPhone = phone => 'p:' + normalizePhone(phone);
+  async function activeBlock(key){
+    try{
+      const snap = await fb.getDoc(fb.doc(fb.db, 'blocked', key));
+      if(!snap.exists()) return null;
+      const until = snap.data().until;
+      if(until && until.toDate && until.toDate() <= new Date()) return null;
+      return { until: until && until.toDate ? until.toDate() : null };
+    }catch(e){ return null; }
+  }
+  const longDate = d => new Intl.DateTimeFormat('en-NG', { day:'numeric', month:'long', year:'numeric' }).format(d);
+  function blockedSignupMsg(what, block){
+    return block.until ? `This ${what} can't be used to create a Ledger account until ${longDate(block.until)}.`
+      : `This ${what} can't be used to create a Ledger account.`;
+  }
   const DECLINED_MSG = 'Your business account wasn\'t approved, so this ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
+  const BIZ_REMOVED_STAFF_MSG = 'This business\'s access to Ledger has been removed, so its ledger can\'t be opened.';
   const SUSPENDED_MSG = 'This business account has been suspended, so its ledger can\'t be opened. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.';
   // The owner keeps the last RECENT_DAYS live (enough for Today / This Week / This Month).
   // Older entries are fetched once per session, only when All Time or an older Custom range
@@ -2953,8 +2985,10 @@
     el.querySelectorAll('.team-name-input').forEach(inp=>{
       inp.value = teamNames[inp.dataset.uid] || '';
       inp.addEventListener('change', ()=>{
+        const v = inp.value.trim();
+        if(inp.dataset.uid === bizId){ renameOwner(inp, v); return; }
         // merge, so renaming never touches someone's access or email
-        fb.setDoc(bdoc('staff', inp.dataset.uid), { name: inp.value.trim() }, { merge: true })
+        fb.setDoc(bdoc('staff', inp.dataset.uid), { name: v }, { merge: true })
           .catch(err => setStatus('Name not saved: ' + err.message, 'error'));
       });
     });
@@ -3262,6 +3296,7 @@
     $('#authRole').closest('.auth-card').querySelector('#authSub').style.display = (mode === 'form') ? '' : 'none';
     $('#authBlocked').style.display = mode === 'blocked' ? '' : 'none';
     $('#authBlockedSignOut').style.display = mode === 'blocked' ? '' : 'none';
+    $('#authApplyAgain').style.display = 'none';
     if(mode === 'loading') $('#authLoading').textContent = message || 'Connecting…';
     if(mode === 'blocked') $('#authBlocked').textContent = message || '';
   }
@@ -3309,6 +3344,11 @@
         if(snap.metadata.fromCache && navigator.onLine) return;
         decided = true; lockOut(SUSPENDED_MSG); return;
       }
+      if(snap.exists() && snap.data().removed === true){
+        // Access removed for 3 months: keep listening, so a restore opens the ledger again.
+        if(snap.metadata.fromCache && navigator.onLine) return;
+        decided = true; showAccessRemoved(snap.data()); return;
+      }
       if(snap.exists() && snap.data().approved === false){
         // Waiting for the platform admin's approval, or declined. Keep listening (unlike
         // lockOut), so the ledger opens by itself the moment it's approved.
@@ -3320,8 +3360,11 @@
         bizId = user.uid;
         bizName = (snap.data().name || '').trim();
         ownerUsername = snap.data().ownerUsername || '';
+        bizMeta = snap.data() || {};
+        renderEditLimits();
         if(document.activeElement !== $('#ownerUsernameInput')) $('#ownerUsernameInput').value = ownerUsername;
         if(role !== 'owner') enterApp('owner'); else updateWhoLabel();
+        renderEditLimits();
         return;
       }
       if(decided) return;
@@ -3368,12 +3411,15 @@
     }, async ()=>{
       // Denied: either they were removed, or the whole business was suspended.
       let suspended = false;
-      try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); suspended = !!(biz.exists() && (biz.data().suspended || biz.data().approved === false)); }catch(e){}
-      lockOut(suspended ? SUSPENDED_MSG : (role === 'staff' ? REMOVED_MSG : notAddedMsg));
+      let bizRemoved = false;
+      try{ const biz = await fb.getDoc(fb.doc(fb.db, 'businesses', b)); suspended = !!(biz.exists() && (biz.data().suspended || biz.data().approved === false)); bizRemoved = !!(biz.exists() && biz.data().removed === true); }catch(e){}
+      lockOut(suspended ? SUSPENDED_MSG : bizRemoved ? BIZ_REMOVED_STAFF_MSG : (role === 'staff' ? REMOVED_MSG : notAddedMsg));
     }));
     // Live: if the business is suspended mid-shift, lock them out.
     accessUnsubs.push(fb.onSnapshot(fb.doc(fb.db, 'businesses', b), { includeMetadataChanges: true }, (snap)=>{
-      if(snap.exists() && snap.data().suspended && !(snap.metadata.fromCache && navigator.onLine)) lockOut(SUSPENDED_MSG);
+      if(!snap.exists() || (snap.metadata.fromCache && navigator.onLine)) return;
+      if(snap.data().suspended) lockOut(SUSPENDED_MSG);
+      else if(snap.data().removed === true) lockOut(BIZ_REMOVED_STAFF_MSG);
     }, ()=>{}));
   }
 
@@ -3432,7 +3478,7 @@
       // New businesses wait for the platform admin's approval (the rules insist on it).
       approved: uid === PLATFORM_ADMIN_UID
     };
-    if(phone) bizDoc.ownerPhone = phone;
+    if(phone) bizDoc.ownerPhone = normalizePhone(phone);
     // The username picked at sign-up goes in the same batch: once the business exists and is
     // waiting for approval, the owner can't change it until it's approved.
     if(username){
@@ -3471,6 +3517,29 @@
     }
     return { copied: docs.length, staff: staffSnap.docs, settings: settingsSnap.exists() ? settingsSnap.data() : null };
   }
+
+  // Their access was removed for 3 months. Once the time is up they can apply again, which
+  // puts the business back in the admin's waiting list.
+  function showAccessRemoved(data){
+    waitForApproval(false);
+    const until = data.removedUntil && data.removedUntil.toDate ? data.removedUntil.toDate() : null;
+    const canApply = !!until && until <= new Date();
+    $('#authBlocked').textContent = canApply
+      ? 'Your business\'s access to Ledger was removed. The 3 months are over, so you can apply again — your business will wait for approval by the Ledger team.'
+      : `Your business's access to Ledger has been removed${until ? ` until ${longDate(until)}` : ''}. You can apply again after that. If you think this is a mistake, contact the Ledger team using the details in the Terms of Use.`;
+    $('#authApplyAgain').style.display = canApply ? '' : 'none';
+  }
+  $('#authApplyAgain').addEventListener('click', async ()=>{
+    if(!fb || !currentUser) return;
+    const btn = $('#authApplyAgain'); const st = $('#authStatus');
+    if(offlineBlock(st)) return;
+    btn.disabled = true;
+    try{
+      await fb.updateDoc(fb.doc(fb.db, 'businesses', currentUser.uid), { removed: false, approved: false, declined: false, appliedAgainAt: fb.serverTimestamp() });
+      st.textContent = '';
+    }catch(err){ st.className = 'status error'; st.textContent = 'Could not apply again: ' + err.message; }
+    finally{ btn.disabled = false; }
+  });
 
   function waitForApproval(declined){
     stopListeners();
@@ -3630,7 +3699,11 @@
     const st = $('#authStatus');
     if(!name || !ownerName || !email || !phone || !password){ st.className = 'status error'; st.textContent = 'Enter the business name, your name, your email, your phone number and a password.'; return; }
     // A real number helps the Ledger team check new sign-ups before approving them.
-    if(!/^\+?[0-9][0-9 ()-]{8,}$/.test(phone) || phone.replace(/\D/g, '').length < 10 || phone.replace(/\D/g, '').length > 15){ st.className = 'status error'; st.textContent = 'Enter a valid phone number, e.g. 0803 123 4567.'; return; }
+    if(!/^\+?[0-9][0-9 ()-]{8,}$/.test(phone) || !validPhone(normalizePhone(phone))){ st.className = 'status error'; st.textContent = 'Enter a valid phone number, e.g. 0803 123 4567.'; return; }
+    {
+      const [byPhone, byEmail] = await Promise.all([activeBlock(blockKeyPhone(phone)), activeBlock(blockKeyEmail(email))]);
+      if(byPhone || byEmail){ st.className = 'status error'; st.textContent = blockedSignupMsg(byPhone ? 'phone number' : 'email address', byPhone || byEmail); return; }
+    }
     if(!$('#signupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
     const username = $('#signupUsername').value.trim().toLowerCase();
     if(username){
@@ -3646,7 +3719,7 @@
     try{
       const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, password);
       currentUser = cred.user;
-      savePending({ name, ownerName, username, phone });
+      savePending({ name, ownerName, username, phone: normalizePhone(phone) });
       await fb.sendEmailVerification(cred.user);
       $('#signupPassword').value = '';
       st.textContent = '';
@@ -3688,6 +3761,11 @@
       }
     }catch(err){
       st.className = 'status error'; st.textContent = 'Could not finish: ' + ((err && err.message) || 'error') + ' — try again.';
+      if(err && err.code === 'permission-denied'){
+        const pending = readPending() || {};
+        const [byPhone, byEmail] = await Promise.all([activeBlock(blockKeyPhone(pending.phone)), activeBlock(blockKeyEmail(currentUser && currentUser.email))]);
+        if(byPhone || byEmail) st.textContent = blockedSignupMsg(byPhone ? 'phone number' : 'email address', byPhone || byEmail);
+      }
     }finally{ pendingSignup = null; btn.disabled = false; }
   });
   $('#verifyResend').addEventListener('click', async ()=>{
@@ -3704,13 +3782,16 @@
     const name = $('#setupBizName').value.trim();
     const ownerName = $('#setupOwnerName').value.trim();
     const st = $('#authStatus');
-    if(!name || !ownerName){ st.className = 'status error'; st.textContent = 'Enter your business name and your name.'; return; }
+    const phone = normalizePhone($('#setupPhone').value);
+    const isAdminLogin = currentUser.uid === PLATFORM_ADMIN_UID;
+    if(!name || !ownerName || (!isAdminLogin && !$('#setupPhone').value.trim())){ st.className = 'status error'; st.textContent = isAdminLogin ? 'Enter your business name and your name.' : 'Enter your business name, your name and your phone number.'; return; }
+    if(!isAdminLogin && !validPhone(phone)){ st.className = 'status error'; st.textContent = 'Enter a valid phone number, e.g. 0803 123 4567.'; return; }
     if(!$('#setupTerms').checked){ st.className = 'status error'; st.textContent = 'Tick the box to agree to the Terms of Use and Privacy Policy.'; return; }
     const btn = $('#setupSubmit');
     btn.disabled = true;
     pendingSignup = { name, ownerName };
     try{
-      await createBusiness(name, ownerName, st, $('#setupForm').dataset.legacy === '1');
+      await createBusiness(name, ownerName, st, $('#setupForm').dataset.legacy === '1', '', phone);
       clearPending();
       st.textContent = '';
     }catch(err){
@@ -3727,6 +3808,8 @@
     $('#adminSection').style.display = (role === 'owner' && currentUser && currentUser.uid === PLATFORM_ADMIN_UID) ? '' : 'none';
   }
   const adminDateFormat = new Intl.DateTimeFormat('en-NG', { day:'numeric', month:'short', year:'numeric' });
+  const adminTimeFormat = new Intl.DateTimeFormat('en-NG', { hour:'numeric', minute:'2-digit', hour12: true });
+  const REMOVE_DAYS = 90; // "Remove access" lasts 3 months; suspending is for good
   async function loadAdminList(){
     const st = $('#adminStatus');
     const list = $('#adminList');
@@ -3745,57 +3828,103 @@
           if(o.exists()){ ownerName = o.data().name || ''; email = email || o.data().email || ''; }
         }catch(e){}
         ownerName = ownerName || (data.ownerName || '').trim();
-        const created = data.createdAt && data.createdAt.toDate ? adminDateFormat.format(data.createdAt.toDate()) : '—';
-        return { id: d.id, name: data.name || '(no name)', ownerName, email, phone: data.ownerPhone || '', created, suspended: !!data.suspended, pending: data.approved === false && data.declined !== true, declined: data.approved === false && data.declined === true, createdMs: data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0 };
+        const createdAt = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
+        const removedUntil = data.removedUntil && data.removedUntil.toDate ? data.removedUntil.toDate() : null;
+        const declined = data.approved === false && data.declined === true;
+        const pending = data.approved === false && !declined;
+        const removed = data.removed === true;
+        const suspended = !!data.suspended;
+        const status = suspended ? 'suspended' : removed ? 'removed' : pending ? 'pending' : declined ? 'declined' : 'active';
+        return { id: d.id, name: data.name || '', ownerName, email, phone: data.ownerPhone || '', createdAt, removedUntil, status,
+          createdMs: createdAt ? createdAt.getTime() : 0 };
       }));
       // Waiting for approval first, then newest first.
-      rows.sort((a,b)=> (b.pending - a.pending) || (b.createdMs - a.createdMs));
-      const waiting = rows.filter(r => r.pending).length;
-      list.innerHTML = rows.map(r => `<div class="admin-biz${r.suspended || r.declined ? ' suspended' : ''}${r.pending ? ' pending' : ''}">
-        <div class="admin-name">${escapeHtml(r.name)} <span class="admin-type${r.id === PLATFORM_ADMIN_UID ? ' master' : ''}">${r.id === PLATFORM_ADMIN_UID ? 'MASTER ADMIN' : 'BUSINESS OWNER'}</span></div>
-        <div class="admin-meta">${r.ownerName ? escapeHtml(r.ownerName) + ' · ' : ''}${escapeHtml(r.email || 'no email')}${r.phone ? ' · ' + escapeHtml(r.phone) : ''} · created ${r.created}</div>
-        <div class="admin-meta">Status: <span class="admin-status">${r.pending ? 'Waiting for approval' : r.declined ? 'Declined' : (r.suspended ? 'Suspended' : 'Active')}</span></div>
-        ${r.id === PLATFORM_ADMIN_UID ? '' : `<div class="team-actions">${
-          // New sign-ups: Approve or Decline. A declined one can still be approved later.
-          // Suspending is only for businesses already approved (misuse of the app).
-          r.pending ? `<button type="button" class="admin-approve" data-id="${r.id}">Approve</button><button type="button" class="admin-decline danger" data-id="${r.id}">Decline</button>`
-          : r.declined ? `<button type="button" class="admin-approve" data-id="${r.id}">Approve after all</button>`
-          : r.suspended ? `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
-          : `<button type="button" class="admin-suspend danger" data-id="${r.id}">Suspend business</button>`}</div>`}
+      rows.sort((a,b)=> ((b.status === 'pending') - (a.status === 'pending')) || (b.createdMs - a.createdMs));
+      const waiting = rows.filter(r => r.status === 'pending').length;
+      const statusText = r => ({ pending: 'Waiting for approval', declined: 'Declined', suspended: 'Suspended',
+        removed: r.removedUntil ? `Access removed until ${adminDateFormat.format(r.removedUntil)}` : 'Access removed', active: 'Active' })[r.status];
+      const actions = r => {
+        if(r.id === PLATFORM_ADMIN_UID) return '';
+        // New sign-ups: Approve or Decline (a declined one can still be approved later).
+        // Approved: Remove access (3 months) or Suspend (for good), for misuse of the app.
+        const btns = {
+          pending: `<button type="button" class="admin-approve" data-id="${r.id}">Approve</button><button type="button" class="admin-decline danger" data-id="${r.id}">Decline</button>`,
+          declined: `<button type="button" class="admin-approve" data-id="${r.id}">Approve after all</button>`,
+          active: `<button type="button" class="admin-remove danger" data-id="${r.id}">Remove access (3 months)</button><button type="button" class="admin-suspend danger" data-id="${r.id}">Suspend</button>`,
+          removed: `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button><button type="button" class="admin-suspend danger" data-id="${r.id}">Suspend</button>`,
+          suspended: `<button type="button" class="admin-restore" data-id="${r.id}">Restore access</button>`
+        }[r.status];
+        return `<div class="team-actions">${btns}</div>`;
+      };
+      const line = (label, value) => `<div class="admin-row"><span class="admin-label">${label}</span><span class="admin-value">${value}</span></div>`;
+      list.innerHTML = rows.map(r => `<div class="admin-biz is-${r.status}${r.status === 'suspended' || r.status === 'declined' || r.status === 'removed' ? ' suspended' : ''}${r.status === 'pending' ? ' pending' : ''}" data-id="${r.id}">
+        <div class="admin-top"><span class="admin-type${r.id === PLATFORM_ADMIN_UID ? ' master' : ''}">${r.id === PLATFORM_ADMIN_UID ? 'MASTER ADMIN' : 'BUSINESS OWNER'}</span></div>
+        ${line('Name', r.ownerName ? escapeHtml(r.ownerName) : '<span class="admin-none">—</span>')}
+        ${line('Business name', r.name ? `<span class="admin-name">${escapeHtml(r.name)}</span>` : '<span class="admin-none">—</span>')}
+        ${line('Phone number', r.phone ? escapeHtml(formatPhone(r.phone)) : '<span class="admin-none">—</span>')}
+        ${line('Email address', r.email ? escapeHtml(r.email) : '<span class="admin-none">—</span>')}
+        ${line('Time created', r.createdAt ? `${adminDateFormat.format(r.createdAt)}, ${adminTimeFormat.format(r.createdAt)}` : '<span class="admin-none">—</span>')}
+        ${line('Status', `<span class="admin-status">${statusText(r)}</span>`)}
+        ${actions(r)}
       </div>`).join('');
       st.textContent = `${rows.length} business${rows.length === 1 ? '' : 'es'}` + (waiting ? ` · ${waiting} waiting for approval` : '');
+      const byId = id => rows.find(r => r.id === id) || {};
+      // The owner's email and phone, blocked from signing up again (until a date, or for good).
+      const setBlocks = (batch, r, until, reason) => {
+        const data = { until, reason, businessId: r.id, at: fb.serverTimestamp() };
+        if(r.email) batch.set(fb.doc(fb.db, 'blocked', blockKeyEmail(r.email)), data);
+        if(r.phone && validPhone(normalizePhone(r.phone))) batch.set(fb.doc(fb.db, 'blocked', blockKeyPhone(r.phone)), data);
+      };
+      const clearBlocks = (batch, r) => {
+        if(r.email) batch.delete(fb.doc(fb.db, 'blocked', blockKeyEmail(r.email)));
+        if(r.phone && validPhone(normalizePhone(r.phone))) batch.delete(fb.doc(fb.db, 'blocked', blockKeyPhone(r.phone)));
+      };
+      const run = async (label, fn) => {
+        if(offlineBlock(st)) return;
+        try{ await fn(); loadAdminList(); }
+        catch(err){ st.className = 'status error'; st.textContent = `Could not ${label}: ` + err.message; }
+      };
+      const bizRef = id => fb.doc(fb.db, 'businesses', id);
       list.querySelectorAll('.admin-approve').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
-          if(offlineBlock(st)) return;
+        btn.addEventListener('click', ()=>{
           btn.disabled = true;
-          try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { approved: true, approvedAt: fb.serverTimestamp(), declined: false }); loadAdminList(); }
-          catch(err){ btn.disabled = false; st.className = 'status error'; st.textContent = 'Could not approve: ' + err.message; }
+          run('approve', ()=> fb.updateDoc(bizRef(btn.dataset.id), { approved: true, approvedAt: fb.serverTimestamp(), declined: false }))
+            .finally(()=>{ btn.disabled = false; });
         });
       });
       list.querySelectorAll('.admin-decline').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          armTapTwice(btn, 'Decline', 'Tap again to decline', async ()=>{
-            if(offlineBlock(st)) return;
-            try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { declined: true, declinedAt: fb.serverTimestamp() }); loadAdminList(); }
-            catch(err){ st.className = 'status error'; st.textContent = 'Could not decline: ' + err.message; }
-          });
-        });
+        btn.addEventListener('click', ()=> armTapTwice(btn, 'Decline', 'Tap again to decline', ()=>
+          run('decline', ()=> fb.updateDoc(bizRef(btn.dataset.id), { declined: true, declinedAt: fb.serverTimestamp() }))));
+      });
+      list.querySelectorAll('.admin-remove').forEach(btn=>{
+        btn.addEventListener('click', ()=> armTapTwice(btn, 'Remove access (3 months)', 'Tap again to remove for 3 months', ()=>
+          run('remove access', ()=>{
+            const r = byId(btn.dataset.id);
+            const until = fb.Timestamp.fromDate(new Date(Date.now() + REMOVE_DAYS * 86400e3));
+            const batch = fb.writeBatch(fb.db);
+            batch.update(bizRef(r.id), { removed: true, removedAt: fb.serverTimestamp(), removedUntil: until });
+            setBlocks(batch, r, until, 'removed');
+            return batch.commit();
+          })));
       });
       list.querySelectorAll('.admin-suspend').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          armTapTwice(btn, 'Suspend business', 'Tap again to suspend', async ()=>{
-            if(offlineBlock(st)) return;
-            try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: true, suspendedAt: fb.serverTimestamp() }); loadAdminList(); }
-            catch(err){ st.className = 'status error'; st.textContent = 'Could not suspend: ' + err.message; }
-          });
-        });
+        btn.addEventListener('click', ()=> armTapTwice(btn, 'Suspend', 'Tap again to suspend for good', ()=>
+          run('suspend', ()=>{
+            const r = byId(btn.dataset.id);
+            const batch = fb.writeBatch(fb.db);
+            batch.update(bizRef(r.id), { suspended: true, suspendedAt: fb.serverTimestamp() });
+            setBlocks(batch, r, null, 'suspended');
+            return batch.commit();
+          })));
       });
       list.querySelectorAll('.admin-restore').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
-          if(offlineBlock(st)) return;
-          try{ await fb.updateDoc(fb.doc(fb.db, 'businesses', btn.dataset.id), { suspended: false, suspendedAt: null }); loadAdminList(); }
-          catch(err){ st.className = 'status error'; st.textContent = 'Could not restore: ' + err.message; }
-        });
+        btn.addEventListener('click', ()=> run('restore', ()=>{
+          const r = byId(btn.dataset.id);
+          const batch = fb.writeBatch(fb.db);
+          batch.update(bizRef(r.id), { suspended: false, suspendedAt: null, removed: false, removedUntil: null });
+          clearBlocks(batch, r);
+          return batch.commit();
+        }));
       });
     }catch(err){
       st.className = 'status error';
@@ -3850,11 +3979,66 @@
     }finally{ btn.disabled = false; }
   });
 
+  // Owners can change their business name and their own name once every 30 days, and their
+  // phone number once every 90 days (the rules enforce it too); the master admin is exempt.
+  const NAME_EDIT_DAYS = 30, PHONE_EDIT_DAYS = 90;
+  const isMasterAdmin = () => !!currentUser && currentUser.uid === PLATFORM_ADMIN_UID;
+  function nextEditDate(atField, days){
+    if(isMasterAdmin()) return null;
+    const at = bizMeta[atField];
+    const d = at && at.toDate ? at.toDate() : null;
+    if(!d) return null;
+    const next = new Date(d.getTime() + days * 86400e3);
+    return next > new Date() ? next : null;
+  }
+  function renderEditLimits(){
+    if(role !== 'owner') return;
+    const nameNext = nextEditDate('nameChangedAt', NAME_EDIT_DAYS);
+    const phoneNext = nextEditDate('phoneChangedAt', PHONE_EDIT_DAYS);
+    $('#bizNameLimit').textContent = isMasterAdmin() ? 'As master admin you can change this any time.'
+      : nameNext ? `Changed recently — you can change it again on ${longDate(nameNext)}.` : 'Can be changed once every 30 days.';
+    $('#ownerPhoneLimit').textContent = isMasterAdmin() ? 'As master admin you can change this any time.'
+      : phoneNext ? `Changed recently — you can change it again on ${longDate(phoneNext)}.` : 'Can be changed once every 3 months.';
+    const phoneInput = $('#ownerPhoneInput');
+    if(document.activeElement !== phoneInput) phoneInput.value = formatPhone(bizMeta.ownerPhone || '');
+    $('#ownerEmailShown').value = bizMeta.ownerEmail || (currentUser && currentUser.email) || '';
+  }
   $('#bizNameInput').addEventListener('change', ()=>{
-    const v = $('#bizNameInput').value.trim();
-    if(!v || !fb || role !== 'owner') return;
-    fb.updateDoc(fb.doc(fb.db, 'businesses', bizId), { name: v })
-      .catch(err => setStatus('Business name not saved: ' + err.message, 'error'));
+    const input = $('#bizNameInput');
+    const v = input.value.trim();
+    if(!v || !fb || role !== 'owner' || v === bizName) return;
+    const next = nextEditDate('nameChangedAt', NAME_EDIT_DAYS);
+    if(next){ input.value = bizName; setStatus(`You can change your business name again on ${longDate(next)}.`, 'error'); return; }
+    fb.updateDoc(fb.doc(fb.db, 'businesses', bizId), { name: v, nameChangedAt: fb.serverTimestamp() })
+      .catch(err => { input.value = bizName; setStatus('Business name not saved: ' + err.message, 'error'); });
+  });
+  // The owner's own name (their Team row) is kept on the business too, where the limit applies.
+  function renameOwner(input, v){
+    const current = teamNames[bizId] || '';
+    if(!v || v === current){ input.value = current; return; }
+    const next = nextEditDate('ownerNameChangedAt', NAME_EDIT_DAYS);
+    if(next){ input.value = current; setStatus(`You can change your name again on ${longDate(next)}.`, 'error'); return; }
+    const batch = fb.writeBatch(fb.db);
+    batch.update(fb.doc(fb.db, 'businesses', bizId), { ownerName: v, ownerNameChangedAt: fb.serverTimestamp() });
+    batch.set(bdoc('staff', bizId), { name: v }, { merge: true });
+    batch.commit().catch(err => { input.value = current; setStatus('Name not saved: ' + err.message, 'error'); });
+  }
+  $('#ownerPhoneBtn').addEventListener('click', async ()=>{
+    if(!fb || role !== 'owner') return;
+    const st = $('#ownerPhoneStatus'); const input = $('#ownerPhoneInput');
+    const phone = normalizePhone(input.value);
+    st.className = 'status error';
+    if(phone === normalizePhone(bizMeta.ownerPhone || '')){ st.className = 'status'; st.textContent = 'That\'s already your phone number.'; return; }
+    if(!validPhone(phone)){ st.textContent = 'Enter a valid phone number, e.g. 0803 123 4567.'; return; }
+    const next = nextEditDate('phoneChangedAt', PHONE_EDIT_DAYS);
+    if(next){ st.textContent = `You can change your phone number again on ${longDate(next)}.`; input.value = formatPhone(bizMeta.ownerPhone || ''); return; }
+    if(offlineBlock(st)) return;
+    const block = await activeBlock(blockKeyPhone(phone));
+    if(block){ st.textContent = 'That phone number can\'t be used on Ledger.'; return; }
+    try{
+      await fb.updateDoc(fb.doc(fb.db, 'businesses', bizId), { ownerPhone: phone, phoneChangedAt: fb.serverTimestamp() });
+      st.className = 'status deepgreen'; st.textContent = 'Phone number saved ✓';
+    }catch(err){ st.textContent = 'Phone number not saved: ' + err.message; }
   });
 
   $('#ownerUsernameBtn').addEventListener('click', async ()=>{
@@ -3970,7 +4154,7 @@
         collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
         orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs, getDoc: fsMod.getDoc, getCountFromServer: fsMod.getCountFromServer,
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc, writeBatch: fsMod.writeBatch,
-        serverTimestamp: fsMod.serverTimestamp
+        serverTimestamp: fsMod.serverTimestamp, Timestamp: fsMod.Timestamp
       };
       fb.onAuthStateChanged(auth, onAuthChange);
     }catch(err){

@@ -560,17 +560,20 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   // the platform admin approves Ada from Settings
   await op.click('#settingsToggle'); await until(()=> op.isVisible('#adminRefreshBtn')); await op.click('#adminRefreshBtn');
   check('admin sees Ada waiting for approval, at the top of the list', await until(async()=> { const first = await op.$('#adminList .admin-biz'); return !!first && /Ada Stores/.test(await first.textContent()) && /Waiting for approval/.test(await first.textContent()); }) && /1 waiting for approval/.test(await op.textContent('#adminStatus')), await op.textContent('#adminStatus'));
-  check('...showing the name and phone number given at sign-up', /Ada · ada@test\.com · 0803 123 4567/.test(await op.textContent('#adminList .admin-biz.pending')), await op.textContent('#adminList .admin-biz.pending'));
-  check('...and each business shows its account type (MASTER ADMIN / BUSINESS OWNER), with no "(you)"', /MASTER ADMIN/.test(await op.textContent('#adminList')) && /Ada Stores\s*BUSINESS OWNER/.test(await op.textContent('#adminList')) && !/\(you\)/.test(await op.textContent('#adminList')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,220));
+  {
+    const card = (await op.textContent('#adminList .admin-biz.pending')).replace(/\s+/g,' ');
+    check('...as labelled lines: Name, Business name, Phone number, Email address, Time created, Status', /Name\s*Ada\s*Business name\s*Ada Stores\s*Phone number\s*0803 123 4567\s*Email address\s*ada@test\.com\s*Time created\s*\d{1,2} \w{3} \d{4}, \d{1,2}:\d{2}\s?[ap]\.?m\.?\s*Status\s*Waiting for approval/i.test(card), card);
+  }
+  check('...and each business shows its account type (MASTER ADMIN / BUSINESS OWNER), with no "(you)"', /MASTER ADMIN/.test(await op.textContent('#adminList')) && /BUSINESS OWNER/.test(await op.textContent('#adminList .admin-biz.pending')) && !/\(you\)/.test(await op.textContent('#adminList')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,220));
   check('...with Approve and Decline, not Suspend', await op.isVisible('#adminList .admin-biz.pending .admin-approve') && await op.isVisible('#adminList .admin-biz.pending .admin-decline') && !(await op.$('#adminList .admin-biz.pending .admin-suspend')));
   await op.click('#adminList .admin-biz.pending .admin-decline');
   check('...Decline asks to confirm first', /Tap again to decline/.test(await op.textContent('#adminList .admin-biz.pending .admin-decline')));
   await wait(400); await op.click('#adminList .admin-biz.pending .admin-decline');
   check('a declined owner is told their account wasn\'t approved', await until(async()=> /wasn't approved/.test(await ap.textContent('#authBlocked')), 20000) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authBlocked'));
-  check('...and the admin list shows Declined, with "Approve after all"', await until(async()=> /Ada Stores[\s\S]*Status: Declined/.test(await op.textContent('#adminList')) && await op.isVisible('#adminList .admin-approve')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
+  check('...and the admin list shows Declined, with "Approve after all"', await until(async()=> /Ada Stores[\s\S]*Status\s*Declined/.test(await op.textContent('#adminList')) && await op.isVisible('#adminList .admin-approve')), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
   await op.click('#adminList .admin-approve');
   check('...approving it opens Ada\'s ledger by itself', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 20000), await ap.textContent('#whoLabel').catch(()=>''));
-  check('...and the list shows Ada as Active', await until(async()=> /Ada Stores[\s\S]*Status: Active/.test(await op.textContent('#adminList'))), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
+  check('...and the list shows Ada as Active', await until(async()=> /Ada Stores[\s\S]*Status\s*Active/.test(await op.textContent('#adminList'))), (await op.textContent('#adminList')).replace(/\s+/g,' ').slice(0,200));
   await op.click('#settingsBackBtn');
   check('new owner gets their own business', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 20000), await ap.textContent('#whoLabel'));
   check('the username chosen at sign-up is saved', await until(async()=> (await ap.$eval('#ownerUsernameInput', e=>e.value)) === 'adastores'), await ap.$eval('#ownerUsernameInput', e=>e.value));
@@ -597,16 +600,79 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   check('admin list shows both businesses', await until(async()=> /2 businesses/.test(await op.textContent('#adminStatus'))), await op.textContent('#adminStatus'));
   const adaRow = async () => op.$('#adminList .admin-biz:has-text("Ada Stores")');
   check("admin list shows Ada's owner email", /ada@test\.com/.test(await (await adaRow()).textContent()));
+  // Remove access for 3 months
+  await (await (await adaRow()).$('.admin-remove')).click(); await wait(500); await (await (await adaRow()).$('.admin-remove')).click();
+  check('admin removes Ada Stores\' access for 3 months', await until(async()=> /Access removed until/.test(await (await adaRow()).textContent())));
+  check('Ada is locked out, told until when', await until(async()=> /access to Ledger has been removed until/.test(await ap.textContent('#authBlocked')), 15000) && !(await ap.isVisible('#appWrap')), await ap.textContent('#authBlocked'));
+  check("...and can't apply again before the 3 months are up", !(await ap.isVisible('#authApplyAgain')));
+  const trySignup = async (email, phone) => {
+    const N = await ctx(b, 'signup-' + email); const np = N.p;
+    await np.goto(PAGE); await np.waitForSelector('#authForm', { state:'visible' }); await np.click('#showSignup');
+    await np.fill('#signupBizName', 'Again Ltd'); await np.fill('#signupOwnerName', 'Again'); await np.fill('#signupEmail', email); await np.fill('#signupPhone', phone);
+    await np.fill('#signupPassword', 'secret123'); await np.check('#signupTerms'); await np.click('#signupSubmit');
+    await until(async()=> /can't be used|confirm|verify/i.test((await np.textContent('#authStatus')) + (await np.isVisible('#verifyForm') ? 'verify' : '')));
+    const msg = await np.textContent('#authStatus'); const verify = await np.isVisible('#verifyForm');
+    await N.c.close(); return { msg, verify };
+  };
+  {
+    const r = await trySignup('ada.again@test.com', '+234 803 123 4567');
+    check("...and Ada's phone number can't sign up again for 3 months (even written +234…)", /phone number can't be used to create a Ledger account until/.test(r.msg) && !r.verify, r.msg);
+  }
+  // After the 3 months (set the end date in the past): she can apply again, and waits for approval.
+  {
+    const adaId = await (await adaRow()).getAttribute('data-id');
+    await fetch(`http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/businesses/${adaId}?updateMask.fieldPaths=removedUntil`, { method:'PATCH', headers:{ Authorization:'Bearer owner', 'Content-Type':'application/json' }, body: JSON.stringify({ fields:{ removedUntil:{ timestampValue: new Date(Date.now() - 86400e3).toISOString() } } }) });
+    await ap.reload();
+    check('after 3 months Ada can apply again', await until(()=> ap.isVisible('#authApplyAgain'), 15000) && /you can apply again/.test(await ap.textContent('#authBlocked')), await ap.textContent('#authBlocked'));
+    await ap.click('#authApplyAgain');
+    check('...which puts her back on the waiting screen', await until(async()=> /waiting for approval/.test(await ap.textContent('#authBlocked')), 15000), await ap.textContent('#authBlocked'));
+    await op.click('#adminRefreshBtn');
+    check('...and back in the admin\'s waiting list', await until(async()=> /Status\s*Waiting for approval/.test(await (await adaRow()).textContent())));
+    await (await (await adaRow()).$('.admin-approve')).click();
+    check('...approving her opens her ledger again', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await ap.textContent('#whoLabel').catch(()=>''));
+    // remove again, to try restoring early
+    await until(async()=> /Status\s*Active/.test(await (await adaRow()).textContent()));
+    await (await (await adaRow()).$('.admin-remove')).click(); await wait(500); await (await (await adaRow()).$('.admin-remove')).click();
+    await until(async()=> /access to Ledger has been removed until/.test(await ap.textContent('#authBlocked')), 15000);
+  }
+  await (await (await adaRow()).$('.admin-restore')).click();
+  check('admin restores Ada Stores early', await until(async()=> /Status\s*Active/.test(await (await adaRow()).textContent())));
+  check('...which opens her ledger again by itself', await until(async()=> await ap.isVisible('#appWrap') && (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await ap.textContent('#whoLabel').catch(()=>''));
+  // Suspend (for good)
   await (await (await adaRow()).$('.admin-suspend')).click(); await wait(500); await (await (await adaRow()).$('.admin-suspend')).click();
   check('admin suspends Ada Stores', await until(async()=> /Suspended/.test(await (await adaRow()).textContent())));
   check('Ada is locked out straight away', await until(async()=> /has been suspended/.test(await ap.textContent('#authBlocked')), 15000), await ap.textContent('#authBlocked'));
   check("...and can't see the app", !(await ap.isVisible('#appWrap')));
+  {
+    const r = await trySignup('ada.third@test.com', '08031234567');
+    check("a suspended owner's phone can never sign up again", /phone number can't be used to create a Ledger account\.$/.test(r.msg.trim()) && !r.verify, r.msg);
+  }
   await ap.reload();
   check('Ada stays locked out after reload', await until(async()=> /has been suspended/.test(await ap.textContent('#authBlocked'))), await ap.textContent('#authBlocked'));
   await (await (await adaRow()).$('.admin-restore')).click();
   check('admin restores Ada Stores', await until(async()=> /Active/.test(await (await adaRow()).textContent())));
   await wait(800); await ap.reload();
   check('restored Ada gets back in', await until(async()=> (await ap.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await ap.textContent('#whoLabel'));
+  {
+    const r = await trySignup('ada.fourth@test.com', '0803 123 4567');
+    check("...and restoring her lifts the block on her phone", r.verify || !/can't be used/.test(r.msg), r.msg);
+  }
+  // Edit limits: business name and own name once every 30 days, phone once every 3 months.
+  await ap.click('#settingsToggle'); await until(()=> ap.isVisible('#bizNameInput'));
+  check('her email is shown but can\'t be changed', (await ap.$eval('#ownerEmailShown', e=> e.disabled && e.value)) === 'ada@test.com');
+  check('her phone number is shown', (await ap.inputValue('#ownerPhoneInput')) === '0803 123 4567', await ap.inputValue('#ownerPhoneInput'));
+  await ap.fill('#bizNameInput', 'Ada Stores Ltd'); await ap.dispatchEvent('#bizNameInput', 'change');
+  check('Ada renames her business once', await until(async()=> /^Ada Stores Ltd · /.test(await ap.textContent('#whoLabel'))), await ap.textContent('#whoLabel'));
+  check('...after which it says when she can next change it', await until(async()=> /you can change it again on/.test(await ap.textContent('#bizNameLimit'))), await ap.textContent('#bizNameLimit'));
+  await ap.fill('#bizNameInput', 'Ada Again'); await ap.dispatchEvent('#bizNameInput', 'change');
+  check('...and a second rename straight away is refused', await until(async()=> /change your business name again on/.test(await ap.textContent('#status')) && (await ap.inputValue('#bizNameInput')) === 'Ada Stores Ltd'), await ap.textContent('#status'));
+  await ap.fill('#ownerPhoneInput', '0812 000 1111'); await ap.click('#ownerPhoneBtn');
+  check('Ada changes her phone number once', await until(async()=> /Phone number saved/.test(await ap.textContent('#ownerPhoneStatus'))), await ap.textContent('#ownerPhoneStatus'));
+  await ap.fill('#ownerPhoneInput', '0812 000 2222'); await ap.click('#ownerPhoneBtn');
+  check('...and not again for 3 months', await until(async()=> /change your phone number again on/.test(await ap.textContent('#ownerPhoneStatus'))), await ap.textContent('#ownerPhoneStatus'));
+  await ap.click('#settingsBackBtn');
+  await op.click('#adminRefreshBtn');
+  check('the admin list shows her new business name and phone', await until(async()=> /Ada Stores Ltd[\s\S]*0812 000 1111/.test(await (await adaRow()).textContent())), (await (await adaRow()).textContent()).replace(/\s+/g,' '));
   await op.click('#settingsDoneBtn');
   await Ada.c.close();
 
@@ -661,7 +727,7 @@ async function until(fn, ms=8000){ const t = Date.now(); while(Date.now()-t < ms
   await op.click('#signOutBtn'); await wait(600); await op.click('#signOutBtn');
   await op.waitForSelector('#authForm', { state:'visible' });
   await op.click('#authRole button[data-val="owner"]'); await op.fill('#authEmail', 'adastores'); await op.fill('#authPassword', 'secret123'); await op.click('#authSubmit');
-  check('a second owner signs in on the same phone', await until(async()=> (await op.textContent('#whoLabel')) === 'Ada Stores · Ada · OWNER', 15000), await op.textContent('#whoLabel'));
+  check('a second owner signs in on the same phone', await until(async()=> (await op.textContent('#whoLabel')) === 'Ada Stores Ltd · Ada · OWNER', 15000), await op.textContent('#whoLabel'));
   check("...and starts with their own rates, not the previous business's", await until(async()=> (await op.$eval('#mp_transfer', e=>e.value)) === '20' && (await op.$eval('#autosaveFlat', e=>e.value)) === '0'), `${await op.$eval('#mp_transfer', e=>e.value)} / ${await op.$eval('#autosaveFlat', e=>e.value)}`);
   const errs = [...op.errs, ...sp.errs, ...xp.errs];
   check('no page errors', errs.length === 0, errs.join(' | ').slice(0,400));

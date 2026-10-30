@@ -7,12 +7,20 @@
 // No one can read or change another business's data.
 //
 // The platform admin (the UID in isAdmin) can list every business, approve or decline new
-// ones, and suspend or restore one. A new business waits for the admin's approval (approved == false)
+// ones, remove one's access for 3 months, and suspend or restore one. A new business waits for the admin's approval (approved == false)
 // before its owner can use it (a declined one stays unapproved, marked declined); businesses
 // created before approval existed have no
 // "approved" field and count as approved. A suspended or not-yet-approved business's owner
 // and salespeople have no access to its data. The admin can see business names, owners and
 // teams, not their transactions.
+//
+// Removing access (3 months) or suspending (for good) also blocks that owner's email and phone
+// number from creating another business: blocked/{"e:"+email | "p:"+phone digits}, with an
+// "until" time (removed) or none (suspended). After 3 months a removed owner can apply again,
+// which puts their business back in the admin's waiting list.
+//
+// Owners can change their business name and their own name once every 30 days, and their
+// phone number once every 90 days; their email stays as signed up. The admin is exempt.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -26,7 +34,22 @@ service cloud.firestore {
     // A business that hasn't been created yet counts as active (its owner fills it in first).
     // Otherwise it must be approved (no field = approved, for older businesses) and not suspended.
     function bizActive(b) { return !exists(bizPath(b))
-      || (get(bizPath(b)).data.get('suspended', false) == false && get(bizPath(b)).data.get('approved', true) == true); }
+      || (get(bizPath(b)).data.get('suspended', false) == false && get(bizPath(b)).data.get('approved', true) == true
+          && get(bizPath(b)).data.get('removed', false) == false); }
+    // Sign-up blocks (see above): in force when there's no end time, or it hasn't passed yet.
+    function blockPath(key) { return /databases/$(database)/documents/blocked/$(key); }
+    function blockedNow(key) { return exists(blockPath(key))
+      && (get(blockPath(key)).data.get('until', null) == null || request.time < get(blockPath(key)).data.until); }
+    function validPhone(p) { return p is string && p.matches('^[0-9]{10,15}$'); }
+    // A detail that's limited to one change every `days` days: unchanged (with its change time
+    // untouched), or changed now with its change time set to now, at least `days` after the last.
+    function editOk(f, at, days) {
+      return isAdmin()
+        || (request.resource.data.get(f, null) == resource.data.get(f, null)
+            && request.resource.data.get(at, null) == resource.data.get(at, null))
+        || (request.resource.data.get(at, null) == request.time
+            && (resource.data.get(at, null) == null || request.time > resource.data.get(at, null) + duration.value(days, 'd')));
+    }
     function isMemberOf(b) { return (isOwnerOf(b) || isStaffOf(b)) && bizActive(b); }
 
     match /businesses/{b} {
@@ -40,16 +63,37 @@ service cloud.firestore {
         && (request.auth.token.email_verified == true || isAdmin())
         && request.resource.data.termsAcceptedAt == request.time
         && request.resource.data.termsVersion is string
-        && !('suspended' in request.resource.data) && !('declined' in request.resource.data)
-        && (request.resource.data.get('approved', null) == false || isAdmin());
-      // The owner edits their business (e.g. its name) but can't lift a suspension, approve it
-      // or clear a decline; the admin can only approve, decline, suspend or restore.
+        && !('suspended' in request.resource.data) && !('declined' in request.resource.data) && !('removed' in request.resource.data)
+        && (request.resource.data.get('approved', null) == false || isAdmin())
+        // A phone number is required, and neither it nor the email may be blocked.
+        && (isAdmin() || (validPhone(request.resource.data.get('ownerPhone', null))
+            && !blockedNow('p:' + request.resource.data.ownerPhone)
+            && !blockedNow('e:' + request.auth.token.email.lower())));
+      // The owner edits their business (its name, their name, their phone, within the limits
+      // above) but can't change its status (suspended, approved, declined, removed) or email.
+      // The admin can only approve, decline, remove access, suspend or restore.
       allow update: if (isOwnerOf(b) && bizActive(b)
           && request.resource.data.ownerUid == b
           && request.resource.data.get('suspended', false) == resource.data.get('suspended', false)
           && request.resource.data.get('approved', true) == resource.data.get('approved', true)
-          && request.resource.data.get('declined', false) == resource.data.get('declined', false))
-        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt', 'approved', 'approvedAt', 'declined', 'declinedAt']));
+          && request.resource.data.get('declined', false) == resource.data.get('declined', false)
+          && request.resource.data.get('removed', false) == resource.data.get('removed', false)
+          && (isAdmin() || request.resource.data.get('ownerEmail', null) == resource.data.get('ownerEmail', null))
+          && editOk('name', 'nameChangedAt', 30)
+          && editOk('ownerName', 'ownerNameChangedAt', 30)
+          && editOk('ownerPhone', 'phoneChangedAt', 90)
+          && (isAdmin() || request.resource.data.get('ownerPhone', null) == resource.data.get('ownerPhone', null)
+              || (validPhone(request.resource.data.ownerPhone) && !blockedNow('p:' + request.resource.data.ownerPhone))))
+        // 3 months after their access was removed, the owner can apply again: the business goes
+        // back to waiting for approval (nothing opens until the admin approves it).
+        || (isOwnerOf(b) && resource.data.get('removed', false) == true
+          && resource.data.get('suspended', false) == false
+          && request.time > resource.data.removedUntil
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['removed', 'approved', 'declined', 'appliedAgainAt'])
+          && request.resource.data.removed == false && request.resource.data.approved == false
+          && request.resource.data.get('declined', false) == false
+          && request.resource.data.appliedAgainAt == request.time)
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended', 'suspendedAt', 'approved', 'approvedAt', 'declined', 'declinedAt', 'removed', 'removedAt', 'removedUntil']));
       allow delete: if false;
 
       match /transactions/{txId} {
@@ -86,9 +130,16 @@ service cloud.firestore {
 
       // Team list (who has access, and their names): the team reads, only the owner changes.
       // The admin can read it to see who runs each business.
+      // The owner's own row carries their name, which must match the business's ownerName (so
+      // renaming themselves goes through the 30-day limit there).
       match /staff/{uid} {
         allow read: if isMemberOf(b) || isAdmin();
-        allow write: if isOwnerOf(b) && bizActive(b);
+        allow create: if isOwnerOf(b) && bizActive(b)
+          && (uid != b || isAdmin() || request.resource.data.get('name', '') == getAfter(bizPath(b)).data.get('ownerName', ''));
+        allow update: if isOwnerOf(b) && bizActive(b)
+          && (uid != b || isAdmin() || request.resource.data.get('name', null) == resource.data.get('name', null)
+              || request.resource.data.get('name', '') == getAfter(bizPath(b)).data.get('ownerName', ''));
+        allow delete: if isOwnerOf(b) && bizActive(b);
       }
     }
 
@@ -102,6 +153,13 @@ service cloud.firestore {
         && existsAfter(bizPath(request.auth.uid))
         && (resource == null || resource.data.businessId == request.auth.uid);
       allow delete: if signedIn() && resource.data.businessId == request.auth.uid;
+    }
+
+    // Sign-up blocks (see the top). Readable by exact key so the sign-up form can say so;
+    // only the admin lists or changes them.
+    match /blocked/{key} {
+      allow get: if true;
+      allow list, write: if isAdmin();
     }
 
     // Username → login lookup, so salespeople can sign in with a username. Readable by exact
