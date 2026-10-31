@@ -444,6 +444,19 @@ function sideAware(p){
     const isFull = () => pc.evaluate(()=> document.getElementById('calcCard').classList.contains('calc-full'));
     const ch = await pc.evaluate(()=> [document.getElementById('calcCard').offsetHeight, document.getElementById('entryCard').offsetHeight]);
     check('on a computer the calculator opens as a dropdown', !(await isFull()) && await pc.isVisible('#calcBody') && await pc.isVisible('#calcExpandBtn'));
+    {
+      // The keypad's place on screen (found by probing the screen) never changes: not for a long sum, not with the history opened.
+      const keypad = () => pc.evaluate(()=>{ const g = document.querySelector('#calcCard .calc-grid'); const r = g.getBoundingClientRect(); const x = (r.left + r.right) / 2; let top = -1, bot = -1; for(let y = 0; y < innerHeight; y++){ const e = document.elementFromPoint(x, y); if(e && g.contains(e)){ if(top < 0) top = y; bot = y; } } return top + '-' + bot; });
+      const pressPc = async ks => { for(const k of ks) await pc.click(`#calcBody .calc-btn[data-calc="${k}"]`); };
+      const k0 = await keypad();
+      for(let i = 0; i < 5; i++) await pressPc(['1','2','+','3','=']);
+      await pressPc(['clear']); for(let i = 0; i < 8; i++) await pressPc(['5','5','5','5','5','5','5','+']);
+      const k1 = await keypad();
+      if(!(await pc.isVisible('#calcHistoryList'))) await pc.click('#calcHistoryToggle'); await wait(300);
+      const k2 = await keypad();
+      check('on a computer the dropdown keypad never moves or shrinks (long sum, history opened)', k0 === k1 && k1 === k2 && !k0.startsWith('-1'), `${k0} | ${k1} | ${k2}`);
+      await pc.click('#calcHistoryToggle'); await pressPc(['clear']);
+    }
     check('...as tall as the Log a Transaction card', Math.abs(ch[0] - ch[1]) <= 2, JSON.stringify(ch));
     await pc.click('#calcExpandBtn');
     check('...the full-screen button opens it full screen, with no browser full-screen button', await isFull() && await pc.isVisible('#calcBackBtn') && !(await pc.isVisible('#calcExpandBtn')) && !(await pc.$('#calcFsBtn')));
