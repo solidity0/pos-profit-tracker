@@ -1313,10 +1313,11 @@
       const body = sec.querySelector('.perf-section-body');
       const set = (isOpen)=>{ body.hidden = !isOpen; sec.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', String(isOpen)); };
       // Summary starts open the first time; after that, whatever was last chosen.
-      set(sec.id in open ? !!open[sec.id] : sec.id === 'perfTotals');
+      set(sec.id in open ? !!open[sec.id] : (sec.id === 'perfTotals' || sec.id === 'perfTrend'));
       btn.addEventListener('click', ()=>{
         const isOpen = body.hidden;
         set(isOpen);
+        if(isOpen && sec.id === 'perfTrend') renderTrend();
         open[sec.id] = isOpen;
         try{ localStorage.setItem(KEY, JSON.stringify(open)); }catch(e){}
       });
@@ -2296,7 +2297,120 @@
     // it's open; opening it later rebuilds it from the latest data.
     if($('#logContent').style.display === 'block') renderLog();
     else logNeedsRender = true;
+    renderTrend(filtered);
   }
+
+  // ---------- Profit trend (Performance Overview) ----------
+  // Net profit as bars, following the Filter (period, provider, person) like the Summary:
+  // by hour for Today, by day for a week or month (or a range up to 45 days), else by month.
+  // Losses go below the line. Pointing at (or tapping) a bar shows its details.
+  const signedFmt = v => (v < 0 ? '−' : '') + fmt(Math.abs(v));
+  const dayKeyOf = d => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  function trendBuckets(list){
+    const now = new Date(), out = [];
+    const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const days = (from, to) => { for(let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)){ const x = new Date(d);
+      out.push({ key: dayKeyOf(x), label: String(x.getDate()), long: x.toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short' }), future: x > now }); } };
+    if(state.period === 'today'){
+      const hours = list.map(t => new Date(t.date).getHours());
+      const from = Math.min(8, ...hours), to = Math.max(20, ...hours);
+      for(let h = from; h <= to; h++){
+        const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h);
+        const label = (h % 12 || 12) + (h < 12 ? 'am' : 'pm');
+        out.push({ key: 'h' + h, label, long: label + ' – ' + ((h + 1) % 12 || 12) + (h + 1 < 12 || h + 1 === 24 ? 'am' : 'pm'), future: at > now });
+      }
+      return { unit: 'hour', out, keyOf: t => 'h' + new Date(t.date).getHours() };
+    }
+    if(state.period === 'week'){
+      const monday = startOfDay(now); monday.setDate(monday.getDate() - (now.getDay() + 6) % 7);
+      const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+      days(monday, sunday);
+      out.forEach(b => { b.label = b.long.split(' ')[0].slice(0, 3); });
+      return { unit: 'day', out, keyOf: t => dayKeyOf(new Date(t.date)) };
+    }
+    if(state.period === 'month'){
+      days(new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      return { unit: 'day', out, keyOf: t => dayKeyOf(new Date(t.date)) };
+    }
+    // All Time / Custom: from the first entry (or chosen start) to the last (or chosen end / today).
+    const times = list.map(t => new Date(t.date).getTime());
+    let from = state.period === 'custom' && state.customStart ? new Date(state.customStart + 'T00:00:00') : (times.length ? new Date(Math.min(...times)) : now);
+    let to = state.period === 'custom' && state.customEnd ? new Date(state.customEnd + 'T00:00:00') : now;
+    if(to < from) to = from;
+    from = startOfDay(from); to = startOfDay(to);
+    if((to - from) / 86400000 <= 45){ days(from, to); return { unit: 'day', out, keyOf: t => dayKeyOf(new Date(t.date)) }; }
+    const monthKey = d => d.getFullYear() + '-' + d.getMonth();
+    for(let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d.setMonth(d.getMonth() + 1)){
+      const x = new Date(d);
+      out.push({ key: monthKey(x), label: x.toLocaleDateString('en-NG', { month: 'short' }), long: x.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' }), future: false });
+    }
+    return { unit: 'month', out, keyOf: t => monthKey(new Date(t.date)) };
+  }
+  let trendState = null;
+  function renderTrend(list){
+    const body = $('#perfTrendBody'), chart = $('#trendChart');
+    if(!body || body.hidden) return;
+    list = list || getFiltered();
+    const { unit, out: buckets, keyOf } = trendBuckets(list);
+    const byKey = {}; buckets.forEach(b => { b.net = 0; b.count = 0; byKey[b.key] = b; });
+    list.forEach(t => { const b = byKey[keyOf(t)]; if(b){ b.net += t.netProfit || 0; b.count++; } });
+    const W = Math.max(200, chart.clientWidth || 280);
+    if(!list.length){
+      chart.innerHTML = '<div class="trend-empty">No transactions for this filter yet.</div>';
+      $('#trendStats').innerHTML = ''; $('#trendTip').textContent = ''; $('#trendTable').innerHTML = '';
+      trendState = null; return;
+    }
+    // Stats: the best bar and the average over the bars so far (not the ones still to come).
+    const past = buckets.filter(b => !b.future);
+    const best = buckets.reduce((a, b) => b.count && (!a || b.net > a.net) ? b : a, null);
+    const avg = past.length ? past.reduce((s, b) => s + b.net, 0) / past.length : 0;
+    $('#trendStats').innerHTML = (best ? `<span>Best ${unit}: <strong>${escapeHtml(best.long)}</strong> · <strong>${signedFmt(best.net)}</strong></span>` : '') +
+      `<span>Average: <strong>${signedFmt(Math.round(avg))}</strong> per ${unit}</span>`;
+    // Geometry.
+    const H = 150, top = 14, bottom = 18, plotH = H - top - bottom;
+    const maxV = Math.max(0, ...buckets.map(b => b.net)), minV = Math.min(0, ...buckets.map(b => b.net));
+    const range = (maxV - minV) || 1;
+    const y0 = top + plotH * maxV / range, yOf = v => y0 - v / range * plotH;
+    const n = buckets.length, slot = W / n, bw = Math.max(2, Math.min(26, slot - 2));
+    const step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(W / 46))));
+    let bars = '', hits = '', labels = '';
+    buckets.forEach((b, i) => {
+      const x = i * slot + (slot - bw) / 2;
+      if(b.net !== 0){
+        const y = yOf(b.net), h = Math.abs(y - y0), r = Math.min(4, bw / 2, h);
+        const d = b.net > 0
+          ? `M${x},${y0}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${y0}Z`
+          : `M${x},${y0}V${y - r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y - r}V${y0}Z`;
+        bars += `<path class="bar ${b.net > 0 ? 'bar-up' : 'bar-down'}" data-i="${i}" d="${d}"/>`;
+      }
+      hits += `<rect class="hit" data-i="${i}" x="${i * slot}" y="0" width="${slot}" height="${H}"/>`;
+      if(i % step === 0) labels += `<text class="axis" x="${i * slot + slot / 2}" y="${H - 4}" text-anchor="middle">${escapeHtml(b.label)}</text>`;
+    });
+    const topLabel = maxV > 0 ? `<line class="grid" x1="0" x2="${W}" y1="${yOf(maxV)}" y2="${yOf(maxV)}"/><text class="axis" x="0" y="${yOf(maxV) - 4}">${signedFmt(maxV)}</text>` : '';
+    const lowLabel = minV < 0 ? `<line class="grid" x1="0" x2="${W}" y1="${yOf(minV)}" y2="${yOf(minV)}"/><text class="axis" x="${W}" y="${yOf(minV) - 4}" text-anchor="end">${signedFmt(minV)}</text>` : '';
+    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Net profit per ${unit}; best ${best ? best.long + ' ' + signedFmt(best.net) : 'none'}">${topLabel}${lowLabel}<line class="base" x1="0" x2="${W}" y1="${y0}" y2="${y0}"/>${bars}${labels}${hits}</svg>`;
+    $('#trendTable').innerHTML = `<caption>Net profit per ${unit}</caption><tr><th>${unit}</th><th>Net profit</th><th>Transactions</th></tr>` +
+      buckets.filter(b => b.count).map(b => `<tr><td>${escapeHtml(b.long)}</td><td>${signedFmt(b.net)}</td><td>${b.count}</td></tr>`).join('');
+    trendState = { buckets, unit };
+    trendShow(null);
+  }
+  function trendShow(i){
+    const tip = $('#trendTip');
+    $('#trendChart').querySelectorAll('.bar').forEach(el => { el.classList.toggle('dim', i !== null && el.dataset.i !== String(i)); el.classList.toggle('on', el.dataset.i === String(i)); });
+    if(i === null || !trendState){ tip.textContent = trendState ? `Point at or tap a bar to see that ${trendState.unit}.` : ''; return; }
+    const b = trendState.buckets[i];
+    tip.innerHTML = `<strong>${escapeHtml(b.long)}</strong> · ` + (b.count
+      ? `${b.net < 0 ? 'loss' : 'profit'} <strong>${signedFmt(b.net)}</strong> · ${b.count} transaction${b.count === 1 ? '' : 's'}`
+      : (b.future ? 'still to come' : 'no transactions'));
+  }
+  (function(){
+    const chart = $('#trendChart');
+    chart.addEventListener('pointerover', e => { const h = e.target.closest('.hit'); if(h) trendShow(+h.dataset.i); });
+    chart.addEventListener('click', e => { const h = e.target.closest('.hit'); if(h) trendShow(+h.dataset.i); });
+    chart.addEventListener('pointerleave', e => { if(e.pointerType === 'mouse') trendShow(null); });
+    // Redrawn when its width changes (card resized, phone turned, text size).
+    if(window.ResizeObserver){ let lastW = 0; new ResizeObserver(()=>{ const w = chart.clientWidth; if(w && w !== lastW){ lastW = w; renderTrend(); } }).observe(chart); }
+  })();
 
   // Rows shown in the Transaction Log before "Show more" — keeps All Time fast even with
   // thousands of transactions.

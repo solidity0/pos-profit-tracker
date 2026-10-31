@@ -166,6 +166,19 @@ function sideAware(p){
   await op.click('#activityBackBtn');
   check('...and Back returns to the menu', await until(async()=> !(await op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full')))) && await op.isVisible('#sideDrawer'));
   await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer')));
+  // ---------- Profit trend (Performance Overview) ----------
+  {
+    if(!(await op.isVisible('#summaryContent'))) await op.click('#summaryToggle');
+    check('Performance Overview has a Profit trend chart', await until(()=> op.isVisible('#trendChart svg')));
+    const naira = s => { const m = String(s).replace(/,/g, '').match(/(−|-)?₦([\d.]+)/); return m ? (m[1] ? -1 : 1) * parseFloat(m[2]) : NaN; };
+    const sums = await op.evaluate(()=> [...document.querySelectorAll('#trendTable tr')].slice(1).map(r => r.children[1].textContent));
+    const total = sums.reduce((a, v) => a + naira(v), 0), net = naira(await op.textContent('#netProfit'));
+    check("...its bars add up to the Summary's net profit", sums.length > 0 && Math.abs(total - net) < 0.01, `${total} vs ${net}`);
+    check('...by hour for Today', /hour/.test(await op.textContent('#trendStats')));
+    const barI = await op.$eval('#trendChart .bar', e => e.dataset.i);
+    await op.click(`#trendChart .hit[data-i="${barI}"]`);
+    check('...tapping a bar shows its profit and transactions', await until(async()=> /(profit|loss) .*₦[\d,.]+ · \d+ transactions?/.test(await op.textContent('#trendTip'))), await op.textContent('#trendTip'));
+  }
   check("staff don't have Activity", !(await sp.evaluate(()=> { const e = document.getElementById('activityCard'); return !!e && !!e.offsetParent; })));
 
   // ---------- offline logging ----------

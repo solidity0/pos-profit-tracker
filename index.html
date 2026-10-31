@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Ledger" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="app.css?v=7e40d3c4" />
+<link rel="stylesheet" href="app.css?v=03c92f10" />
 </head>
 <body>
 <div class="auth-gate" id="authGate">
@@ -328,6 +328,16 @@
         <span class="val" id="netProfit">₦0</span>
       </div>
       <div class="txcount" id="txCount">0 transactions</div>
+      </div>
+     </section>
+
+     <section class="perf-section" id="perfTrend">
+      <button class="perf-section-toggle" type="button" aria-expanded="false" aria-controls="perfTrendBody"><span class="perf-section-title">Profit trend</span><span class="perf-caret">▶</span></button>
+      <div class="perf-section-body" id="perfTrendBody" hidden>
+        <div class="trend-stats" id="trendStats"></div>
+        <div class="trend-chart" id="trendChart"></div>
+        <div class="trend-tip" id="trendTip" role="status" aria-live="polite"></div>
+        <table class="sr-only" id="trendTable"></table>
       </div>
      </section>
 
@@ -648,6 +658,6 @@
   </aside>
 </div>
 
-<script src="app.js?v=1e7397f2"></script>
+<script src="app.js?v=5324d02b"></script>
 </body>
 </html>
