@@ -1489,17 +1489,23 @@
     }
   }
   function calcEvaluateSequence(seq){
-    // seq like ['45','+','34','+','90'] — plain left-to-right, no precedence, matching
-    // how a basic calculator actually computes as you go.
-    let acc = parseFloat(seq[0]);
-    if(isNaN(acc)) return null;
+    // seq like ['1300','*','4','+','1400','*','10']. × and ÷ are worked out before + and −,
+    // like a phone calculator (that one is 5,200 + 14,000 = 19,200, not 66,000); a dangling
+    // operator at the end is ignored.
+    const first = parseFloat(seq[0]);
+    if(isNaN(first)) return null;
+    const terms = [first], addOps = [];
     for(let i = 1; i < seq.length - 1; i += 2){
-      const nextNum = parseFloat(seq[i + 1]);
-      if(isNaN(nextNum)) return acc;
-      const r = calcCompute(acc, nextNum, seq[i]);
-      if(r === null) return null;
-      acc = r;
+      const op = seq[i], nextNum = parseFloat(seq[i + 1]);
+      if(isNaN(nextNum)) break;
+      if(op === '*' || op === '/'){
+        const r = calcCompute(terms.pop(), nextNum, op);
+        if(r === null) return null;
+        terms.push(r);
+      } else { addOps.push(op); terms.push(nextNum); }
     }
+    let acc = terms[0];
+    addOps.forEach((op, k) => { acc = calcCompute(acc, terms[k + 1], op); });
     return acc;
   }
   // Loads a past calculation back onto the board as a row of tappable number "chips" —
@@ -2953,6 +2959,12 @@
       if(h && h.value){
         const parsed = JSON.parse(h.value);
         if(Array.isArray(parsed)) calcHistory = parsed;
+        // Answers saved before × and ÷ came first were worked out left to right: redo them.
+        calcHistory.forEach(item => {
+          if(!Array.isArray(item.tokens) || item.tokens.length < 3) return;
+          const r = calcEvaluateSequence(item.tokens);
+          item.result = (r === null || !isFinite(r)) ? 'Error' : calcFormatNumber(calcNumberToString(r));
+        });
       }
     }catch(e){}
     calcRenderDisplay();
