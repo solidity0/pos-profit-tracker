@@ -122,13 +122,14 @@
   // without actually reflowing the page, so labels like "Amount Withdrawn" can't react
   // to it. This toggle reflows for real, the same way on every browser and device.
   // On a computer everything is drawn a step smaller to begin with (full-size reads as zoomed
-  // in on a monitor); Aa makes it smaller again from there, on phones and computers alike.
+  // in on a monitor); Aa makes it smaller again from there: a gentler step on a computer.
   let appScale = 1;
-  const DESKTOP_SCALE = 0.85;
+  const DESKTOP_SCALE = 0.85, DESKTOP_SMALL_SCALE = 0.78;
   const desktopView = window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)');
   function applyAppScale(scale){
     appScale = scale;
-    document.documentElement.style.setProperty('--app-zoom', +(scale * (desktopView.matches ? DESKTOP_SCALE : 1)).toFixed(4));
+    const zoom = desktopView.matches ? (scale < 1 ? DESKTOP_SMALL_SCALE : DESKTOP_SCALE) : scale;
+    document.documentElement.style.setProperty('--app-zoom', zoom);
     const btn = $('#textSizeToggle');
     btn.setAttribute('aria-pressed', scale < 1 ? 'true' : 'false');
   }
@@ -2301,9 +2302,9 @@
   }
 
   // ---------- Profit trend (Performance Overview) ----------
-  // Net profit as bars, following the Filter (period, provider, person) like the Summary:
-  // by hour for Today, by day for a week or month (or a range up to 45 days), else by month.
-  // Losses go below the line. Pointing at (or tapping) a bar shows its details.
+  // Profit so far as a smooth line, following the Filter (period, provider, person) like the
+  // Summary: by hour for Today, by day for a week or month (or a range up to 45 days), else by
+  // month. A loss makes it dip. Pointing at (or tapping) the chart shows each one's details.
   const signedFmt = v => (v < 0 ? '−' : '') + fmt(Math.abs(v));
   const dayKeyOf = d => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
   function trendBuckets(list){
@@ -2366,42 +2367,73 @@
     const avg = past.length ? past.reduce((s, b) => s + b.net, 0) / past.length : 0;
     $('#trendStats').innerHTML = (best ? `<span>Best ${unit}: <strong>${escapeHtml(best.long)}</strong> · <strong>${signedFmt(best.net)}</strong></span>` : '') +
       `<span>Average: <strong>${signedFmt(Math.round(avg))}</strong> per ${unit}</span>`;
-    // Geometry.
-    const H = 150, top = 14, bottom = 18, plotH = H - top - bottom;
-    const maxV = Math.max(0, ...buckets.map(b => b.net)), minV = Math.min(0, ...buckets.map(b => b.net));
+    // The line is profit so far: it climbs through the period and dips on a loss. A soft
+    // shaded area sits under it and a dot marks the latest point.
+    let run = 0; buckets.forEach(b => { if(!b.future){ run += b.net; b.sofar = run; } });
+    const H = 150, top = 16, bottom = 18, plotH = H - top - bottom;
+    const vals = buckets.filter(b => !b.future).map(b => b.sofar);
+    const maxV = Math.max(0, ...vals), minV = Math.min(0, ...vals);
     const range = (maxV - minV) || 1;
     const y0 = top + plotH * maxV / range, yOf = v => y0 - v / range * plotH;
-    const n = buckets.length, slot = W / n, bw = Math.max(2, Math.min(26, slot - 2));
+    const n = buckets.length, slot = W / n, xOf = i => i * slot + slot / 2;
     const step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(W / 46))));
-    let bars = '', hits = '', labels = '';
+    const pts = [{ i: -1, x: 0, y: y0 }].concat(buckets.map((b, i) => ({ i, x: xOf(i), y: b.future ? 0 : yOf(b.sofar) })).filter(p => !buckets[p.i].future));
+    const line = smoothPath(pts);
+    const last = pts[pts.length - 1];
+    const area = `${line}L${last.x},${y0}L${pts[0].x},${y0}Z`;
+    let hits = '', labels = '';
     buckets.forEach((b, i) => {
-      const x = i * slot + (slot - bw) / 2;
-      if(b.net !== 0){
-        const y = yOf(b.net), h = Math.abs(y - y0), r = Math.min(4, bw / 2, h);
-        const d = b.net > 0
-          ? `M${x},${y0}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${y0}Z`
-          : `M${x},${y0}V${y - r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y - r}V${y0}Z`;
-        bars += `<path class="bar ${b.net > 0 ? 'bar-up' : 'bar-down'}" data-i="${i}" d="${d}"/>`;
-      }
       hits += `<rect class="hit" data-i="${i}" x="${i * slot}" y="0" width="${slot}" height="${H}"/>`;
-      if(i % step === 0) labels += `<text class="axis" x="${i * slot + slot / 2}" y="${H - 4}" text-anchor="middle">${escapeHtml(b.label)}</text>`;
+      if(i % step === 0) labels += `<text class="axis" x="${xOf(i)}" y="${H - 4}" text-anchor="middle">${escapeHtml(b.label)}</text>`;
     });
     const topLabel = maxV > 0 ? `<line class="grid" x1="0" x2="${W}" y1="${yOf(maxV)}" y2="${yOf(maxV)}"/><text class="axis" x="0" y="${yOf(maxV) - 4}">${signedFmt(maxV)}</text>` : '';
     const lowLabel = minV < 0 ? `<line class="grid" x1="0" x2="${W}" y1="${yOf(minV)}" y2="${yOf(minV)}"/><text class="axis" x="${W}" y="${yOf(minV) - 4}" text-anchor="end">${signedFmt(minV)}</text>` : '';
-    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Net profit per ${unit}; best ${best ? best.long + ' ' + signedFmt(best.net) : 'none'}">${topLabel}${lowLabel}<line class="base" x1="0" x2="${W}" y1="${y0}" y2="${y0}"/>${bars}${labels}${hits}</svg>`;
+    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Profit so far, by ${unit}; best ${best ? best.long + ' ' + signedFmt(best.net) : 'none'}">
+      <defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-up)" stop-opacity=".28"/><stop offset="1" stop-color="var(--chart-up)" stop-opacity="0"/></linearGradient></defs>
+      ${topLabel}${lowLabel}<line class="base${minV < 0 ? ' zero' : ''}" x1="0" x2="${W}" y1="${y0}" y2="${y0}"/>
+      <path class="area" d="${area}"/><path class="line" d="${line}"/>
+      <line class="cross" id="trendCross" x1="0" x2="0" y1="${top - 6}" y2="${H - bottom}" style="display:none"/>
+      <circle class="dot end${last.i >= 0 && buckets[last.i].sofar < 0 ? ' neg' : ''}" cx="${last.x}" cy="${last.y}" r="5"/>
+      <circle class="dot pick" id="trendDot" r="4.5" cx="0" cy="0" style="display:none"/>
+      ${labels}${hits}</svg>`;
     $('#trendTable').innerHTML = `<caption>Net profit per ${unit}</caption><tr><th>${unit}</th><th>Net profit</th><th>Transactions</th></tr>` +
       buckets.filter(b => b.count).map(b => `<tr><td>${escapeHtml(b.long)}</td><td>${signedFmt(b.net)}</td><td>${b.count}</td></tr>`).join('');
-    trendState = { buckets, unit };
+    trendState = { buckets, unit, xOf, yOf };
     trendShow(null);
+  }
+  // A smooth line through the points that never overshoots them (monotone cubic), so it
+  // doesn't invent dips or peaks between two hours / days.
+  function smoothPath(pts){
+    if(!pts.length) return '';
+    if(pts.length === 1) return `M${pts[0].x - 6},${pts[0].y}H${pts[0].x}`;
+    const n = pts.length, d = [], m = [];
+    for(let k = 0; k < n - 1; k++) d.push((pts[k + 1].y - pts[k].y) / (pts[k + 1].x - pts[k].x));
+    m.push(d[0]);
+    for(let k = 1; k < n - 1; k++) m.push(d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2);
+    m.push(d[n - 2]);
+    for(let k = 0; k < n - 1; k++){
+      if(d[k] === 0){ m[k] = 0; m[k + 1] = 0; continue; }
+      const a = m[k] / d[k], b = m[k + 1] / d[k], h = a * a + b * b;
+      if(h > 9){ const t = 3 / Math.sqrt(h); m[k] = t * a * d[k]; m[k + 1] = t * b * d[k]; }
+    }
+    let path = `M${pts[0].x},${pts[0].y}`;
+    for(let k = 0; k < n - 1; k++){
+      const dx = (pts[k + 1].x - pts[k].x) / 3;
+      path += `C${pts[k].x + dx},${pts[k].y + m[k] * dx} ${pts[k + 1].x - dx},${pts[k + 1].y - m[k + 1] * dx} ${pts[k + 1].x},${pts[k + 1].y}`;
+    }
+    return path;
   }
   function trendShow(i){
     const tip = $('#trendTip');
-    $('#trendChart').querySelectorAll('.bar').forEach(el => { el.classList.toggle('dim', i !== null && el.dataset.i !== String(i)); el.classList.toggle('on', el.dataset.i === String(i)); });
-    if(i === null || !trendState){ tip.textContent = trendState ? `Point at or tap a bar to see that ${trendState.unit}.` : ''; return; }
-    const b = trendState.buckets[i];
+    const cross = $('#trendCross'), dot = $('#trendDot');
+    if(i === null || !trendState){ if(cross){ cross.style.display = 'none'; dot.style.display = 'none'; } tip.textContent = trendState ? `Point at or tap the chart to see each ${trendState.unit}.` : ''; return; }
+    const b = trendState.buckets[i], x = trendState.xOf(i);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.style.display = '';
+    if(b.future){ dot.style.display = 'none'; }
+    else { dot.setAttribute('cx', x); dot.setAttribute('cy', trendState.yOf(b.sofar)); dot.classList.toggle('neg', b.sofar < 0); dot.style.display = ''; }
     tip.innerHTML = `<strong>${escapeHtml(b.long)}</strong> · ` + (b.count
-      ? `${b.net < 0 ? 'loss' : 'profit'} <strong>${signedFmt(b.net)}</strong> · ${b.count} transaction${b.count === 1 ? '' : 's'}`
-      : (b.future ? 'still to come' : 'no transactions'));
+      ? `${b.net < 0 ? 'loss' : 'profit'} <strong>${signedFmt(b.net)}</strong> · ${b.count} transaction${b.count === 1 ? '' : 's'} · <strong>${signedFmt(b.sofar)}</strong> so far`
+      : (b.future ? 'still to come' : `no transactions · <strong>${signedFmt(b.sofar)}</strong> so far`));
   }
   (function(){
     const chart = $('#trendChart');
