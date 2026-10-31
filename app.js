@@ -2159,9 +2159,8 @@
   }
 
   function matchesLoggedBy(t){
-    // A salesperson's totals, volume and reports cover only their own entries (their
-    // Transaction Log still shows everyone's; see getFilteredForLog).
-    if(role === 'staff') return !!currentUser && t.loggedBy === currentUser.uid;
+    // The name chips in the Filter pick whose entries everything shows (log, money in/out,
+    // Summary, Profit trend, reports), for the owner and staff alike; Everyone = the whole shop.
     return state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter;
   }
 
@@ -2199,9 +2198,7 @@
     return transactions.filter(t=>{
       const periodOk = isInPeriod(t.date, state.period);
       const provOk = state.providerFilter === 'All' || t.provider === state.providerFilter;
-      // A salesperson's log shows everyone's entries; their reports stay their own.
-      const personOk = role === 'staff' ? (state.loggedByFilter === 'All' || t.loggedBy === state.loggedByFilter) : matchesLoggedBy(t);
-      return periodOk && provOk && personOk && (!t.deleted || (role === 'owner' && deletedStillShown(t)));
+      return periodOk && provOk && matchesLoggedBy(t) && (!t.deleted || (role === 'owner' && deletedStillShown(t)));
     });
   }
 
@@ -2656,8 +2653,8 @@
     doc.text('Ledger — Daily Report', marginX, y);
     y += 22;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-    // Whose entries this report covers: a salesperson's own, or the person the owner filtered to.
-    const reportPerson = role === 'staff' ? currentUser.uid : (state.loggedByFilter !== 'All' ? state.loggedByFilter : null);
+    // Whose entries this report covers: the person picked in the Filter, or everyone.
+    const reportPerson = state.loggedByFilter !== 'All' ? state.loggedByFilter : null;
     const personLabel = reportPerson ? ` · by ${nameFor(reportPerson)}` : '';
     const headerLabel = `${periodLabel} · ${providerLabel}${personLabel} · generated ${now.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})} ${now.toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit',hour12:true})}`;
     drawSegments(doc, marginX, y, colorizeLabel(headerLabel, [90,90,90]));
@@ -2908,7 +2905,7 @@
   $('#csvBtn').addEventListener('click', ()=>{
     const list = getFiltered().slice().sort((a,b)=> a.date < b.date ? -1 : 1);
     const periodLabels = { today:'today', week:'this-week', month:'this-month', all:'all-time', custom:'custom' };
-    const who = role === 'staff' ? '-' + fileSlug(teamNames[currentUser.uid] || 'my-entries') : '';
+    const who = state.loggedByFilter !== 'All' ? '-' + fileSlug(nameFor(state.loggedByFilter)) : '';
     downloadText(transactionsToCsv(list, role === 'staff'), `${fileSlug(bizName)}${who}-${periodLabels[state.period] || 'report'}-${dayKey(new Date())}.csv`, 'text/csv;charset=utf-8');
     $('#pdfStatus').textContent = `Spreadsheet downloaded (${list.length} transaction${list.length === 1 ? '' : 's'}).`;
     setTimeout(()=>{ $('#pdfStatus').textContent = ''; }, 4000);
@@ -3627,8 +3624,7 @@
     if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)){
       state.loggedByFilter = 'All';
     }
-    // The owner filters everything by person; staff filter just the Transaction Log (their
-    // totals and reports stay their own).
+    // Owner and staff alike filter everything by person (see matchesLoggedBy).
     if(!role || staff.length === 0){ el.style.display = 'none'; return; }
     const opts = [['All', 'Everyone']].concat([bizId].concat(staff).map(uid => [uid, nameFor(uid)]));
     el.style.display = 'grid';

@@ -213,7 +213,11 @@ function sideAware(p){
   // ---------- staff view of the whole shop ----------
   await sp.click('#summaryToggle');
   await sp.click('#periodTabs button[data-val="all"]');
-  check("staff All Time counts only the staff member's own entries", await until(async()=> (await sp.textContent('#txCount')).startsWith('4 transactions')), await sp.textContent('#txCount'));
+  const spCount = async () => parseInt(await sp.textContent('#txCount'));
+  check('staff with Everyone picked see the whole shop (more than their own 4)', await until(async()=> (await spCount()) > 4), await sp.textContent('#txCount'));
+  await sp.click('#loggedByFilter button:has-text("Test Staff")');
+  check("...and picking their own name shows just theirs", await until(async()=> (await sp.textContent('#txCount')).startsWith('4 transactions')), await sp.textContent('#txCount'));
+  await sp.click('#loggedByFilter button:has-text("Everyone")');
   check('staff sees net profit, VAT and stamp duty amounts', /₦/.test(await sp.textContent('#netProfit')) && /^−₦/.test(await sp.textContent('#sumVat')) && /^−₦/.test(await sp.textContent('#sumStamp')), (await sp.textContent('#sumVat')) + ' / ' + (await sp.textContent('#sumStamp')));
   check('staff sees the Moniepoint/OPay fee amount', /^−₦/.test(await sp.textContent('#sumBaseFee')), await sp.textContent('#sumBaseFee'));
   check('staff: auto-save row is hidden', !(await sp.isVisible('#sumAutosaveRow')));
@@ -277,12 +281,12 @@ function sideAware(p){
   if(!(await sp.isVisible('#summaryContent'))) await sp.click('#summaryToggle');
   await sp.click('#periodTabs button[data-val="today"]');
   const spToday = await sp.textContent('#txCount'); const opNames = await sp.$$eval('#logList .log-item', els => els.filter(e => /by: New Person/.test(e.textContent) && !e.querySelector('.del')).length);
-  check("...but can't delete it, and it isn't in their totals", opNames >= 1 && /^3 transactions/.test(spToday), `${spToday} / undeletable=${opNames}`);
+  check("...but can't delete it", opNames >= 1, `undeletable=${opNames}`);
   check('staff see the team name chips too', await until(()=> sp.isVisible('#loggedByFilter button:has-text("New Person")')));
   check('...with the owner, who has the app open, "breathing"', await until(async()=> (await sp.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()))).includes('Uweribe'), 15000), JSON.stringify(await sp.$$eval('#loggedByFilter button.live', els => els.map(e => e.textContent.trim()))));
   await sp.click('#loggedByFilter button:has-text("New Person")');
   check("...and tapping a name shows just that person's entries in their log", await until(async()=> { const by = await sp.$$eval('#logList .log-item', els => els.map(e => /by: New Person/.test(e.textContent))); return by.length > 0 && by.every(Boolean); }), JSON.stringify(await sp.$$eval('#logList .log-item', els => els.map(e => e.textContent.replace(/\s+/g,' ').slice(0,90)))));
-  check("...while their totals stay their own", (await sp.textContent('#txCount')) === spToday, await sp.textContent('#txCount'));
+  check("...and their totals follow the chosen name too", await until(async()=> parseInt(await sp.textContent('#txCount')) === (await sp.$$eval('#logList .log-item:not(.deleted)', e => e.length)) && (await sp.textContent('#txCount')) !== spToday), `${await sp.textContent('#txCount')} vs ${spToday}`);
   await sp.click('#loggedByFilter button:has-text("Everyone")');
   check('logged-by filter lists the new person', await until(async()=> (await op.$$eval('#loggedByFilter button', els => els.map(e=>e.textContent))).includes('New Person')));
 
@@ -613,7 +617,13 @@ function sideAware(p){
   {
     const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#sharePdfBtn') ]);
     const raw = fs.readFileSync(await dl.path(), 'latin1');
-    check("salesperson's PDF covers only their own entries", /by Test Staff/.test(raw) && !/Uweribe/.test(raw));
+    check("salesperson's PDF with Everyone covers the whole shop", /Uweribe/.test(raw) && /Test Staff/.test(raw));
+  }
+  await sp.click('#loggedByFilter button:has-text("Test Staff")'); await wait(500);
+  {
+    const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#sharePdfBtn') ]);
+    const raw = fs.readFileSync(await dl.path(), 'latin1');
+    check("...and with their own name picked, only their entries", /by Test Staff/.test(raw) && !/Uweribe/.test(raw));
   }
   check('salesperson sees Share PDF and Excel, but not Download PDF', await sp.isVisible('#sharePdfBtn') && await sp.isVisible('#csvBtn') && !(await sp.isVisible('#downloadPdfBtn')));
   if(await op.isVisible('#sideDrawer')){ await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer'))); }
@@ -622,9 +632,10 @@ function sideAware(p){
     const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#csvBtn') ]);
     const rows = fs.readFileSync(await dl.path(), 'utf8').replace('\ufeff','').trim().split('\r\n');
     const head = rows[0].split(',');
-    check("salesperson's spreadsheet has only their own entries", rows.length > 1 && rows.slice(1).every(r => r.split(',')[head.indexOf('Logged by')] === 'Test Staff'), rows.slice(1).map(r => r.split(',')[4]).join('|'));
+    check("salesperson's spreadsheet with their own name picked has only their entries", rows.length > 1 && rows.slice(1).every(r => r.split(',')[head.indexOf('Logged by')] === 'Test Staff'), rows.slice(1).map(r => r.split(',')[4]).join('|'));
     check("...without the owner-only columns", !head.includes('Auto-save') && !head.includes('Total cost') && head.includes('Net profit'), rows[0]);
   }
+  await sp.click('#loggedByFilter button:has-text("Everyone")');
   // Deleted entries leave the owner's log two hours after they were deleted.
   {
     const ago = h => new Date(Date.now() - h*3600e3).toISOString();
