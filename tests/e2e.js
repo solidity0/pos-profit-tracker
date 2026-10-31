@@ -166,6 +166,20 @@ function sideAware(p){
   await op.click('#activityBackBtn');
   check('...and Back returns to the menu', await until(async()=> !(await op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full')))) && await op.isVisible('#sideDrawer'));
   await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer')));
+  // ---------- Profit trend (Performance Overview) ----------
+  {
+    if(!(await op.isVisible('#summaryContent'))) await op.click('#summaryToggle');
+    check('Performance Overview has a Profit trend chart', await until(()=> op.isVisible('#trendChart svg')));
+    const naira = s => { const m = String(s).replace(/,/g, '').match(/(−|-)?₦([\d.]+)/); return m ? (m[1] ? -1 : 1) * parseFloat(m[2]) : NaN; };
+    const sums = await op.evaluate(()=> [...document.querySelectorAll('#trendTable tr')].slice(1).map(r => r.children[1].textContent));
+    const total = sums.reduce((a, v) => a + naira(v), 0), net = naira(await op.textContent('#netProfit'));
+    check("...its hours add up to the Summary's net profit", sums.length > 0 && Math.abs(total - net) < 0.01, `${total} vs ${net}`);
+    check('...by hour for Today', /hour/.test(await op.textContent('#trendStats')));
+    check('...drawn as a line with a dot on the latest point', await op.isVisible('#trendChart path.line') && !!(await op.$('#trendChart circle.dot.end')));
+    const hitI = await op.evaluate(()=> { const d = document.querySelector('#trendChart .dot.end'); const cx = +d.getAttribute('cx'); return [...document.querySelectorAll('#trendChart .hit')].find(h => cx >= +h.getAttribute('x') && cx < +h.getAttribute('x') + +h.getAttribute('width')).dataset.i; });
+    await op.click(`#trendChart .hit[data-i="${hitI}"]`);
+    check('...tapping the chart shows that hour\'s profit and transactions', await until(async()=> /(profit|loss) .*₦[\d,.]+ · \d+ transactions?/.test(await op.textContent('#trendTip'))), await op.textContent('#trendTip'));
+  }
   check("staff don't have Activity", !(await sp.evaluate(()=> { const e = document.getElementById('activityCard'); return !!e && !!e.offsetParent; })));
 
   // ---------- offline logging ----------
@@ -524,7 +538,7 @@ function sideAware(p){
     check('on a computer the menu has no × button', !(await pc.isVisible('#sideCloseBtn')));
     check('on a computer the app is drawn a step smaller to begin with (85%)', await pc.evaluate(()=> getComputedStyle(document.documentElement).getPropertyValue('--app-zoom').trim()) === '0.85');
     await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300); // (straight, so the open menu stays open)
-    check('...and Aa makes it smaller again', parseFloat(await pc.evaluate(()=> getComputedStyle(document.documentElement).getPropertyValue('--app-zoom'))) < 0.85);
+    check('...and Aa makes it a gentle step smaller (78%)', (await pc.evaluate(()=> getComputedStyle(document.documentElement).getPropertyValue('--app-zoom').trim())) === '0.78');
     check('with the smaller text size (Aa) the menu still reaches the bottom of the screen', await until(()=> pc.evaluate(()=> { const e = document.elementFromPoint(10, innerHeight - 3); return !!e && document.getElementById('sideDrawer').contains(e); })));
     await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
     await pc.keyboard.press('Escape');

@@ -122,13 +122,14 @@
   // without actually reflowing the page, so labels like "Amount Withdrawn" can't react
   // to it. This toggle reflows for real, the same way on every browser and device.
   // On a computer everything is drawn a step smaller to begin with (full-size reads as zoomed
-  // in on a monitor); Aa makes it smaller again from there, on phones and computers alike.
+  // in on a monitor); Aa makes it smaller again from there: a gentler step on a computer.
   let appScale = 1;
-  const DESKTOP_SCALE = 0.85;
+  const DESKTOP_SCALE = 0.85, DESKTOP_SMALL_SCALE = 0.78;
   const desktopView = window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)');
   function applyAppScale(scale){
     appScale = scale;
-    document.documentElement.style.setProperty('--app-zoom', +(scale * (desktopView.matches ? DESKTOP_SCALE : 1)).toFixed(4));
+    const zoom = desktopView.matches ? (scale < 1 ? DESKTOP_SMALL_SCALE : DESKTOP_SCALE) : scale;
+    document.documentElement.style.setProperty('--app-zoom', zoom);
     const btn = $('#textSizeToggle');
     btn.setAttribute('aria-pressed', scale < 1 ? 'true' : 'false');
   }
@@ -1313,10 +1314,11 @@
       const body = sec.querySelector('.perf-section-body');
       const set = (isOpen)=>{ body.hidden = !isOpen; sec.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', String(isOpen)); };
       // Summary starts open the first time; after that, whatever was last chosen.
-      set(sec.id in open ? !!open[sec.id] : sec.id === 'perfTotals');
+      set(sec.id in open ? !!open[sec.id] : (sec.id === 'perfTotals' || sec.id === 'perfTrend'));
       btn.addEventListener('click', ()=>{
         const isOpen = body.hidden;
         set(isOpen);
+        if(isOpen && sec.id === 'perfTrend') renderTrend();
         open[sec.id] = isOpen;
         try{ localStorage.setItem(KEY, JSON.stringify(open)); }catch(e){}
       });
@@ -2296,7 +2298,151 @@
     // it's open; opening it later rebuilds it from the latest data.
     if($('#logContent').style.display === 'block') renderLog();
     else logNeedsRender = true;
+    renderTrend(filtered);
   }
+
+  // ---------- Profit trend (Performance Overview) ----------
+  // Profit so far as a smooth line, following the Filter (period, provider, person) like the
+  // Summary: by hour for Today, by day for a week or month (or a range up to 45 days), else by
+  // month. A loss makes it dip. Pointing at (or tapping) the chart shows each one's details.
+  const signedFmt = v => (v < 0 ? '−' : '') + fmt(Math.abs(v));
+  const dayKeyOf = d => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  function trendBuckets(list){
+    const now = new Date(), out = [];
+    const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const days = (from, to) => { for(let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)){ const x = new Date(d);
+      out.push({ key: dayKeyOf(x), label: String(x.getDate()), long: x.toLocaleDateString('en-NG', { weekday:'short', day:'numeric', month:'short' }), future: x > now }); } };
+    if(state.period === 'today'){
+      const hours = list.map(t => new Date(t.date).getHours());
+      const from = Math.min(8, ...hours), to = Math.max(20, ...hours);
+      for(let h = from; h <= to; h++){
+        const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h);
+        const label = (h % 12 || 12) + (h < 12 ? 'am' : 'pm');
+        out.push({ key: 'h' + h, label, long: label + ' – ' + ((h + 1) % 12 || 12) + (h + 1 < 12 || h + 1 === 24 ? 'am' : 'pm'), future: at > now });
+      }
+      return { unit: 'hour', out, keyOf: t => 'h' + new Date(t.date).getHours() };
+    }
+    if(state.period === 'week'){
+      const monday = startOfDay(now); monday.setDate(monday.getDate() - (now.getDay() + 6) % 7);
+      const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+      days(monday, sunday);
+      out.forEach(b => { b.label = b.long.split(' ')[0].slice(0, 3); });
+      return { unit: 'day', out, keyOf: t => dayKeyOf(new Date(t.date)) };
+    }
+    if(state.period === 'month'){
+      days(new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      return { unit: 'day', out, keyOf: t => dayKeyOf(new Date(t.date)) };
+    }
+    // All Time / Custom: from the first entry (or chosen start) to the last (or chosen end / today).
+    const times = list.map(t => new Date(t.date).getTime());
+    let from = state.period === 'custom' && state.customStart ? new Date(state.customStart + 'T00:00:00') : (times.length ? new Date(Math.min(...times)) : now);
+    let to = state.period === 'custom' && state.customEnd ? new Date(state.customEnd + 'T00:00:00') : now;
+    if(to < from) to = from;
+    from = startOfDay(from); to = startOfDay(to);
+    if((to - from) / 86400000 <= 45){ days(from, to); return { unit: 'day', out, keyOf: t => dayKeyOf(new Date(t.date)) }; }
+    const monthKey = d => d.getFullYear() + '-' + d.getMonth();
+    for(let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d.setMonth(d.getMonth() + 1)){
+      const x = new Date(d);
+      out.push({ key: monthKey(x), label: x.toLocaleDateString('en-NG', { month: 'short' }), long: x.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' }), future: false });
+    }
+    return { unit: 'month', out, keyOf: t => monthKey(new Date(t.date)) };
+  }
+  let trendState = null;
+  function renderTrend(list){
+    const body = $('#perfTrendBody'), chart = $('#trendChart');
+    if(!body || body.hidden) return;
+    list = list || getFiltered();
+    const { unit, out: buckets, keyOf } = trendBuckets(list);
+    const byKey = {}; buckets.forEach(b => { b.net = 0; b.count = 0; byKey[b.key] = b; });
+    list.forEach(t => { const b = byKey[keyOf(t)]; if(b){ b.net += t.netProfit || 0; b.count++; } });
+    const W = Math.max(200, chart.clientWidth || 280);
+    if(!list.length){
+      chart.innerHTML = '<div class="trend-empty">No transactions for this filter yet.</div>';
+      $('#trendStats').innerHTML = ''; $('#trendTip').textContent = ''; $('#trendTable').innerHTML = '';
+      trendState = null; return;
+    }
+    // Stats: the best bar and the average over the bars so far (not the ones still to come).
+    const past = buckets.filter(b => !b.future);
+    const best = buckets.reduce((a, b) => b.count && (!a || b.net > a.net) ? b : a, null);
+    const avg = past.length ? past.reduce((s, b) => s + b.net, 0) / past.length : 0;
+    $('#trendStats').innerHTML = (best ? `<span>Best ${unit}: <strong>${escapeHtml(best.long)}</strong> · <strong>${signedFmt(best.net)}</strong></span>` : '') +
+      `<span>Average: <strong>${signedFmt(Math.round(avg))}</strong> per ${unit}</span>`;
+    // The line is profit so far: it climbs through the period and dips on a loss. A soft
+    // shaded area sits under it and a dot marks the latest point.
+    let run = 0; buckets.forEach(b => { if(!b.future){ run += b.net; b.sofar = run; } });
+    const H = 150, top = 16, bottom = 18, plotH = H - top - bottom;
+    const vals = buckets.filter(b => !b.future).map(b => b.sofar);
+    const maxV = Math.max(0, ...vals), minV = Math.min(0, ...vals);
+    const range = (maxV - minV) || 1;
+    const y0 = top + plotH * maxV / range, yOf = v => y0 - v / range * plotH;
+    const n = buckets.length, slot = W / n, xOf = i => i * slot + slot / 2;
+    const step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(W / 46))));
+    const pts = [{ i: -1, x: 0, y: y0 }].concat(buckets.map((b, i) => ({ i, x: xOf(i), y: b.future ? 0 : yOf(b.sofar) })).filter(p => !buckets[p.i].future));
+    const line = smoothPath(pts);
+    const last = pts[pts.length - 1];
+    const area = `${line}L${last.x},${y0}L${pts[0].x},${y0}Z`;
+    let hits = '', labels = '';
+    buckets.forEach((b, i) => {
+      hits += `<rect class="hit" data-i="${i}" x="${i * slot}" y="0" width="${slot}" height="${H}"/>`;
+      if(i % step === 0) labels += `<text class="axis" x="${xOf(i)}" y="${H - 4}" text-anchor="middle">${escapeHtml(b.label)}</text>`;
+    });
+    const topLabel = maxV > 0 ? `<line class="grid" x1="0" x2="${W}" y1="${yOf(maxV)}" y2="${yOf(maxV)}"/><text class="axis" x="0" y="${yOf(maxV) - 4}">${signedFmt(maxV)}</text>` : '';
+    const lowLabel = minV < 0 ? `<line class="grid" x1="0" x2="${W}" y1="${yOf(minV)}" y2="${yOf(minV)}"/><text class="axis" x="${W}" y="${yOf(minV) - 4}" text-anchor="end">${signedFmt(minV)}</text>` : '';
+    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Profit so far, by ${unit}; best ${best ? best.long + ' ' + signedFmt(best.net) : 'none'}">
+      <defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-up)" stop-opacity=".28"/><stop offset="1" stop-color="var(--chart-up)" stop-opacity="0"/></linearGradient></defs>
+      ${topLabel}${lowLabel}<line class="base${minV < 0 ? ' zero' : ''}" x1="0" x2="${W}" y1="${y0}" y2="${y0}"/>
+      <path class="area" d="${area}"/><path class="line" d="${line}"/>
+      <line class="cross" id="trendCross" x1="0" x2="0" y1="${top - 6}" y2="${H - bottom}" style="display:none"/>
+      <circle class="dot end${last.i >= 0 && buckets[last.i].sofar < 0 ? ' neg' : ''}" cx="${last.x}" cy="${last.y}" r="5"/>
+      <circle class="dot pick" id="trendDot" r="4.5" cx="0" cy="0" style="display:none"/>
+      ${labels}${hits}</svg>`;
+    $('#trendTable').innerHTML = `<caption>Net profit per ${unit}</caption><tr><th>${unit}</th><th>Net profit</th><th>Transactions</th></tr>` +
+      buckets.filter(b => b.count).map(b => `<tr><td>${escapeHtml(b.long)}</td><td>${signedFmt(b.net)}</td><td>${b.count}</td></tr>`).join('');
+    trendState = { buckets, unit, xOf, yOf };
+    trendShow(null);
+  }
+  // A smooth line through the points that never overshoots them (monotone cubic), so it
+  // doesn't invent dips or peaks between two hours / days.
+  function smoothPath(pts){
+    if(!pts.length) return '';
+    if(pts.length === 1) return `M${pts[0].x - 6},${pts[0].y}H${pts[0].x}`;
+    const n = pts.length, d = [], m = [];
+    for(let k = 0; k < n - 1; k++) d.push((pts[k + 1].y - pts[k].y) / (pts[k + 1].x - pts[k].x));
+    m.push(d[0]);
+    for(let k = 1; k < n - 1; k++) m.push(d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2);
+    m.push(d[n - 2]);
+    for(let k = 0; k < n - 1; k++){
+      if(d[k] === 0){ m[k] = 0; m[k + 1] = 0; continue; }
+      const a = m[k] / d[k], b = m[k + 1] / d[k], h = a * a + b * b;
+      if(h > 9){ const t = 3 / Math.sqrt(h); m[k] = t * a * d[k]; m[k + 1] = t * b * d[k]; }
+    }
+    let path = `M${pts[0].x},${pts[0].y}`;
+    for(let k = 0; k < n - 1; k++){
+      const dx = (pts[k + 1].x - pts[k].x) / 3;
+      path += `C${pts[k].x + dx},${pts[k].y + m[k] * dx} ${pts[k + 1].x - dx},${pts[k + 1].y - m[k + 1] * dx} ${pts[k + 1].x},${pts[k + 1].y}`;
+    }
+    return path;
+  }
+  function trendShow(i){
+    const tip = $('#trendTip');
+    const cross = $('#trendCross'), dot = $('#trendDot');
+    if(i === null || !trendState){ if(cross){ cross.style.display = 'none'; dot.style.display = 'none'; } tip.textContent = trendState ? `Point at or tap the chart to see each ${trendState.unit}.` : ''; return; }
+    const b = trendState.buckets[i], x = trendState.xOf(i);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.style.display = '';
+    if(b.future){ dot.style.display = 'none'; }
+    else { dot.setAttribute('cx', x); dot.setAttribute('cy', trendState.yOf(b.sofar)); dot.classList.toggle('neg', b.sofar < 0); dot.style.display = ''; }
+    tip.innerHTML = `<strong>${escapeHtml(b.long)}</strong> · ` + (b.count
+      ? `${b.net < 0 ? 'loss' : 'profit'} <strong>${signedFmt(b.net)}</strong> · ${b.count} transaction${b.count === 1 ? '' : 's'} · <strong>${signedFmt(b.sofar)}</strong> so far`
+      : (b.future ? 'still to come' : `no transactions · <strong>${signedFmt(b.sofar)}</strong> so far`));
+  }
+  (function(){
+    const chart = $('#trendChart');
+    chart.addEventListener('pointerover', e => { const h = e.target.closest('.hit'); if(h) trendShow(+h.dataset.i); });
+    chart.addEventListener('click', e => { const h = e.target.closest('.hit'); if(h) trendShow(+h.dataset.i); });
+    chart.addEventListener('pointerleave', e => { if(e.pointerType === 'mouse') trendShow(null); });
+    // Redrawn when its width changes (card resized, phone turned, text size).
+    if(window.ResizeObserver){ let lastW = 0; new ResizeObserver(()=>{ const w = chart.clientWidth; if(w && w !== lastW){ lastW = w; renderTrend(); } }).observe(chart); }
+  })();
 
   // Rows shown in the Transaction Log before "Show more" — keeps All Time fast even with
   // thousands of transactions.
