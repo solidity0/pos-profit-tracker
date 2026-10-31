@@ -444,6 +444,11 @@ function sideAware(p){
     await press(['clear','0','.','1','+','0','.','2','=']); check('0.1 + 0.2 = 0.3', (await shown()) === '0.3', await shown());
     await press(['clear','5','0','+','1','0','%','=']); check('50 + 10% = 55', (await shown()) === '55', await shown());
     await press(['clear','1','0','/','0','=']); check('dividing by zero shows Error', (await shown()) === 'Error', await shown());
+    await press(['clear','1','3','0','0','*','4','+','1','4','0','0','*','1','0']);
+    check('× and ÷ come before + and − (running answer: 1,300 × 4 + 1,400 × 10 = 19,200)', (await op.textContent('#calcPreview')).trim() === '19,200', await op.textContent('#calcPreview'));
+    await press(['=']); check('...and the same with =', (await shown()) === '19,200', await shown());
+    await press(['clear','1','0','0','-','2','0','/','4','+','3','*','2','=']); check('100 − 20 ÷ 4 + 3 × 2 = 101', (await shown()) === '101', await shown());
+    await press(['clear','2','*','3','+','1','0','%','=']); check('2 × 3 + 10% = 6.6 (10% of the 6 so far)', (await shown()) === '6.6', await shown());
     await op.click('#calcBackBtn');
     check('Back returns to the home page', !(await op.isVisible('#calcBody')) && await op.isVisible('#calcToggle') && await op.isVisible('#entryCard'));
     await op.click('#calcToggle'); await op.goBack();
