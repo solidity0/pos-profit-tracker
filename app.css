@@ -187,7 +187,7 @@
     /* Like the full-screen calculator: four fixed sections (history, running answer, display,
        keypad) sized by the card alone, so a long sum or the opened history never squeezes the
        keypad; the history and the display scroll inside themselves. */
-    #calcCard.calc-open-inline:not(.calc-full) #calcBody{ display:grid !important; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 22px 12% 64%; row-gap: 6px; flex:1; min-height:0; }
+    #calcCard.calc-open-inline:not(.calc-full) #calcBody{ display:grid !important; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 22px 13% 64%; row-gap: 6px; flex:1; min-height:0; }
     #calcCard.calc-open-inline:not(.calc-full) #calcHistoryWrap{ grid-row: 1; min-height: 0; margin: 0; overflow: hidden; display:flex !important; flex-direction:column; }
     #calcCard.calc-open-inline:not(.calc-full) #calcHistoryWrap[style*="none"]{ display:none !important; }
     #calcCard.calc-open-inline:not(.calc-full) .calc-history-header, #calcCard.calc-open-inline:not(.calc-full) .calc-history-latest{ flex: none; }
