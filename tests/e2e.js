@@ -214,10 +214,9 @@ function sideAware(p){
   await sp.click('#summaryToggle');
   await sp.click('#periodTabs button[data-val="all"]');
   const spCount = async () => parseInt(await sp.textContent('#txCount'));
-  check('staff with Everyone picked see the whole shop (more than their own 4)', await until(async()=> (await spCount()) > 4), await sp.textContent('#txCount'));
-  await sp.click('#loggedByFilter button:has-text("Test Staff")');
-  check("...and picking their own name shows just theirs", await until(async()=> (await sp.textContent('#txCount')).startsWith('4 transactions')), await sp.textContent('#txCount'));
+  check('staff open on their own name, showing just their figures', await until(async()=> (await sp.textContent('#txCount')).startsWith('4 transactions')) && /Test Staff/.test(await sp.textContent('#loggedByFilter button.active')), await sp.textContent('#txCount'));
   await sp.click('#loggedByFilter button:has-text("Everyone")');
+  check('...and Everyone shows the whole shop (more than their own 4)', await until(async()=> (await spCount()) > 4), await sp.textContent('#txCount'));
   check('staff sees net profit, VAT and stamp duty amounts', /₦/.test(await sp.textContent('#netProfit')) && /^−₦/.test(await sp.textContent('#sumVat')) && /^−₦/.test(await sp.textContent('#sumStamp')), (await sp.textContent('#sumVat')) + ' / ' + (await sp.textContent('#sumStamp')));
   check('staff sees the Moniepoint/OPay fee amount', /^−₦/.test(await sp.textContent('#sumBaseFee')), await sp.textContent('#sumBaseFee'));
   check('staff: auto-save row is hidden', !(await sp.isVisible('#sumAutosaveRow')));
@@ -613,6 +612,7 @@ function sideAware(p){
   // ---------- reports and backups ----------
   if(!(await sp.isVisible('#summaryContent'))) await sp.click('#summaryToggle');
   await sp.click('#periodTabs button[data-val="all"]');
+  await sp.click('#loggedByFilter button:has-text("Everyone")');
   await wait(800);
   {
     const [dl] = await Promise.all([ sp.waitForEvent('download'), sp.click('#sharePdfBtn') ]);

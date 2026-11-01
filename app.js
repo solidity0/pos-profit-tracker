@@ -3621,7 +3621,8 @@
     // People whose access was removed drop out of the filter; their entries still count
     // under Everyone.
     const staff = staffUids().filter(uid => teamMembers[uid].active);
-    if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)){
+    if(state.loggedByFilter !== 'All' && state.loggedByFilter !== bizId && !staff.includes(state.loggedByFilter)
+        && !(role === 'staff' && currentUser && state.loggedByFilter === currentUser.uid && !Object.keys(teamMembers).length)){ // (own name kept while the team list loads)
       state.loggedByFilter = 'All';
     }
     // Owner and staff alike filter everything by person (see matchesLoggedBy).
@@ -4029,7 +4030,8 @@
     document.body.dataset.role = role;
     settingsUnlocked = role === 'owner';
     placeSideCards();
-    state.loggedByFilter = 'All';
+    // Staff open on their own figures ("how am I doing today?"); Everyone is one tap away.
+    state.loggedByFilter = role === 'staff' && currentUser ? currentUser.uid : 'All';
     $('#authGate').style.display = 'none';
     $('#appWrap').style.display = '';
     updateWhoLabel();
