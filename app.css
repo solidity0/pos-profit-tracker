@@ -151,6 +151,18 @@
   [data-theme="day"] #customStartDate, [data-theme="day"] #customEndDate{ color-scheme: light; }
   .field input:disabled{ color: var(--theme-soft); opacity: 0.9; -webkit-text-fill-color: var(--theme-soft); }
   .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* Custom dates: the two boxes always fit side by side inside the Filter, however narrow. */
+  #customDateRow{ grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #customDateRow input[type="date"]{ min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; padding-left: 8px; padding-right: 8px; }
+  @media (min-width: 1024px) and (hover: hover) and (pointer: fine){
+    #customDateRow input[type="date"]{ font-size: 13.5px; } /* computers: no phone zoom-on-focus to avoid */
+  }
+  /* On a narrow touch screen (where the date text can't shrink without the phone zooming in
+     when tapped) the two dates go one under the other, each with the full width. */
+  #customDateWrap{ container-type: inline-size; }
+  @container (max-width: 330px){
+    @media (pointer: coarse){ #customDateRow{ grid-template-columns: minmax(0, 1fr); } }
+  }
   .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   @media (max-width: 380px){
     #settingsContent .row2, #settingsContent .row3{ grid-template-columns: 1fr; }

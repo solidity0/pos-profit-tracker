@@ -400,6 +400,7 @@ function sideAware(p){
     const all = parseInt(await op.textContent('#txCount'));
     await op.click('#periodTabs button[data-val="custom"]');
     await op.fill('#customStartDate', ymd(70)); await op.fill('#customEndDate', ymd(50));
+    check('the Custom start and end dates fit inside the Filter on a phone', await op.evaluate((()=>{ const box = document.querySelector('#perfFiltersBody').getBoundingClientRect(); return ['#customStartDate','#customEndDate'].every(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return r.width > 0 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5; }); })));
     check('custom dates apply as soon as they are picked', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction') && /Showing .* · 1 transaction/.test(await op.textContent('#customDateStatus'))), `${await op.textContent('#txCount')} / ${await op.textContent('#customDateStatus')}`);
     await op.fill('#customStartDate', ymd(0)); // later than the end date (50 days ago)
     check('a start date after the end date is swapped round', await until(async()=> (await op.$eval('#customStartDate', e=>e.value)) === ymd(50) && (await op.$eval('#customEndDate', e=>e.value)) === ymd(0) && parseInt(await op.textContent('#txCount')) === all - 1), `${await op.$eval('#customStartDate', e=>e.value)} ${await op.textContent('#txCount')} vs ${all - 1}`);
@@ -551,6 +552,10 @@ function sideAware(p){
     await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
     await pc.keyboard.press('Escape');
     check('...Esc closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
+    { if(!(await pc.isVisible('#summaryContent'))) await pc.click('#summaryToggle'); const ft = await pc.$('#perfFilters .perf-section-toggle'); if((await ft.getAttribute('aria-expanded')) !== 'true') await ft.click();
+      await pc.click('#periodTabs button[data-val="custom"]'); await wait(300);
+      check('the Custom start and end dates fit inside the Filter on a computer', await pc.evaluate((()=>{ const box = document.querySelector('#perfFiltersBody').getBoundingClientRect(); return ['#customStartDate','#customEndDate'].every(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return r.width > 0 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5; }); })));
+      await pc.click('#periodTabs button[data-val="today"]'); }
     check('Performance Overview\'s Summary starts open', await pc.isVisible('#netProfit'));
     // Performance Overview: never taller than Log a Transaction once open.
     const colH = () => pc.evaluate(()=> [document.getElementById('perfCard').parentElement.offsetHeight, document.getElementById('entryCard').offsetHeight]);
