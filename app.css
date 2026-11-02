@@ -328,14 +328,22 @@
   .perf-section-body[hidden]{ display:none !important; }
   .perf-section-body > :last-child{ margin-bottom: 0; }
   /* The period: one slim row of text buttons (no icons), so the Filter isn't crowded. */
-  #perfFilters #periodTabs{ grid-template-columns: repeat(5, 1fr) !important; gap: 3px; padding: 4px; margin-bottom: 14px; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 12px; }
-  #perfFilters #periodTabs button{ flex-direction: row; gap: 0; padding: 8px 2px; border: none; border-radius: 9px; background: transparent; color: var(--muted-strong); font-size: 12px; font-weight: 700; box-shadow: none; min-height: 0; }
-  #perfFilters #periodTabs button svg{ display: none; }
-  #perfFilters #periodTabs button.active{ background: var(--theme); color: var(--theme-text); }
-  #perfFilters .tabs{ margin-bottom: 14px; }
-  #perfFilters .provider-filter{ margin-bottom: 12px; }
-  #perfFilters .provider-filter:last-child{ margin-bottom: 0; }
-  #perfFilters:has(#loggedByFilter[style*="none"]) #providerFilter{ margin-bottom: 0; }
+  #filterCard #periodTabs{ grid-template-columns: repeat(5, 1fr) !important; gap: 3px; padding: 4px; margin-bottom: 14px; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 12px; }
+  #filterCard #periodTabs button{ flex-direction: row; gap: 0; padding: 8px 2px; border: none; border-radius: 9px; background: transparent; color: var(--muted-strong); font-size: 12px; font-weight: 700; box-shadow: none; min-height: 0; }
+  #filterCard #periodTabs button svg{ display: none; }
+  #filterCard #periodTabs button.active{ background: var(--theme); color: var(--theme-text); }
+  #filterCard .tabs{ margin-bottom: 14px; }
+  #filterCard .provider-filter{ margin-bottom: 12px; }
+  #filterCard .provider-filter:last-child{ margin-bottom: 0; }
+  #filterCard:has(#loggedByFilter[style*="none"]) #providerFilter{ margin-bottom: 0; }
+  /* The Filter card in the side menu: always open, with a plain heading. */
+  .filter-card-head{ display:flex; align-items:center; justify-content:center; gap:8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 700; margin: 0 0 12px; }
+  #filterCard #customDateRow{ margin-top: 0; }
+  /* "Showing: Today · All · Everyone" at the top of Performance Overview; tapping it opens the Filter. */
+  .filter-summary{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; margin: 0 0 12px; padding: 9px 12px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface-2); color: var(--muted-strong); font-family:'Inter',sans-serif; font-size: 12px; font-weight: 600; cursor:pointer; text-align:left; }
+  .filter-summary-text{ min-width:0; line-height: 1.4; }
+  .filter-summary-text strong{ color: var(--text); }
+  .filter-summary-change{ flex:none; color: var(--theme-soft); font-weight: 700; }
   #perfTotals .rline:first-of-type{ padding-top: 2px; }
   #perfTotals .netline{ padding-top: 6px; }
   #perfReportsBody{ display:flex; flex-direction:column; gap: 8px; }
