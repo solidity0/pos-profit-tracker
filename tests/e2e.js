@@ -289,7 +289,7 @@ function sideAware(p){
     check('...unticking it makes them STAFF again', await until(async()=> / · STAFF$/.test(await sp.textContent('#whoLabel'))), await sp.textContent('#whoLabel'));
     await wait(1100); await staffEntry('trainee-after', 4322);
     check('...entries they logged as a trainee still say TRAINEE', await until(async()=> /\(TRAINEE\)/.test(await rowText('4,321')) && (await rowText('4,322')) !== ''), await rowText('4,321'));
-    check('...and new ones don\'t', !/TRAINEE/.test(await rowText('4,322')), await rowText('4,322'));
+    check('...and new ones don\'t: they say "by: Test Staff (STAFF)"', !/TRAINEE/.test(await rowText('4,322')) && /by: Test Staff \(STAFF\)/.test(await rowText('4,322')), await rowText('4,322'));
     await dropEntry('trainee-during'); await dropEntry('trainee-after');
   }
   await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'start123');
