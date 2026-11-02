@@ -1157,7 +1157,7 @@
     const card = $('#settingsCard');
     if(card.classList.contains('settings-full')) return;
     card.classList.add('settings-full');
-    if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
+    if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
     try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
   }
   function closeSettingsFull(fromHistory){
@@ -1247,9 +1247,7 @@
   }
   function closeSide(fromHistory){
     if(!sideOpen()) return;
-    clearTimeout(sideLeaveTimer); sideLeaveTimer = null;
     sideClosedAt = Date.now();
-    sideHoverHold = false;
     sideDrawer.classList.remove('open');
     document.documentElement.classList.remove('side-open');
     sideDrawer.setAttribute('aria-hidden', 'true');
@@ -1259,9 +1257,6 @@
   // Something from the menu (Activity, Tips or Settings) is open full screen.
   const menuCardFull = () => !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full');
   let sideOpenedAt = 0, sideClosedAt = 0;
-  // Back from Tips / Settings (opened from the menu) can leave the pointer beside the menu: it
-  // stays open until the pointer has been back in it, instead of closing a moment later.
-  let sideHoverHold = false;
   // A click straight after pointing at the logo (which already opened it) keeps it open.
   $('#sideMenuBtn').addEventListener('click', ()=>{
     if(!sideOpen()) openSide();
@@ -1270,31 +1265,11 @@
   });
   $('#sideCloseBtn').addEventListener('click', ()=> closeSide());
   $('#sideBackdrop').addEventListener('click', ()=> closeSide());
-  // Pointing (computers with a mouse): open on the logo, close a moment after leaving the menu.
+  // Pointing (computers with a mouse) at the logo opens it. It stays open until a click
+  // outside it (on the dimmed page) or Esc, wherever the pointer goes meanwhile.
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
-  let sideLeaveTimer = null;
   // (Not straight after closing: the dimmed layer going away can leave the pointer on the logo.)
   $('#sideMenuBtn').addEventListener('mouseenter', ()=>{ if(canHover.matches && Date.now() - sideClosedAt > 800) openSide(true); });
-  sideDrawer.addEventListener('mouseenter', ()=>{ clearTimeout(sideLeaveTimer); sideLeaveTimer = null; });
-  sideDrawer.addEventListener('mousemove', ()=>{
-    if(sideHoverHold && !menuCardFull()) sideHoverHold = false;
-  });
-  // Started when the pointer leaves the menu, or moves over the dimmed page (the menu can
-  // slide in under a still pointer, and then the browser never says it left).
-  function sideLeave(){
-    if(!canHover.matches || !sideOpen() || sideLeaveTimer) return;
-    clearTimeout(sideLeaveTimer);
-    const openedAt = sideOpenedAt; // only for this opening (not one that's since been closed and reopened)
-    sideLeaveTimer = setTimeout(()=>{
-      sideLeaveTimer = null;
-      if(!sideOpen() || sideOpenedAt !== openedAt || sideHoverHold) return;
-      const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-      const fullScreen = menuCardFull();
-      if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
-    }, 450);
-  }
-  sideDrawer.addEventListener('mouseleave', ()=>{ clearTimeout(sideLeaveTimer); sideLeaveTimer = null; sideLeave(); });
-  $('#sideBackdrop').addEventListener('mousemove', sideLeave);
   document.addEventListener('keydown', (e)=>{
     if(e.defaultPrevented) return; // Esc already closed a full-screen Settings / Tips / Calculator
     if(e.key === 'Escape' && sideOpen() && !menuCardFull() && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
@@ -1359,7 +1334,7 @@
       card.classList.add('tips-full');
       content.scrollTop = 0;
       if(onOpen) onOpen();
-      if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
+      if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
       try{ history.pushState({ [stateKey]: true }, ''); }catch(e){}
     }
     function close(fromHistory){
@@ -2556,7 +2531,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (isTrainee(t.loggedBy) ? ' (TRAINEE)' : '') + '</span>');
+        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (wasTraineeAt(t.loggedBy, Date.parse(t.date)) ? ' (TRAINEE)' : '') + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
@@ -3231,7 +3206,8 @@
         const data = d.data() || {};
         const n = (data.name || '').trim();
         if(n) teamNames[d.id] = n;
-        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false, trainee: data.trainee === true };
+        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false, trainee: data.trainee === true,
+          traineeSince: typeof data.traineeSince === 'number' ? data.traineeSince : null, traineeHistory: Array.isArray(data.traineeHistory) ? data.traineeHistory : [] };
       });
       updateWhoLabel();
       renderTeamUI();
@@ -3408,6 +3384,14 @@
   // Staff still in training: set by the owner with the Trainee box in Settings > Team.
   // It only labels them "STAFF (TRAINEE)"; they can do everything other staff can.
   const isTrainee = uid => !!(teamMembers[uid] && teamMembers[uid].trainee && uid !== bizId);
+  // Whether they were a trainee when an entry was logged: now (since the box was ticked; no
+  // start = from the beginning), or during an earlier stretch noted when the box was unticked.
+  function wasTraineeAt(uid, ms){
+    const m = teamMembers[uid];
+    if(!m || uid === bizId || isNaN(ms)) return false;
+    if(m.trainee && (m.traineeSince === null || ms >= m.traineeSince)) return true;
+    return m.traineeHistory.some(p => (p.from === null || p.from === undefined || ms >= p.from) && ms < p.to);
+  }
   function updateWhoLabel(){
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
     const roleLabel = role === 'owner' ? 'OWNER' : (isTrainee(currentUser.uid) ? 'STAFF (TRAINEE)' : 'STAFF');
@@ -3453,7 +3437,13 @@
     el.querySelectorAll('.team-trainee-input').forEach(box=>{
       box.addEventListener('change', ()=>{
         box.blur(); // lets the Team list redraw with the new label
-        fb.setDoc(bdoc('staff', box.dataset.uid), { trainee: box.checked }, { merge: true })
+        // Ticked: a trainee from now. Unticked: the stretch they were one is kept, so the
+        // entries they logged as a trainee still say so.
+        const m = teamMembers[box.dataset.uid] || {};
+        const change = box.checked
+          ? { trainee: true, traineeSince: Date.now() }
+          : { trainee: false, traineeSince: null, traineeHistory: (m.traineeHistory || []).concat([{ from: m.traineeSince === undefined ? null : m.traineeSince, to: Date.now() }]) };
+        fb.setDoc(bdoc('staff', box.dataset.uid), change, { merge: true })
           .catch(err => setStatus('Trainee setting not saved: ' + err.message, 'error'));
       });
     });
