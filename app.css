@@ -327,11 +327,6 @@
   .perf-section-body{ padding: 0 14px 14px; }
   .perf-section-body[hidden]{ display:none !important; }
   .perf-section-body > :last-child{ margin-bottom: 0; }
-  /* The period: one slim row of text buttons (no icons), so the Filter isn't crowded. */
-  #filterCard #periodTabs{ grid-template-columns: repeat(5, 1fr) !important; gap: 3px; padding: 4px; margin-bottom: 14px; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 12px; }
-  #filterCard #periodTabs button{ flex-direction: row; gap: 0; padding: 8px 2px; border: none; border-radius: 9px; background: transparent; color: var(--muted-strong); font-size: 12px; font-weight: 700; box-shadow: none; min-height: 0; }
-  #filterCard #periodTabs button svg{ display: none; }
-  #filterCard #periodTabs button.active{ background: var(--theme); color: var(--theme-text); }
   #filterCard .tabs{ margin-bottom: 14px; }
   #filterCard .provider-filter{ margin-bottom: 12px; }
   #filterCard .provider-filter:last-child{ margin-bottom: 0; }
