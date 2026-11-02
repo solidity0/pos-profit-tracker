@@ -1157,7 +1157,7 @@
     const card = $('#settingsCard');
     if(card.classList.contains('settings-full')) return;
     card.classList.add('settings-full');
-    if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
+    if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
     try{ history.pushState({ ledgerSettings: true }, ''); }catch(e){}
   }
   function closeSettingsFull(fromHistory){
@@ -1247,9 +1247,7 @@
   }
   function closeSide(fromHistory){
     if(!sideOpen()) return;
-    clearTimeout(sideLeaveTimer); sideLeaveTimer = null;
     sideClosedAt = Date.now();
-    sideHoverHold = false;
     sideDrawer.classList.remove('open');
     document.documentElement.classList.remove('side-open');
     sideDrawer.setAttribute('aria-hidden', 'true');
@@ -1259,9 +1257,6 @@
   // Something from the menu (Activity, Tips or Settings) is open full screen.
   const menuCardFull = () => !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full');
   let sideOpenedAt = 0, sideClosedAt = 0;
-  // Back from Tips / Settings (opened from the menu) can leave the pointer beside the menu: it
-  // stays open until the pointer has been back in it, instead of closing a moment later.
-  let sideHoverHold = false;
   // A click straight after pointing at the logo (which already opened it) keeps it open.
   $('#sideMenuBtn').addEventListener('click', ()=>{
     if(!sideOpen()) openSide();
@@ -1270,31 +1265,11 @@
   });
   $('#sideCloseBtn').addEventListener('click', ()=> closeSide());
   $('#sideBackdrop').addEventListener('click', ()=> closeSide());
-  // Pointing (computers with a mouse): open on the logo, close a moment after leaving the menu.
+  // Pointing (computers with a mouse) at the logo opens it. It stays open until a click
+  // outside it (on the dimmed page) or Esc, wherever the pointer goes meanwhile.
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
-  let sideLeaveTimer = null;
   // (Not straight after closing: the dimmed layer going away can leave the pointer on the logo.)
   $('#sideMenuBtn').addEventListener('mouseenter', ()=>{ if(canHover.matches && Date.now() - sideClosedAt > 800) openSide(true); });
-  sideDrawer.addEventListener('mouseenter', ()=>{ clearTimeout(sideLeaveTimer); sideLeaveTimer = null; });
-  sideDrawer.addEventListener('mousemove', ()=>{
-    if(sideHoverHold && !menuCardFull()) sideHoverHold = false;
-  });
-  // Started when the pointer leaves the menu, or moves over the dimmed page (the menu can
-  // slide in under a still pointer, and then the browser never says it left).
-  function sideLeave(){
-    if(!canHover.matches || !sideOpen() || sideLeaveTimer) return;
-    clearTimeout(sideLeaveTimer);
-    const openedAt = sideOpenedAt; // only for this opening (not one that's since been closed and reopened)
-    sideLeaveTimer = setTimeout(()=>{
-      sideLeaveTimer = null;
-      if(!sideOpen() || sideOpenedAt !== openedAt || sideHoverHold) return;
-      const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-      const fullScreen = menuCardFull();
-      if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
-    }, 450);
-  }
-  sideDrawer.addEventListener('mouseleave', ()=>{ clearTimeout(sideLeaveTimer); sideLeaveTimer = null; sideLeave(); });
-  $('#sideBackdrop').addEventListener('mousemove', sideLeave);
   document.addEventListener('keydown', (e)=>{
     if(e.defaultPrevented) return; // Esc already closed a full-screen Settings / Tips / Calculator
     if(e.key === 'Escape' && sideOpen() && !menuCardFull() && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
@@ -1359,7 +1334,7 @@
       card.classList.add('tips-full');
       content.scrollTop = 0;
       if(onOpen) onOpen();
-      if(sideOpen()){ pushSideHistory(); sideHoverHold = true; } // so Back returns to the menu (one opened by pointing had no history step)
+      if(sideOpen()) pushSideHistory(); // so Back returns to the menu (one opened by pointing had no history step)
       try{ history.pushState({ [stateKey]: true }, ''); }catch(e){}
     }
     function close(fromHistory){

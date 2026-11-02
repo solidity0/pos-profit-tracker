@@ -519,12 +519,11 @@ function sideAware(p){
     await pc.click('#logToggle');
     check('...the Transaction Log closes too', await until(async()=> !(await pc.isVisible('#logContent'))));
     await pc.click('#logToggle'); await pc.click('#calcToggle');
-    // The side menu on a computer: pointing at the logo opens it; moving away closes it.
+    // The side menu on a computer: pointing at the logo opens it; it stays open until a click outside.
     await pc.hover('#sideMenuBtn');
     check('on a computer pointing at the Ledger logo opens the side menu', await until(()=> pc.isVisible('#settingsToggle')));
-    await pc.mouse.move(1200, 600);
-    check('...and moving the pointer away closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
-    await pc.click('#sideMenuBtn'); await until(()=> pc.isVisible('#sideDrawer'));
+    await pc.mouse.move(1200, 600, { steps: 10 }); await wait(1200);
+    check('...and it stays open when the pointer moves away', await pc.isVisible('#sideDrawer'));
     await pc.mouse.click(1200, 600, { delay: 20 });
     check('...tapping the dimmed page beside it closes it too', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
     check('...with only the four working cards on the page', await pc.evaluate(()=> [...document.querySelector('.dashboard-row').children].filter(e => e.offsetParent).length) === 4);
@@ -564,8 +563,10 @@ function sideAware(p){
     await until(async()=> !(await settingsFull())); await pc.waitForTimeout(1000);
     check('...and so does Back from Settings', await pc.isVisible('#sideDrawer') && await pc.isVisible('#settingsToggle'));
     { const [x, y] = await centre('#safetyToggle'); await pc.mouse.move(x, y, { steps: 10 }); } await pc.waitForTimeout(200);
-    await pc.mouse.move(1500, 600, { steps: 10 });
-    check('...and once the pointer has been back in the menu, moving away closes it as usual', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
+    await pc.mouse.move(1500, 600, { steps: 10 }); await wait(1200);
+    check('...it stays open while the pointer is away', await pc.isVisible('#sideDrawer'));
+    await pc.mouse.click(1500, 600, { delay: 20 });
+    check('...until a click outside it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
     await pc.setViewportSize({ width: 1500, height: 900 }); await pc.waitForTimeout(300);
     await pc.mouse.move(1200, 600); await pc.waitForTimeout(900);
     { const [x, y] = await centre('#sideMenuBtn'); await pc.mouse.move(x, y, { steps: 10 }); } await until(()=> pc.isVisible('#sideDrawer'));
