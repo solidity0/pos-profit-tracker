@@ -276,12 +276,21 @@ function sideAware(p){
   {
     const box = `.team-trainee-input[data-uid="${emu.TEST_ACCOUNTS[1].uid}"]`;
     await until(()=> op.isVisible(box));
+    const rowText = amt => op.$$eval('#logList .log-item', (els, amt) => (els.find(e => e.textContent.includes(amt)) || {}).textContent || '', amt);
+    const staffEntry = (id, amount) => admin(`businesses/${emu.TEST_ACCOUNTS[0].uid}/transactions/${id}`, { id:{stringValue:id}, loggedBy:{ stringValue: emu.TEST_ACCOUNTS[1].uid }, loggedByName:{stringValue:'Test Staff'}, deleted:{ booleanValue:false }, date:{ stringValue: new Date().toISOString() }, createdAt:{ timestampValue: new Date().toISOString() }, provider:{stringValue:'Moniepoint'}, type:{stringValue:'Withdrawal'}, amount:{integerValue:String(amount)}, customerFee:{integerValue:'100'}, baseFee:{integerValue:'20'}, providerFee:{integerValue:'20'}, netProfit:{integerValue:'80'} });
+    const dropEntry = id => fetch(`http://127.0.0.1:8080/v1/projects/ledger-3c7f0/databases/(default)/documents/businesses/${emu.TEST_ACCOUNTS[0].uid}/transactions/${id}`, { method:'DELETE', headers:{ Authorization:'Bearer owner' } });
     await op.check(box);
     check('owner can mark staff as a Trainee', await until(async()=> /STAFF \(TRAINEE\)/.test(await op.textContent('#teamInputs'))), await op.textContent('#teamInputs'));
     check("...the trainee's own header says STAFF (TRAINEE)", await until(async()=> / · STAFF \(TRAINEE\)$/.test(await sp.textContent('#whoLabel'))), await sp.textContent('#whoLabel'));
-    check('...and their entries say "by: Test Staff (TRAINEE)"', await until(async()=> /by: Test Staff \(TRAINEE\)/.test(await op.textContent('#logList'))));
+    await wait(1100); await staffEntry('trainee-during', 4321);
+    check('...an entry they log now says "by: Test Staff (TRAINEE)"', await until(async()=> /by: Test Staff \(TRAINEE\)/.test(await rowText('4,321'))), await rowText('4,321'));
+    check('...but entries from before they were a trainee don\'t', !/TRAINEE/.test(await op.$$eval('#logList .log-item', els => els.filter(e => /by: Test Staff/.test(e.textContent) && !e.textContent.includes('4,321')).map(e => e.textContent).join(' '))));
     await op.uncheck(box);
-    check('...unticking it makes them STAFF again', await until(async()=> / · STAFF$/.test(await sp.textContent('#whoLabel')) && !/TRAINEE/.test(await op.textContent('#logList'))), await sp.textContent('#whoLabel'));
+    check('...unticking it makes them STAFF again', await until(async()=> / · STAFF$/.test(await sp.textContent('#whoLabel'))), await sp.textContent('#whoLabel'));
+    await wait(1100); await staffEntry('trainee-after', 4322);
+    check('...entries they logged as a trainee still say TRAINEE', await until(async()=> /\(TRAINEE\)/.test(await rowText('4,321')) && (await rowText('4,322')) !== ''), await rowText('4,321'));
+    check('...and new ones don\'t', !/TRAINEE/.test(await rowText('4,322')), await rowText('4,322'));
+    await dropEntry('trainee-during'); await dropEntry('trainee-after');
   }
   await op.fill('#newStaffName', 'New Person'); await op.fill('#newStaffEmail', 'new@test.com'); await op.fill('#newStaffUsername', 'newperson'); await op.fill('#newStaffPassword', 'start123');
   await op.click('#addStaffBtn');

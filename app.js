@@ -2531,7 +2531,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (isTrainee(t.loggedBy) ? ' (TRAINEE)' : '') + '</span>');
+        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (wasTraineeAt(t.loggedBy, Date.parse(t.date)) ? ' (TRAINEE)' : '') + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
@@ -3206,7 +3206,8 @@
         const data = d.data() || {};
         const n = (data.name || '').trim();
         if(n) teamNames[d.id] = n;
-        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false, trainee: data.trainee === true };
+        teamMembers[d.id] = { name: n, email: data.email || '', username: data.username || '', active: data.active !== false, trainee: data.trainee === true,
+          traineeSince: typeof data.traineeSince === 'number' ? data.traineeSince : null, traineeHistory: Array.isArray(data.traineeHistory) ? data.traineeHistory : [] };
       });
       updateWhoLabel();
       renderTeamUI();
@@ -3383,6 +3384,14 @@
   // Staff still in training: set by the owner with the Trainee box in Settings > Team.
   // It only labels them "STAFF (TRAINEE)"; they can do everything other staff can.
   const isTrainee = uid => !!(teamMembers[uid] && teamMembers[uid].trainee && uid !== bizId);
+  // Whether they were a trainee when an entry was logged: now (since the box was ticked; no
+  // start = from the beginning), or during an earlier stretch noted when the box was unticked.
+  function wasTraineeAt(uid, ms){
+    const m = teamMembers[uid];
+    if(!m || uid === bizId || isNaN(ms)) return false;
+    if(m.trainee && (m.traineeSince === null || ms >= m.traineeSince)) return true;
+    return m.traineeHistory.some(p => (p.from === null || p.from === undefined || ms >= p.from) && ms < p.to);
+  }
   function updateWhoLabel(){
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
     const roleLabel = role === 'owner' ? 'OWNER' : (isTrainee(currentUser.uid) ? 'STAFF (TRAINEE)' : 'STAFF');
@@ -3428,7 +3437,13 @@
     el.querySelectorAll('.team-trainee-input').forEach(box=>{
       box.addEventListener('change', ()=>{
         box.blur(); // lets the Team list redraw with the new label
-        fb.setDoc(bdoc('staff', box.dataset.uid), { trainee: box.checked }, { merge: true })
+        // Ticked: a trainee from now. Unticked: the stretch they were one is kept, so the
+        // entries they logged as a trainee still say so.
+        const m = teamMembers[box.dataset.uid] || {};
+        const change = box.checked
+          ? { trainee: true, traineeSince: Date.now() }
+          : { trainee: false, traineeSince: null, traineeHistory: (m.traineeHistory || []).concat([{ from: m.traineeSince === undefined ? null : m.traineeSince, to: Date.now() }]) };
+        fb.setDoc(bdoc('staff', box.dataset.uid), change, { merge: true })
           .catch(err => setStatus('Trainee setting not saved: ' + err.message, 'error'));
       });
     });
