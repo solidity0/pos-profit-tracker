@@ -3165,19 +3165,50 @@
     return 'Sync problem: ' + ((err && err.message) || 'unknown error');
   }
 
+  // Older entries come in batches with a pause between them: Firebase files each batch in
+  // the phone's offline copy, and doing thousands at once froze the screen for seconds. The
+  // totals fill in as each batch arrives. (A newer start, e.g. after signing out, drops an
+  // unfinished load.)
+  const OLDER_PAGE = 400;
+  let olderGen = 0;
   async function loadOlderTransactions(){
+    const gen = ++olderGen;
     olderState = 'loading';
+    olderTx = [];
+    const since = recentSinceISO();
+    let last = null;
     try{
-      const q = fb.query(bcol('transactions'), fb.where('date', '<', recentSinceISO()), fb.orderBy('date', 'desc'));
-      const snap = await fb.getDocs(q);
-      olderTx = snap.docs.map(docToTx);
+      for(;;){
+        const parts = [fb.where('date', '<', since), fb.orderBy('date', 'desc')];
+        if(last) parts.push(fb.startAfter(last));
+        parts.push(fb.limit(OLDER_PAGE));
+        const snap = await fb.getDocs(fb.query(bcol('transactions'), ...parts));
+        if(gen !== olderGen) return;
+        olderTx = olderTx.concat(snap.docs.map(docToTx));
+        mergeTransactions();
+        render();
+        if(snap.docs.length < OLDER_PAGE) break;
+        last = snap.docs[snap.docs.length - 1];
+        await new Promise(r => setTimeout(r, 40));
+        if(gen !== olderGen) return;
+      }
       olderState = 'loaded';
     }catch(err){
+      if(gen !== olderGen) return;
       olderState = 'idle';
       $('#pdfStatus').textContent = "Couldn't load older transactions — check your connection.";
     }
     mergeTransactions();
     render();
+  }
+  // Loaded quietly a few seconds after the app opens (when online), so All Time is usually
+  // ready before it's tapped.
+  function preloadOlderTransactions(){
+    const gen = olderGen;
+    setTimeout(()=>{
+      const go = ()=>{ if(gen === olderGen && fb && role && olderState === 'idle' && navigator.onLine) loadOlderTransactions(); };
+      if(window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 }); else go();
+    }, 5000);
   }
 
   function startSettingsListener(){
@@ -3734,7 +3765,7 @@
       try{ await store.set('cloudImported', '1'); }catch(e){}
       st.textContent = `Uploaded ${list.length} transactions ✓`;
       st.className = 'status deepgreen';
-      olderTx = []; olderState = 'idle';
+      olderTx = []; olderState = 'idle'; olderGen++;
       renderImportUI();
       render();
     }catch(err){
@@ -3765,7 +3796,7 @@
     stopListeners();
     stopAccessListeners();
     currentUser = user;
-    recentTx = []; olderTx = []; olderState = 'idle'; transactions = [];
+    recentTx = []; olderTx = []; olderState = 'idle'; olderGen++; transactions = [];
     teamNames = {}; teamMembers = {}; pendingUploads = 0;
     hideSettingsPanels();
     if(!user){
@@ -4053,6 +4084,7 @@
     loadBusinessSettings().then(startSettingsListener);
     startTeamListener();
     startTxListener();
+    preloadOlderTransactions();
     startPresence();
     startActivityListener();
     if(signingIn){ signingIn = false; logActivity('login'); }
@@ -4480,7 +4512,7 @@
       st.className = 'status deepgreen';
       st.textContent = n ? `Copied ${n} missing entr${n === 1 ? 'y' : 'ies'} ✓` : 'Nothing missing — everything is already here ✓';
       legacyLedgerState = 'unknown'; setTimeout(checkLegacyLedger, 2500); // hides the box once all is copied
-      olderTx = []; olderState = 'idle'; render();
+      olderTx = []; olderState = 'idle'; olderGen++; render();
     }catch(err){
       st.className = 'status error';
       st.textContent = 'Could not copy: ' + err.message;
@@ -4664,7 +4696,7 @@
           return uid;
         },
         collection: fsMod.collection, doc: fsMod.doc, query: fsMod.query, where: fsMod.where,
-        orderBy: fsMod.orderBy, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs, getDoc: fsMod.getDoc, getCountFromServer: fsMod.getCountFromServer,
+        orderBy: fsMod.orderBy, limit: fsMod.limit, startAfter: fsMod.startAfter, onSnapshot: fsMod.onSnapshot, getDocs: fsMod.getDocs, getDoc: fsMod.getDoc, getCountFromServer: fsMod.getCountFromServer,
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc, writeBatch: fsMod.writeBatch,
         serverTimestamp: fsMod.serverTimestamp, Timestamp: fsMod.Timestamp
       };
