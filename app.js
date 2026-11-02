@@ -2531,7 +2531,7 @@
         const bylineParts = [];
         // Records uploaded from a phone's old local history don't say who logged them;
         // everything logged since the switch does.
-        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (t.loggedBy === bizId ? '' : wasTraineeAt(t.loggedBy, Date.parse(t.date)) ? ' (TRAINEE)' : ' (STAFF)') + '</span>');
+        if(t.loggedBy && !t.imported) bylineParts.push('<span class="byline-name">by: ' + escapeHtml(nameFor(t.loggedBy, t.loggedByName)) + (t.loggedBy === bizId ? '' : wasTraineeAt(t.loggedBy, Date.parse(t.date)) ? ' (TRAINEE STAFF)' : ' (STAFF)') + '</span>');
         // Logged offline and uploaded later: show when Firebase actually received it.
         if(!t.imported && t.offline && t.createdAtMs && !t.pending) bylineParts.push('logged offline · uploaded ' + logDateFormat.format(new Date(t.createdAtMs)) + ' ' + logTimeFormat.format(new Date(t.createdAtMs)));
         // Logged online but the phone's clock disagreed with Firebase's: the time shown is
@@ -3350,7 +3350,7 @@
       const live = isLive(uid), seen = presence[uid] && presence[uid].lastSeenMs;
       const status = live ? 'Online now' : (seen ? 'Last seen ' + agoText(seen) : 'Not seen yet');
       const login = lastLogin[uid] ? 'Last sign-in: ' + whenText(lastLogin[uid]) : `No sign-in in the last ${ACTIVITY_DAYS} days`;
-      const roleText = uid === bizId ? 'OWNER' : (isTrainee(uid) ? 'STAFF (TRAINEE)' : 'STAFF');
+      const roleText = uid === bizId ? 'OWNER' : (isTrainee(uid) ? 'TRAINEE STAFF' : 'STAFF');
       return `<div class="activity-person"><div><span class="activity-name">${escapeHtml(nameFor(uid))}</span><span class="activity-role">${roleText}</span></div>
         <div class="activity-status${live ? ' live' : ''}">${status}</div><div class="activity-meta">${login}</div></div>`;
     }).join('');
@@ -3413,7 +3413,7 @@
   }
 
   // Staff still in training: set by the owner with the Trainee box in Settings > Team.
-  // It only labels them "STAFF (TRAINEE)"; they can do everything other staff can.
+  // It only labels them "TRAINEE STAFF"; they can do everything other staff can.
   const isTrainee = uid => !!(teamMembers[uid] && teamMembers[uid].trainee && uid !== bizId);
   // Whether they were a trainee when an entry was logged: now (since the box was ticked; no
   // start = from the beginning), or during an earlier stretch noted when the box was unticked.
@@ -3425,7 +3425,7 @@
   }
   function updateWhoLabel(){
     if(!currentUser || !role) { $('#whoLabel').textContent = ''; return; }
-    const roleLabel = role === 'owner' ? 'OWNER' : (isTrainee(currentUser.uid) ? 'STAFF (TRAINEE)' : 'STAFF');
+    const roleLabel = role === 'owner' ? 'OWNER' : (isTrainee(currentUser.uid) ? 'TRAINEE STAFF' : 'STAFF');
     const name = teamNames[currentUser.uid];
     // Reads as "Business · Name · Role" (the separators are hidden; the layout splits it in two rows).
     const sep = '<span class="who-sep"> · </span>';
@@ -3453,7 +3453,7 @@
           ${m.email && !isUsernameLogin(m.email) ? `<button type="button" class="team-reset" data-uid="${uid}">Send password reset email</button>` : ''}
           ${m.active ? `<button type="button" class="team-remove danger" data-uid="${uid}">Remove access</button>` : `<button type="button" class="team-restore" data-uid="${uid}">Restore access</button><button type="button" class="team-delete danger" data-uid="${uid}">Delete permanently</button>`}
         </div>`;
-      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (OWNER)' : (m.trainee ? 'STAFF (TRAINEE)' : 'STAFF')}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
+      return `<div class="team-row${m.active ? '' : ' removed'}"><div class="field"><label>${isOwnerRow ? 'You (OWNER)' : (m.trainee ? 'TRAINEE STAFF' : 'STAFF')}</label><input type="text" class="team-name-input" data-uid="${uid}" autocomplete="off" placeholder="Name" /></div>${meta}</div>`;
     }).join('');
     el.querySelectorAll('.team-name-input').forEach(inp=>{
       inp.value = teamNames[inp.dataset.uid] || '';
