@@ -38,16 +38,36 @@ function sideAware(p){
   const realClick = p.click.bind(p);
   p.click = async (sel, opts) => {
     if(typeof sel === 'string' && sel !== '#sideMenuBtn' && sel !== '#sideCloseBtn' && sel !== '#sideBackdrop'){
-      const st = await p.evaluate(s => {
-        let el = null; try{ el = document.querySelector(s); }catch(e){}
+      // (Found the way Playwright finds it, so selectors like :has-text() work too.)
+      const inSide = await p.locator(sel).first().evaluate(el => !!el.closest('#sideDrawer'), null, { timeout: 3000 }).catch(()=> false);
+      const st = await p.evaluate(()=> {
         const d = document.getElementById('sideDrawer');
-        return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
+        return { open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
           full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full') };
-      }, sel).catch(()=> null);
+      }).catch(()=> null);
+      if(st) st.inSide = inSide;
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
       if(st && !st.inSide && st.open && !st.full){ if(await p.isVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
     }
     return realClick(sel, opts);
+  };
+  // The Filter lives in the side menu: typing into it opens the menu first, and checking
+  // something on the page closes the menu first (on a phone it covers the page).
+  const realFill = p.fill.bind(p), realIsVisible = p.isVisible.bind(p);
+  const menuState = sel => p.locator(sel).first().evaluate(el => { const d = document.getElementById('sideDrawer');
+    return { inSide: !!el.closest('#sideDrawer'), open: d.classList.contains('open'), menu: document.body.classList.contains('has-side-menu'),
+      full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full, #calcCard.calc-full') }; }, null, { timeout: 2000 }).catch(()=> null);
+  p.fill = async (sel, value, opts) => {
+    const st = await menuState(sel);
+    if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
+    return realFill(sel, value, opts);
+  };
+  p.isVisible = async (sel, opts) => {
+    if(typeof sel === 'string' && !/^#side|^#sideDrawer/.test(sel)){
+      const st = await menuState(sel);
+      if(st && !st.inSide && st.open && !st.full){ if(await realIsVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
+    }
+    return realIsVisible(sel, opts);
   };
   return p;
 }
@@ -122,7 +142,7 @@ function sideAware(p){
   check('staff sees the total deducted box', await sp.isVisible('#machineTotal'));
   check('staff sees Performance Overview (with money in/out under Filter); Tips are in the side menu, not on the page; no Settings', await sp.isVisible('#perfCard') && !!(await sp.$('#perfFilters #volumeBody')) && !(await sp.isVisible('#safetyCard')) && !!(await sp.$('#sideCards #safetyCard')) && !(await sp.$('#sideCards #settingsCard')) && await sp.evaluate(()=> document.body.classList.contains('has-side-menu')) && !(await sp.isVisible('#settingsCard')));
   await sp.click('#sideMenuBtn');
-  check("...tapping the logo opens the staff's menu, titled Tips, with just Educational & Safety Tips", await until(()=> sp.isVisible('#safetyToggle')) && (await sp.textContent('#sideDrawer .side-title')) === 'Tips' && !(await sp.isVisible('#settingsToggle')));
+  check("...tapping the logo opens the staff's menu, titled Filter & Tips: the Filter and Educational & Safety Tips, no Settings", await until(()=> sp.isVisible('#safetyToggle')) && (await sp.textContent('#sideDrawer .side-title')) === 'Filter & Tips' && await sp.isVisible('#periodTabs') && !(await sp.isVisible('#settingsToggle')));
   await sp.click('#safetyToggle');
   check('...which open full screen', await until(()=> sp.evaluate(()=> document.getElementById('safetyCard').classList.contains('tips-full'))));
   await sp.click('#tipsBackBtn');
@@ -158,7 +178,12 @@ function sideAware(p){
   // ---------- Activity (owner): who's on, last sign-ins, deletes ----------
   await op.click('#sideMenuBtn'); await until(()=> op.isVisible('#activityToggle'));
   check("the owner's menu is titled Control Center", (await op.textContent('#sideDrawer .side-title')) === 'Control Center');
-  check("Activity is first in the owner's menu, above Tips and Settings", await op.evaluate(()=> { const ids = [...document.getElementById('sideCards').children].filter(e => e.offsetParent).map(e => e.id); return ids[0] === 'activityCard' && ids.indexOf('safetyCard') > 0 && ids.indexOf('settingsCard') > 0; }));
+  await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer')));
+  if(!(await op.isVisible('#summaryContent'))) await op.click('#summaryToggle');
+  check('Performance Overview says what the Filter is set to', /^Showing: .+ · .+ · .+/.test((await op.textContent('#filterSummaryText')).trim()), await op.textContent('#filterSummaryText'));
+  await op.click('#filterSummary');
+  check('...and tapping it opens the Filter in the side menu', await until(()=> op.isVisible('#periodTabs')));
+  check("the owner's menu: Filter, then Activity, then Tips and Settings", await op.evaluate(()=> { const ids = [...document.getElementById('sideCards').children].filter(e => e.offsetParent).map(e => e.id); return ids.join(',') === 'filterCard,activityCard,safetyCard,settingsCard'; }), await op.evaluate(()=> [...document.getElementById('sideCards').children].filter(e => e.offsetParent).map(e => e.id).join(',')));
   await op.click('#activityToggle');
   check('...it opens full screen with a Back button', await until(()=> op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full'))) && await op.isVisible('#activityBackBtn'));
   check('...listing the team: Test Staff online now, with a last sign-in time', await until(async()=> /Test Staff[\s\S]*Online now[\s\S]*Last sign-in: /.test(await op.textContent('#activityTeam')), 10000), (await op.textContent('#activityTeam')).replace(/\s+/g, ' '));
@@ -400,6 +425,7 @@ function sideAware(p){
     const all = parseInt(await op.textContent('#txCount'));
     await op.click('#periodTabs button[data-val="custom"]');
     await op.fill('#customStartDate', ymd(70)); await op.fill('#customEndDate', ymd(50));
+    check('the Custom start and end dates fit inside the Filter on a phone', await op.evaluate((()=>{ const box = document.querySelector('#filterCard').getBoundingClientRect(); return ['#customStartDate','#customEndDate'].every(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return r.width > 0 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5; }); })));
     check('custom dates apply as soon as they are picked', await until(async()=> (await op.textContent('#txCount')).startsWith('1 transaction') && /Showing .* · 1 transaction/.test(await op.textContent('#customDateStatus'))), `${await op.textContent('#txCount')} / ${await op.textContent('#customDateStatus')}`);
     await op.fill('#customStartDate', ymd(0)); // later than the end date (50 days ago)
     check('a start date after the end date is swapped round', await until(async()=> (await op.$eval('#customStartDate', e=>e.value)) === ymd(50) && (await op.$eval('#customEndDate', e=>e.value)) === ymd(0) && parseInt(await op.textContent('#txCount')) === all - 1), `${await op.$eval('#customStartDate', e=>e.value)} ${await op.textContent('#txCount')} vs ${all - 1}`);
@@ -551,6 +577,10 @@ function sideAware(p){
     await pc.evaluate(()=> document.getElementById('textSizeToggle').click()); await wait(300);
     await pc.keyboard.press('Escape');
     check('...Esc closes it', await until(async()=> !(await pc.isVisible('#sideDrawer'))));
+    { if(!(await pc.isVisible('#summaryContent'))) await pc.click('#summaryToggle'); const ft = await pc.$('#perfFilters .perf-section-toggle'); if((await ft.getAttribute('aria-expanded')) !== 'true') await ft.click();
+      await pc.click('#periodTabs button[data-val="custom"]'); await wait(300);
+      check('the Custom start and end dates fit inside the Filter on a computer', await pc.evaluate((()=>{ const box = document.querySelector('#filterCard').getBoundingClientRect(); return ['#customStartDate','#customEndDate'].every(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return r.width > 0 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5; }); })));
+      await pc.click('#periodTabs button[data-val="today"]'); }
     check('Performance Overview\'s Summary starts open', await pc.isVisible('#netProfit'));
     // Performance Overview: never taller than Log a Transaction once open.
     const colH = () => pc.evaluate(()=> [document.getElementById('perfCard').parentElement.offsetHeight, document.getElementById('entryCard').offsetHeight]);

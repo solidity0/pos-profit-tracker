@@ -16,16 +16,36 @@ function sideAware(p){
   const realClick = p.click.bind(p);
   p.click = async (sel, opts) => {
     if(typeof sel === 'string' && sel !== '#sideMenuBtn' && sel !== '#sideCloseBtn' && sel !== '#sideBackdrop'){
-      const st = await p.evaluate(s => {
-        let el = null; try{ el = document.querySelector(s); }catch(e){}
+      // (Found the way Playwright finds it, so selectors like :has-text() work too.)
+      const inSide = await p.locator(sel).first().evaluate(el => !!el.closest('#sideDrawer'), null, { timeout: 3000 }).catch(()=> false);
+      const st = await p.evaluate(()=> {
         const d = document.getElementById('sideDrawer');
-        return { inSide: !!(el && d && d.contains(el)), open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
-          full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full') };
-      }, sel).catch(()=> null);
+        return { open: !!(d && d.classList.contains('open')), menu: document.body.classList.contains('has-side-menu'),
+          full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full') };
+      }).catch(()=> null);
+      if(st) st.inSide = inSide;
       if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
       if(st && !st.inSide && st.open && !st.full){ if(await p.isVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
     }
     return realClick(sel, opts);
+  };
+  // The Filter lives in the side menu: typing into it opens the menu first, and checking
+  // something on the page closes the menu first (on a phone it covers the page).
+  const realFill = p.fill.bind(p), realIsVisible = p.isVisible.bind(p);
+  const menuState = sel => p.locator(sel).first().evaluate(el => { const d = document.getElementById('sideDrawer');
+    return { inSide: !!el.closest('#sideDrawer'), open: d.classList.contains('open'), menu: document.body.classList.contains('has-side-menu'),
+      full: !!document.querySelector('#settingsCard.settings-full, #safetyCard.tips-full, #activityCard.tips-full, #calcCard.calc-full') }; }, null, { timeout: 2000 }).catch(()=> null);
+  p.fill = async (sel, value, opts) => {
+    const st = await menuState(sel);
+    if(st && st.inSide && !st.open && st.menu){ await realClick('#sideMenuBtn'); await p.waitForTimeout(300); }
+    return realFill(sel, value, opts);
+  };
+  p.isVisible = async (sel, opts) => {
+    if(typeof sel === 'string' && !/^#side|^#sideDrawer/.test(sel)){
+      const st = await menuState(sel);
+      if(st && !st.inSide && st.open && !st.full){ if(await realIsVisible('#sideCloseBtn')) await realClick('#sideCloseBtn'); else await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
+    }
+    return realIsVisible(sel, opts);
   };
   return p;
 }

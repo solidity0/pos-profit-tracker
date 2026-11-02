@@ -1223,11 +1223,11 @@
       if(inMenu) $('#sideCards').appendChild(el);
       else if(el.parentNode !== sideHomes[id].parentNode) sideHomes[id].parentNode.insertBefore(el, sideHomes[id].nextSibling);
     });
-    const title = owner ? 'Control Center' : 'Tips';
+    const title = owner ? 'Control Center' : 'Filter & Tips';
     $('#sideDrawer .side-title').textContent = title;
     $('#sideDrawer').setAttribute('aria-label', title);
     $('#sideMenuBtn').title = title;
-    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Control Center: Activity, Educational & Safety Tips, Settings & rate table' : 'Tips: Educational & Safety Tips');
+    $('#sideMenuBtn').setAttribute('aria-label', owner ? 'Control Center: Filter, Activity, Educational & Safety Tips, Settings & rate table' : 'Filter & Tips: Filter, Educational & Safety Tips');
     if(!on) closeSide(true);
   }
   // The phone's back button closes it: a history step is added when it's opened by a tap or
@@ -1247,7 +1247,7 @@
   }
   function closeSide(fromHistory){
     if(!sideOpen()) return;
-    clearTimeout(sideLeaveTimer);
+    clearTimeout(sideLeaveTimer); sideLeaveTimer = null;
     sideClosedAt = Date.now();
     sideHoverHold = false;
     sideDrawer.classList.remove('open');
@@ -1275,21 +1275,26 @@
   let sideLeaveTimer = null;
   // (Not straight after closing: the dimmed layer going away can leave the pointer on the logo.)
   $('#sideMenuBtn').addEventListener('mouseenter', ()=>{ if(canHover.matches && Date.now() - sideClosedAt > 800) openSide(true); });
-  sideDrawer.addEventListener('mouseenter', ()=> clearTimeout(sideLeaveTimer));
+  sideDrawer.addEventListener('mouseenter', ()=>{ clearTimeout(sideLeaveTimer); sideLeaveTimer = null; });
   sideDrawer.addEventListener('mousemove', ()=>{
     if(sideHoverHold && !menuCardFull()) sideHoverHold = false;
   });
-  sideDrawer.addEventListener('mouseleave', ()=>{
-    if(!canHover.matches || !sideOpen()) return;
+  // Started when the pointer leaves the menu, or moves over the dimmed page (the menu can
+  // slide in under a still pointer, and then the browser never says it left).
+  function sideLeave(){
+    if(!canHover.matches || !sideOpen() || sideLeaveTimer) return;
     clearTimeout(sideLeaveTimer);
     const openedAt = sideOpenedAt; // only for this opening (not one that's since been closed and reopened)
     sideLeaveTimer = setTimeout(()=>{
+      sideLeaveTimer = null;
       if(!sideOpen() || sideOpenedAt !== openedAt || sideHoverHold) return;
       const typing = sideDrawer.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
       const fullScreen = menuCardFull();
       if(!typing && !fullScreen && !sideDrawer.matches(':hover') && !$('#sideMenuBtn').matches(':hover')) closeSide();
     }, 450);
-  });
+  }
+  sideDrawer.addEventListener('mouseleave', ()=>{ clearTimeout(sideLeaveTimer); sideLeaveTimer = null; sideLeave(); });
+  $('#sideBackdrop').addEventListener('mousemove', sideLeave);
   document.addEventListener('keydown', (e)=>{
     if(e.defaultPrevented) return; // Esc already closed a full-screen Settings / Tips / Calculator
     if(e.key === 'Escape' && sideOpen() && !menuCardFull() && !$('#calcCard').classList.contains('calc-full')){ e.preventDefault(); closeSide(); }
@@ -1314,7 +1319,7 @@
       const body = sec.querySelector('.perf-section-body');
       const set = (isOpen)=>{ body.hidden = !isOpen; sec.classList.toggle('open', isOpen); btn.setAttribute('aria-expanded', String(isOpen)); };
       // Summary starts open the first time; after that, whatever was last chosen.
-      set(sec.id in open ? !!open[sec.id] : (sec.id === 'perfTotals' || sec.id === 'perfTrend'));
+      set(sec.id in open ? !!open[sec.id] : (sec.id === 'perfTotals' || sec.id === 'perfTrend' || sec.id === 'perfFilters'));
       btn.addEventListener('click', ()=>{
         const isOpen = body.hidden;
         set(isOpen);
@@ -2302,7 +2307,21 @@
     if($('#logContent').style.display === 'block') renderLog();
     else logNeedsRender = true;
     renderTrend(filtered);
+    renderFilterSummary();
   }
+  // The Filter lives in the side menu; Performance Overview says what it's set to.
+  function renderFilterSummary(){
+    const el = $('#filterSummaryText');
+    if(!el) return;
+    const periods = { today: 'Today', week: 'This week', month: 'This month', all: 'All time', custom: customRangeLabel() };
+    const provider = state.providerFilter === 'All' ? 'All providers' : providerDisplay(state.providerFilter);
+    const person = state.loggedByFilter === 'All' ? 'Everyone' : nameFor(state.loggedByFilter);
+    el.innerHTML = `Showing: <strong>${escapeHtml(periods[state.period] || '')}</strong> · ${escapeHtml(provider)} · <strong>${escapeHtml(person)}</strong>`;
+  }
+  $('#filterSummary').addEventListener('click', ()=>{
+    openSide();
+    $('#sideDrawer').scrollTop = 0;
+  });
 
   // ---------- Profit trend (Performance Overview) ----------
   // Profit so far as a smooth line, following the Filter (period, provider, person) like the
