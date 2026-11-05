@@ -2,3 +2,7 @@ tests/node_modules
 tests/out/
 tests/*.log
 tests/.firestore.rules
+email-service/.wrangler
+email-service/.dev.vars
+*service-account*.json
+*firebase-adminsdk*.json
