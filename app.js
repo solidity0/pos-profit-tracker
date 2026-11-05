@@ -53,6 +53,7 @@
 
   let state = { provider: 'Moniepoint', type: 'Withdrawal', biller: 'Electricity', period: 'today', providerFilter: 'All', loggedByFilter: 'All', customStart: null, customEnd: null };
   let selectedCombosBillers = new Set();
+  const selectedBillWdBillers = new Set();
   let transactions = [];
   let settings = {
     stampFlat: 50, stampThreshold: 10000, stampOnWithdrawal: false,
@@ -190,7 +191,7 @@
     // false = normal transfer fee+VAT. Stamp duty and autosave still apply per leg either
     // way (EMTL and autosave apply regardless of who waives the fee). Each bill-payment leg
     // follows the same rules as the standalone Bill type: just its own machine charge
-    // (billFee/bettingFee) — no VAT, no stamp duty, no autosave for that portion — and each
+    // (billFee/bettingFee) and Moniepoint autosave — no VAT, no stamp duty — and each
     // biller paid is its own separate terminal transaction, so its fee is added per biller.
     const legs = (transferLegs || []).filter(l => l.amount > 0);
     const withdrawalBase = computeBaseFee(provider, 'Withdrawal', withdrawAmount);
@@ -209,11 +210,23 @@
     const base = +(withdrawalBase + transferBaseTotal + billFeeAmt).toFixed(2);
     vat = +vat.toFixed(2);
     stamp = +stamp.toFixed(2);
-    const legsCount = (withdrawAmount > 0 ? 1 : 0) + legs.length;
+    const legsCount = (withdrawAmount > 0 ? 1 : 0) + legs.length + bills.length;
     const autosaveLeg = (provider === 'Moniepoint' && settings.autosaveEnabled) ? settings.autosaveFlat : 0;
     const autosave = +(autosaveLeg * legsCount).toFixed(2);
     const total = +(base + vat + stamp + autosave).toFixed(2);
     return { base, vat, stamp, autosave, total, withdrawalBase, transferBaseTotal, billFeeAmt, billPayments: bills, transferAmounts: legs.map(l=>l.amount), transferSameBank: legs.map(l=>!!l.sameBank), legsCount };
+  }
+
+  // Withdraw+Bill: a withdrawal and a bill paid out of it, with no transfer. Same legs as the
+  // combo above with no transfers, except the withdrawal is a plain one, so it follows the
+  // "stamp duty on withdrawals" setting the way the standalone Withdrawal type does.
+  function computeWithdrawBillBreakdown(provider, withdrawAmount, billLegs){
+    const bd = computeComboBreakdown(provider, withdrawAmount, [], billLegs);
+    if(settings.stampOnWithdrawal && withdrawAmount >= settings.stampThreshold){
+      bd.stamp = +(bd.stamp + settings.stampFlat).toFixed(2);
+      bd.total = +(bd.total + settings.stampFlat).toFixed(2);
+    }
+    return bd;
   }
 
   function computeBreakdown(provider, type, amount, manualBase, transferAmt){
@@ -242,7 +255,7 @@
     if(amount >= settings.stampThreshold){
       if(isTransferLike || (type === 'Withdrawal' && settings.stampOnWithdrawal)) stamp = settings.stampFlat;
     }
-    const autosave = (provider === 'Moniepoint' && settings.autosaveEnabled && amount > 0 && type !== 'Bill') ? settings.autosaveFlat : 0;
+    const autosave = (provider === 'Moniepoint' && settings.autosaveEnabled && amount > 0) ? settings.autosaveFlat : 0;
     const total = +(base + vat + stamp + autosave).toFixed(2);
     return { base, vat, stamp, autosave, total };
   }
@@ -466,15 +479,18 @@
   }
 
   function renderComboBillerAmounts(){
-    const container = $('#comboBillerAmounts');
+    renderBillerAmounts($('#comboBillerAmounts'), selectedCombosBillers, 'combo-biller-amount');
+  }
+
+  function renderBillerAmounts(container, billers, inputClass){
     const existingValues = {};
     container.querySelectorAll('input').forEach(inp => { existingValues[inp.dataset.biller] = inp.value; });
     container.innerHTML = '';
-    selectedCombosBillers.forEach(biller=>{
+    billers.forEach(biller=>{
       const wrap = document.createElement('div');
       wrap.className = 'field breathing-field';
       wrap.style.margin = '10px 0 0';
-      wrap.innerHTML = `<label style="min-height:auto; display:block;">Enter the ${biller} amount paid (₦)</label><input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" class="combo-biller-amount" data-biller="${biller}" />`;
+      wrap.innerHTML = `<label style="min-height:auto; display:block;">Enter the ${biller} amount paid (₦)</label><input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" class="${inputClass}" data-biller="${biller}" />`;
       container.appendChild(wrap);
       const inp = wrap.querySelector('input');
       if(existingValues[biller]) inp.value = existingValues[biller];
@@ -501,11 +517,117 @@
     $('#comboBillerAmounts').innerHTML = '';
   }
 
+  function resetBillWithdraw(){
+    $('#billWithdrawCheck').checked = false;
+    $('#billWithdrawAmount').value = '';
+    $('#billCashCheck').checked = false;
+    $('#billCashAmount').value = '';
+    $('#billKeptCheck').checked = false;
+    selectedBillWdBillers.clear();
+    $('#billWdBillerAmounts').innerHTML = '';
+    showActiveBiller();
+  }
+
+  // The biller buttons pick one bill, or with Withdrawal ticked, any number of them.
+  function showActiveBiller(){
+    const multi = selectedBillWdBillers.size > 0 || $('#billWithdrawCheck').checked;
+    $('#billerSeg').querySelectorAll('button').forEach(b=>{
+      b.classList.toggle('active', multi ? selectedBillWdBillers.has(b.dataset.val) : b.dataset.val === state.biller);
+    });
+  }
+
+  // Ticking Withdrawal carries the bill already typed in over to that biller's own amount box;
+  // unticking carries the first bill with an amount back, since a plain Bill is one bill.
+  function setBillWithdraw(on){
+    if(on){
+      const amount = $('#amount').value;
+      selectedBillWdBillers.clear();
+      selectedBillWdBillers.add(state.biller);
+      renderBillerAmounts($('#billWdBillerAmounts'), selectedBillWdBillers, 'bill-wd-amount');
+      $('#billWdBillerAmounts').querySelector('input').value = amount;
+      $('#amount').value = '';
+      showActiveBiller();
+    } else {
+      const inputs = Array.from($('#billWdBillerAmounts').querySelectorAll('input'));
+      const first = inputs.find(inp => inp.value.trim() !== '') || inputs[0];
+      if(first){
+        state.biller = first.dataset.biller;
+        $('#amount').value = first.value;
+      }
+      resetBillWithdraw();
+    }
+  }
+
+  function toggleBillWdBiller(biller){
+    if(selectedBillWdBillers.has(biller)) selectedBillWdBillers.delete(biller);
+    else selectedBillWdBillers.add(biller);
+    renderBillerAmounts($('#billWdBillerAmounts'), selectedBillWdBillers, 'bill-wd-amount');
+    showActiveBiller();
+  }
+
+  // Reads the Withdrawal tick in the Bill form. As in Withdraw+Transfer, "kept as service fee"
+  // has no amount box: it claims whatever's left after the bills and the cash given.
+  function getBillWithdrawal(){
+    const on = state.type === 'Bill' && $('#billWithdrawCheck').checked;
+    const bills = !on ? [] : Array.from($('#billWdBillerAmounts').querySelectorAll('input')).map(inp=>{
+      const n = parseFloat((inp.value || '').replace(/,/g,''));
+      return { biller: inp.dataset.biller, amount: isNaN(n) ? 0 : Math.max(n, 0) };
+    }).filter(b=>b.amount > 0);
+    const billTotal = bills.reduce((a,b)=>a+b.amount, 0);
+    const withdrawn = on ? numVal('#billWithdrawAmount') : 0;
+    const given = (on && $('#billCashCheck').checked) ? numVal('#billCashAmount') : 0;
+    const left = +(withdrawn - billTotal - given).toFixed(2);
+    const keptChecked = on && $('#billKeptCheck').checked;
+    const kept = keptChecked ? Math.max(left, 0) : 0;
+    return { on, bills, billTotal, withdrawn, given, left, keptChecked, kept, unallocated: +(left - kept).toFixed(2) };
+  }
+
+  function updateBillWithdrawUI(){
+    const isBill = state.type === 'Bill';
+    $('#billWithdrawGroup').style.display = isBill ? 'block' : 'none';
+    if(!isBill) return;
+    const on = $('#billWithdrawCheck').checked;
+    $('#billWithdrawAmountWrap').style.display = on ? 'block' : 'none';
+    $('#billWithdrawDetails').style.display = on ? 'block' : 'none';
+    $('#billCashAmountWrap').style.display = $('#billCashCheck').checked ? 'block' : 'none';
+    // Each bill has its own amount box while Withdrawal is ticked.
+    $('#amountFieldWrap').style.display = on ? 'none' : '';
+
+    // Nothing left for "kept" once the bills and the cash given cover the withdrawal.
+    const before = getBillWithdrawal();
+    const keptNoLongerNeeded = before.withdrawn > 0 && before.left <= 0;
+    if(keptNoLongerNeeded) $('#billKeptCheck').checked = false;
+    $('#billKeptBox').style.display = keptNoLongerNeeded ? 'none' : '';
+
+    const b = getBillWithdrawal();
+    $('#billCashLabel').textContent = b.given > 0 ? `Gave ${fmt(b.given)} cash to customer` : 'Gave cash to customer';
+    $('#billKeptLabel').textContent = b.kept > 0 ? `Kept ${fmt(b.kept)} as service fee/charge` : 'Kept as service fee/charge';
+
+    // The kept amount stands in for the Service Fee box, as in Withdraw+Transfer.
+    $('#customerFeeFieldWrap').style.display = b.keptChecked ? 'none' : '';
+    $('#amountFeeRow').style.gridTemplateColumns = on ? '1fr' : '';
+
+    const box = $('#billRemainingBox'), val = $('#billRemainingVal');
+    box.classList.remove('over','exact');
+    if(b.withdrawn === 0){
+      val.textContent = '₦0';
+    } else if(b.unallocated < 0){
+      box.classList.add('over');
+      val.textContent = '-' + fmt(Math.abs(b.unallocated)) + ' over';
+    } else if(b.unallocated === 0){
+      box.classList.add('exact');
+      val.textContent = '₦0 — fully allocated';
+    } else {
+      val.textContent = fmt(b.unallocated);
+    }
+  }
+
   function updateLayoutForType(isCombo){
     const feeWrap = $('#customerFeeFieldWrap');
     const standaloneSlot = $('#customerFeeStandaloneSlot');
     const amountWrap = $('#amountFieldWrap');
     $('#transferSection').style.display = isCombo ? 'block' : 'none';
+    amountWrap.style.display = '';
     if(isCombo){
       amountWrap.classList.add('withdrawn-field');
       $('#amountFeeRow').style.gridTemplateColumns = '1fr';
@@ -627,7 +749,7 @@
   const desktopQuery = window.matchMedia('(min-width: 1024px)');
   function sizeEntryBody(){
     const body = $('#entryBody');
-    if(body) body.classList.toggle('is-combo', state.type === 'WithdrawTransfer');
+    if(body) body.classList.toggle('is-combo', state.type === 'WithdrawTransfer' || (state.type === 'Bill' && $('#billWithdrawCheck').checked));
     if(!body || !desktopQuery.matches || state.type !== 'Withdrawal' || $('#status').textContent) return;
     const h = body.scrollHeight;
     if(h > 200) document.documentElement.style.setProperty('--entry-body-h', h + 'px');
@@ -651,6 +773,7 @@
     $('#comboHint').style.display = isCombo ? 'block' : 'none';
     $('#amountLabel').textContent = isBill ? 'Bill amount paid (₦)' : (isCombo ? 'Amount Withdrawn (₦)' : (isWithdrawal ? 'AMT Withdrawn (₦)' : 'Amount Sent (₦)'));
     updateLayoutForType(isCombo);
+    updateBillWithdrawUI();
 
     $('#overrideFeeRow').style.display = isBill ? 'none' : 'flex';
     if(isBill) $('#overrideFee').checked = false;
@@ -690,14 +813,18 @@
       }
     } else {
       const manualBase = override ? 0 : null;
-      bd = computeBreakdown(state.provider, state.type, amount, manualBase);
+      const billWd = getBillWithdrawal();
+      bd = billWd.on
+        ? computeWithdrawBillBreakdown(state.provider, billWd.withdrawn, billWd.bills)
+        : computeBreakdown(state.provider, state.type, amount, manualBase);
     }
 
     $('#machineTotal').textContent = fmt(bd.total);
     let breakdownText;
     if(bd.transferAmounts !== undefined){
       const n = bd.transferAmounts.length;
-      breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)} + ${n} transfer fee${n===1?'':'s'} ${fmt(bd.transferBaseTotal)}`;
+      breakdownText = `withdrawal fee ${fmt(bd.withdrawalBase)}`;
+      if(n > 0) breakdownText += ` + ${n} transfer fee${n===1?'':'s'} ${fmt(bd.transferBaseTotal)}`;
       if(bd.billFeeAmt > 0) breakdownText += ` + bill fee ${fmt(bd.billFeeAmt)}`;
       breakdownText += ` · VAT ${fmt(bd.vat)} · stamp duty ${fmt(bd.stamp)}`;
     } else if(bd.withdrawalBase !== undefined){
@@ -819,6 +946,11 @@
     const seg = document.getElementById(id);
     seg.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
+        if(key === 'biller' && $('#billWithdrawCheck').checked){
+          toggleBillWdBiller(btn.dataset.val);
+          refreshAuto();
+          return;
+        }
         seg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
         btn.classList.add('active');
         const prevType = state[key];
@@ -829,6 +961,7 @@
           if(btn.dataset.val === 'WithdrawTransfer' && prevType !== 'WithdrawTransfer'){
             resetTransferBoxes();
           }
+          if(btn.dataset.val === 'Bill' && prevType !== 'Bill') resetBillWithdraw();
         }
         refreshAuto();
       });
@@ -870,6 +1003,19 @@
   $('#remainingHandlingBalanceCheck').addEventListener('change', refreshAuto);
   attachCommaFormatting($('#cashGivenAmount'));
   $('#cashGivenAmount').addEventListener('input', refreshAuto);
+  attachCommaFormatting($('#billWithdrawAmount'));
+  attachCommaFormatting($('#billCashAmount'));
+  $('#billWithdrawAmount').addEventListener('input', refreshAuto);
+  $('#billCashAmount').addEventListener('input', refreshAuto);
+  $('#billWithdrawCheck').addEventListener('change', ()=>{
+    setBillWithdraw($('#billWithdrawCheck').checked);
+    refreshAuto();
+  });
+  $('#billCashCheck').addEventListener('change', ()=>{
+    $('#billCashAmount').value = '';
+    refreshAuto();
+  });
+  $('#billKeptCheck').addEventListener('change', refreshAuto);
 
   wireSegment('providerSeg','provider');
   wireSegment('typeSeg','type');
@@ -993,10 +1139,14 @@
     // "Kept as service fee/charge" stands in for the (hidden) Service Fee box: the amount kept
     // is what the customer was charged.
     if(isCombo && leftoverForBill > 0 && legAmounts.keptChecked) customerFee = legAmounts.kept;
+    const billWd = getBillWithdrawal();
+    if(billWd.keptChecked) customerFee = billWd.kept;
 
     let bd;
     if(isCombo){
       bd = computeComboBreakdown(state.provider, amount, legs, billLegs);
+    } else if(billWd.on){
+      bd = computeWithdrawBillBreakdown(state.provider, billWd.withdrawn, billWd.bills);
     } else {
       const manualBase = wasOverridden ? 0 : null;
       bd = computeBreakdown(state.provider, state.type, amount, manualBase);
@@ -1029,14 +1179,28 @@
       }
     }
 
-    if(amountMissing){
+    if(billWd.on && (billWd.keptChecked || billWd.withdrawn === 0 || billWd.unallocated !== 0)){
+      skipFeeReminder = true;
+    }
+
+    if(billWd.on){
+      if(billWd.billTotal <= 0) errors.push({ msg: 'Select the bill paid and enter its amount.', cls: 'error' });
+      else if($('#customerFee').value.trim() === '' && !skipFeeReminder) errors.push({ msg: 'Enter the fee you charged the customer.', cls: 'deepgreen' });
+    } else if(amountMissing){
       const label = isCombo ? 'Enter amount withdrawn.' : 'Enter amount withdrawn/sent.';
       errors.push({ msg: label, cls: 'error' });
     } else if($('#customerFee').value.trim() === '' && !skipFeeReminder){
       errors.push({ msg: 'Enter the fee you charged the customer.', cls: 'deepgreen' });
     }
+    if(billWd.on && billWd.withdrawn === 0){
+      errors.push({ msg: 'Enter the amount withdrawn.', cls: 'error' });
+    } else if(billWd.on && billWd.unallocated < 0){
+      errors.push({ msg: `The bills and cash given exceed the ${fmt(billWd.withdrawn)} withdrawn by ${fmt(Math.abs(billWd.unallocated))}. Rectify the amounts before adding or carrying out transaction.`, cls: 'error' });
+    } else if(billWd.on && billWd.unallocated > 0){
+      errors.push({ msg: `${fmt(billWd.unallocated)} is still unallocated. Tick gave cash to customer or kept as service fee/charge.`, cls: 'error' });
+    }
     if(!amountMissing && isCombo && (!legs || legs.length === 0)){
-      errors.push({ msg: 'Enter at least one transfer amount.', cls: 'error' });
+      errors.push({ msg: 'Enter at least one transfer amount. No transfer? Log it under Bill and tick Withdrawal.', cls: 'error' });
     }
     if(!amountMissing && isCombo && legs && legs.length > 0){
       const legsSumCheck = legs.reduce((a,l)=>a+l.amount, 0);
@@ -1066,16 +1230,16 @@
     const allLegsSameBank = isCombo && legs.length > 0 && legs.every(l => l.sameBank);
     const legsSum = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
     const leftover = isCombo ? (amount + cashAmount) - legsSum : 0;
-    const cashGivenAmount = (isCombo && leftover > 0 && legAmounts.custChecked) ? legAmounts.given : null;
-    const billPayments = (isCombo && leftover > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
-    const keptFeeAmount = (isCombo && leftover > 0 && legAmounts.keptChecked) ? legAmounts.kept : null;
+    const cashGivenAmount = billWd.on ? (billWd.given > 0 ? billWd.given : null) : (isCombo && leftover > 0 && legAmounts.custChecked) ? legAmounts.given : null;
+    const billPayments = billWd.on ? billWd.bills : (isCombo && leftover > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
+    const keptFeeAmount = billWd.keptChecked ? billWd.kept : (isCombo && leftover > 0 && legAmounts.keptChecked) ? legAmounts.kept : null;
 
     const tx = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
       date: new Date().toISOString(),
-      provider: state.provider, type: state.type,
-      biller: state.type === 'Bill' ? state.biller : null,
-      amount, customerFee,
+      provider: state.provider, type: billWd.on ? 'WithdrawBill' : state.type,
+      biller: billWd.on ? billWd.bills[0].biller : state.type === 'Bill' ? state.biller : null,
+      amount: billWd.on ? billWd.withdrawn : amount, customerFee,
       transferAmounts: isCombo ? legs.map(l=>l.amount) : null,
       transferSameBank: isCombo ? legs.map(l=>!!l.sameBank) : null,
       cashAmount: (isCombo && cashAmount > 0) ? cashAmount : null,
@@ -1090,6 +1254,7 @@
 
     $('#amount').value = '';
     resetTransferBoxes();
+    resetBillWithdraw();
     $('#customerFee').value = '';
     $('#overrideFee').checked = false;
     refreshAuto();
@@ -2026,6 +2191,7 @@
 
   function typeLabel(t){
     if(t.type === 'Bill') return 'Bill · ' + t.biller;
+    if(t.type === 'WithdrawBill') return 'Withdraw+Bill';
     if(t.type === 'WithdrawTransfer'){
       if(t.manualFee) return `${providerDisplay(t.provider)} - ${providerDisplay(t.provider)} Transfer`;
       return 'Withdraw+Transfer';
@@ -2046,6 +2212,13 @@
     const f = wrap ? (n) => `<span class="fig">${rawFmt(n)}</span>` : rawFmt;
     // On screen, money in (withdrawn) is green and money out (sent, or paid for a bill) is red.
     const tint = (cls, text) => wrap ? `<span class="${cls}">${text}</span>` : text;
+    if(t.type === 'WithdrawBill'){
+      const phrases = [tint('flow-in', 'withdrew ' + f(t.amount))];
+      (t.billPayments || []).forEach(b=> phrases.push(tint('flow-out', `${f(b.amount)} ${b.biller || 'bill'} payment`)));
+      if(t.cashGivenAmount > 0) phrases.push(`gave ${f(t.cashGivenAmount)} cash to customer`);
+      if(t.keptFeeAmount > 0) phrases.push(`${f(t.keptFeeAmount)} kept as service fee/charge`);
+      return phrases.join(' + ');
+    }
     if(t.type !== 'WithdrawTransfer'){
       const phrase = (t.type === 'Bill' ? 'paid' : 'amount') + ' ' + f(t.amount);
       return t.type === 'Withdrawal' ? tint('flow-in', phrase) : (t.type === 'Transfer' || t.type === 'Bill') ? tint('flow-out', phrase) : phrase;
@@ -2086,6 +2259,7 @@
     // Mirrors the leftover check inside comboAmountLine, used to decide whether the
     // ". +" connector (leftover phrase present) or the plain " ·" connector applies
     // before "charged" in both the on-screen log and the PDF export.
+    if(t.type === 'WithdrawBill') return true;
     if(t.type !== 'WithdrawTransfer' || !Array.isArray(t.transferAmounts) || t.transferAmounts.length === 0) return false;
     const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
     const pool = t.amount + (t.cashAmount || 0);
@@ -2216,6 +2390,10 @@
       const amt = t.amount || 0;
       if(t.type === 'Withdrawal') moneyIn += amt;
       else if(t.type === 'Transfer' || t.type === 'Bill') moneyOut += amt;
+      else if(t.type === 'WithdrawBill'){
+        moneyIn += amt;
+        moneyOut += (t.billPayments || []).reduce((a,b)=>a+(b.amount||0), 0);
+      }
       else if(t.type === 'WithdrawTransfer'){
         moneyIn += amt + (t.cashAmount || 0);
         if(Array.isArray(t.transferAmounts)) moneyOut += t.transferAmounts.reduce((a,b)=>a+b, 0);
@@ -2511,7 +2689,7 @@
         const item = document.createElement('div');
         item.className = 'log-item' + (t.deleted ? ' deleted' : '');
         const dateStr = logDateFormat.format(d) + ' · ' + logTimeFormat.format(d);
-        const isCombo = t.type === 'WithdrawTransfer';
+        const isCombo = t.type === 'WithdrawTransfer' || t.type === 'WithdrawBill';
         const isCredit = t.type === 'Withdrawal';
         const iconClass = isCombo ? 'combo' : (isCredit ? 'in' : 'out');
         const iconSvg = isCombo ? (arrowDownSvg + arrowUpSvg) : (isCredit ? arrowDownSvg : arrowUpSvg);
@@ -2874,13 +3052,16 @@
   // their report never includes deleted entries).
   const STAFF_HIDDEN_CSV = ['Auto-save', 'Total cost', 'Deleted', 'Deleted by'];
   function transactionsToCsv(list, forStaff){
-    const head = ['Date','Time','Provider','Type','Logged by','Amount','Transfers sent','Cash brought in','Service fee charged','Machine fee','VAT','Stamp duty','Auto-save','Total cost','Net profit','Deleted','Deleted by','Logged offline','Entry ID'];
+    const head = ['Date','Time','Provider','Type','Logged by','Amount','Transfers sent','Cash brought in','Bills paid','Bill amount','Cash given to customer','Kept as service fee','Service fee charged','Machine fee','VAT','Stamp duty','Auto-save','Total cost','Net profit','Deleted','Deleted by','Logged offline','Entry ID'];
     const rows = list.map(t=>{
       const d = new Date(t.date);
       const sent = Array.isArray(t.transferAmounts) ? t.transferAmounts.reduce((a,b)=>a+b, 0) : '';
+      const bills = t.type === 'Bill' ? [{ biller: t.biller, amount: t.amount }] : (Array.isArray(t.billPayments) ? t.billPayments : []);
       return [csvDate.format(d), csvTime.format(d), providerDisplay(t.provider), typeLabel(t),
         t.imported ? '' : nameFor(t.loggedBy, t.loggedByName),
-        t.amount, sent, t.cashAmount || '', t.customerFee, t.baseFee, t.vatAmt || 0, t.stampAmt || 0, t.autosaveAmt || 0,
+        t.amount, sent, t.cashAmount || '',
+        bills.map(b=> b.biller + ' ' + b.amount).join('; '), bills.reduce((a,b)=>a+(b.amount||0), 0) || '',
+        t.cashGivenAmount || '', t.keptFeeAmount || '', t.customerFee, t.baseFee, t.vatAmt || 0, t.stampAmt || 0, t.autosaveAmt || 0,
         t.providerFee, t.netProfit, t.deleted ? 'yes' : '', t.deleted ? nameFor(t.deletedBy) : '', t.offline ? 'yes' : '', t.id];
     });
     const keep = head.map(h => !forStaff || !STAFF_HIDDEN_CSV.includes(h));

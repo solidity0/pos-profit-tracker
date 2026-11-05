@@ -426,6 +426,132 @@ function sideAware(p){
     await op.click('#typeSeg button[data-val="Withdrawal"]');
   }
 
+  // ---------- Bill with a withdrawal: no transfer needed ----------
+  {
+    const money = async () => [await op.textContent('#trendMoneyIn'), await op.textContent('#trendMoneyOut')].map(t => parseFloat(t.replace(/[^\d.]/g,'')) || 0);
+    const before = await money();
+    await op.click('#typeSeg button[data-val="WithdrawTransfer"]');
+    await op.fill('#amount', '20300');
+    await op.click('#addBtn');
+    check('Withdraw+Transfer with no transfer points to Bill', await until(async()=> /at least one transfer amount.*Bill and tick Withdrawal/.test(await op.textContent('#status'))), await op.textContent('#status'));
+    await op.click('#typeSeg button[data-val="Bill"]');
+    await op.click('#billerSeg button[data-val="DSTV"]');
+    check('a plain Bill shows the Withdrawal tick but not its boxes', await op.isVisible('#billWithdrawCheck') && !(await op.isVisible('#billWithdrawAmount')) && !(await op.isVisible('#billCashCheck')));
+    await op.fill('#amount', '11000');
+    await op.check('#billWithdrawCheck');
+    check('ticking Withdrawal shows the amount, cash and kept options', await op.isVisible('#billWithdrawAmount') && await op.isVisible('#billCashCheck') && await op.isVisible('#billKeptCheck'));
+    await op.fill('#billWithdrawAmount', '20300');
+    check('Remaining counts what is left after the bill', /9,300/.test(await op.textContent('#billRemainingVal')), await op.textContent('#billRemainingVal'));
+    await op.fill('#customerFee', '300');
+    await op.click('#addBtn');
+    check('an unallocated amount blocks the entry', await until(async()=> /9,300.*still unallocated/.test(await op.textContent('#status'))), await op.textContent('#status'));
+    await op.check('#billCashCheck');
+    await op.fill('#billCashAmount', '30000');
+    check('more than was withdrawn shows as over', /over/.test(await op.textContent('#billRemainingVal')), await op.textContent('#billRemainingVal'));
+    await op.click('#addBtn');
+    check('going over blocks the entry', await until(async()=> /exceed the ₦20,300/.test(await op.textContent('#status'))), await op.textContent('#status'));
+    await op.fill('#billCashAmount', '9000');
+    await op.check('#billKeptCheck');
+    check('ticking "kept" hides Service Fee and claims the ₦300 left', !(await op.isVisible('#customerFee')) && /Kept ₦300/.test(await op.textContent('#billKeptLabel')) && /fully allocated/.test(await op.textContent('#billRemainingVal')), await op.textContent('#billKeptLabel'));
+    await op.locator('#entryCard').screenshot({ path: 'out/withdraw-bill.png' });
+    await op.click('#addBtn');
+    const row = op.locator('#logList .log-item:has-text("withdrew ₦20,300")').first();
+    const rowText = async () => (await row.textContent().catch(()=>'')).replace(/\s+/g,' ');
+    check('the entry is labelled just Withdraw+Bill', await until(async()=> (await row.locator('.type').textContent()).trim() === 'Withdraw+Bill'), (await rowText()).slice(0,200));
+    check('the log says what really happened and no transfer', /withdrew ₦20,300 \+ ₦11,000 DSTV payment \+ gave ₦9,000 cash to customer \+ ₦300 kept as service fee\/charge/.test(await rowText()) && !/sent/.test(await rowText()), (await rowText()).slice(0,240));
+    check('the kept ₦300 is the fee charged', /charged ₦300/.test(await rowText()), (await rowText()).slice(0,240));
+    check('the form clears after adding', !(await op.isChecked('#billWithdrawCheck')) && !(await op.isVisible('#billWithdrawAmount')) && await op.isVisible('#customerFee'));
+    const after = await money();
+    check('Money In and Money Out count the withdrawal and the bill', after[0] - before[0] === 20300 && after[1] - before[1] === 11000, `${before} -> ${after}`);
+    const shown = (await rowText()).replace(/,/g,'');
+    const cost = parseFloat((shown.match(/cost -₦([\d.]+)/) || [])[1]);
+    const profit = parseFloat((shown.match(/profit\s*₦([\d.]+)/) || [])[1]);
+    check('profit is the ₦300 kept less the machine cost', cost > 0 && profit === 300 - cost, shown.slice(0,240));
+    // Auto-save: one each for the Moniepoint withdrawal and every bill, none for OPay.
+    const setAutosave = async v => { await op.$eval('#autosaveFlat', (e, val) => { e.value = val; e.dispatchEvent(new Event('change', { bubbles:true })); }, v); await wait(300); };
+    const total = async () => parseFloat((await op.textContent('#machineTotal')).replace(/[^\d.]/g,''));
+    const savedAutosave = await op.$eval('#autosaveFlat', e => e.value);
+    await setAutosave('0');
+    await op.fill('#amount', '11000');
+    const plainBill0 = await total();
+    await op.check('#billWithdrawCheck');
+    await op.fill('#billWithdrawAmount', '20300');
+    const noAutosave = await total();
+    await setAutosave('50');
+    check('Moniepoint auto-save applies to the withdrawal and the bill', (await total()) === noAutosave + 100, `${noAutosave} -> ${await total()}`);
+    await op.click('#billerSeg button[data-val="GOTV"]');
+    await op.fill('#billWdBillerAmounts input[data-biller="GOTV"]', '1000');
+    check('...and again for each extra bill', (await total()) === noAutosave + 150, `${noAutosave} -> ${await total()}`);
+    await op.click('#billerSeg button[data-val="GOTV"]');
+    await op.click('#providerSeg button[data-val="Opay"]');
+    const opayWith = await total();
+    await setAutosave('0');
+    check('OPay has no auto-save on the withdrawal in Bills', (await total()) === opayWith, `${opayWith} -> ${await total()}`);
+    await op.click('#providerSeg button[data-val="Moniepoint"]');
+    await op.uncheck('#billWithdrawCheck');
+    await setAutosave('50');
+    check('a Moniepoint Bill on its own has one auto-save', (await total()) === plainBill0 + 50, `${plainBill0} -> ${await total()}`);
+    await op.click('#providerSeg button[data-val="Opay"]');
+    check('an OPay Bill has no auto-save', (await total()) === plainBill0, `${plainBill0} -> ${await total()}`);
+    await op.click('#providerSeg button[data-val="Moniepoint"]');
+    // A bill inside Withdraw+Transfer counts too: withdrawal + transfer + bill.
+    const billAmount = await op.inputValue('#amount');
+    await op.click('#typeSeg button[data-val="WithdrawTransfer"]');
+    await op.fill('#amount', '6000');
+    await op.fill('#transferAmountsGrid .field:first-child .transfer-amount-input', '5000');
+    await until(()=> op.isVisible('#remainingHandlingBillCheck'));
+    await op.check('#remainingHandlingBillCheck');
+    await op.click('#comboBillerSeg button[data-val="Airtime"]');
+    await op.fill('#comboBillerAmounts input[data-biller="Airtime"]', '1000');
+    check('Withdraw+Transfer can pay Airtime, with auto-save on each part', /autosave ₦150/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+    await op.fill('#amount', '');
+    await op.click('#typeSeg button[data-val="Bill"]');
+    await op.fill('#amount', billAmount);
+    await setAutosave(savedAutosave);
+    // Several bills in one visit, each with its own amount.
+    const billInput = b => `#billWdBillerAmounts input[data-biller="${b}"]`;
+    await op.fill('#amount', '11000');
+    await op.check('#billWithdrawCheck');
+    check('ticking Withdrawal moves the bill into its own box', (await op.inputValue(billInput('DSTV'))) === '11,000' && !(await op.isVisible('#amount')), await op.inputValue(billInput('DSTV')));
+    await op.click('#billerSeg button[data-val="GOTV"]');
+    check('a second bill can be selected and the first stays', await op.isVisible(billInput('GOTV')) && (await op.$$eval('#billerSeg button.active', e => e.map(x => x.dataset.val).join())) === 'DSTV,GOTV' && (await op.inputValue(billInput('DSTV'))) === '11,000');
+    await op.fill(billInput('GOTV'), '4000');
+    await op.fill('#billWithdrawAmount', '20000');
+    check('Remaining takes off both bills', /5,000/.test(await op.textContent('#billRemainingVal')), await op.textContent('#billRemainingVal'));
+    await op.check('#billCashCheck'); await op.fill('#billCashAmount', '4700');
+    await op.check('#billKeptCheck');
+    await op.click('#addBtn');
+    const multi = op.locator('#logList .log-item:has-text("withdrew ₦20,000 + ₦11,000 DSTV")').first();
+    check('both bills show in the log', await until(async()=> /₦11,000 DSTV payment \+ ₦4,000 GOTV payment \+ gave ₦4,700 cash to customer \+ ₦300 kept/.test((await multi.textContent()).replace(/\s+/g,' '))), (await multi.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,240));
+    // Airtime is a bill like the others, on its own or with a withdrawal.
+    await op.click('#billerSeg button[data-val="Airtime"]');
+    await op.fill('#amount', '2000'); await op.fill('#customerFee', '100');
+    await op.click('#addBtn');
+    const airtime = op.locator('#logList .log-item:has-text("Bill · Airtime")').first();
+    check('an Airtime bill saves on its own', await until(async()=> /paid ₦2,000/.test(await airtime.textContent())), (await airtime.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,200));
+    await op.fill('#amount', '1000');
+    await op.check('#billWithdrawCheck');
+    await op.fill('#billWithdrawAmount', '1200');
+    await op.check('#billKeptCheck');
+    await op.click('#addBtn');
+    const wdAirtime = op.locator('#logList .log-item:has-text("withdrew ₦1,200")').first();
+    check('a withdrawal to buy Airtime saves as Withdraw+Bill', await until(async()=> /₦1,000 Airtime payment \+ ₦200 kept/.test((await wdAirtime.textContent()).replace(/\s+/g,' '))), (await wdAirtime.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,200));
+    await op.click('#billerSeg button[data-val="DSTV"]');
+    // Unticking returns to one bill; leaving Bills puts the other forms back.
+    await op.check('#billWithdrawCheck');
+    await op.click('#billerSeg button[data-val="GOTV"]');
+    await op.fill(billInput('GOTV'), '4000');
+    await op.uncheck('#billWithdrawCheck');
+    check('unticking Withdrawal returns to one bill with its amount', (await op.inputValue('#amount')) === '4,000' && (await op.isVisible('#amount')), await op.inputValue('#amount'));
+    await op.check('#billWithdrawCheck');
+    await op.click('#typeSeg button[data-val="WithdrawTransfer"]');
+    check('Withdraw+Transfer does not show the Bills withdrawal boxes', !(await op.isVisible('#billWithdrawGroup')) && await op.isVisible('#amount'));
+    await op.click('#typeSeg button[data-val="Bill"]');
+    check('coming back to Bills starts unticked', !(await op.isChecked('#billWithdrawCheck')) && !(await op.isVisible('#billWithdrawAmount')));
+    await op.click('#typeSeg button[data-val="Withdrawal"]');
+    await op.fill('#amount', ''); await op.fill('#customerFee', '');
+  }
+
   // ---------- custom date filter ----------
   {
     const ymd = n => { const d = new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
@@ -726,6 +852,9 @@ function sideAware(p){
     const csv = fs.readFileSync(await dl.path(), 'utf8');
     check('full backup includes old entries (60 days)', /legacy-1/.test(csv));
     check('full backup includes deleted entries', /,yes,Test Staff,/.test(csv));
+    const csvRows = csv.trim().split('\r\n');
+    check('the spreadsheet has the bill and cash columns', /Bills paid,Bill amount,Cash given to customer,Kept as service fee/.test(csvRows[0]), csvRows[0]);
+    check('the spreadsheet shows each bill, the total, the cash and the kept fee', csvRows.some(r => /Withdraw\+Bill,.*,DSTV 11000; GOTV 4000,15000,4700,300,/.test(r)), csvRows.find(r => /DSTV 11000; GOTV/.test(r)) || '');
   }
   await op.click('#settingsDoneBtn');
 
