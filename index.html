@@ -68,6 +68,16 @@
       <button class="addbtn" id="setupSubmit" type="submit">Create my business</button>
       <button class="calc-history-clear" id="setupSignOut" type="button" style="margin-top:12px; font-size:12px;">Sign out</button>
     </form>
+    <form id="resetForm" style="display:none;">
+      <div class="auth-msg" style="margin-bottom:12px;" id="resetMsg"></div>
+      <input type="password" id="resetPassword" placeholder="New password (6+ characters)" autocomplete="new-password" required />
+      <input type="password" id="resetPassword2" placeholder="Type it again" autocomplete="new-password" required />
+      <button class="addbtn" id="resetSubmit" type="submit">Save new password</button>
+    </form>
+    <div id="actionForm" style="display:none;">
+      <div class="auth-msg" style="margin-bottom:14px;" id="actionMsg"></div>
+      <button class="addbtn" id="actionContinue" type="button">Go to sign in</button>
+    </div>
     <div id="verifyForm" style="display:none;">
       <div class="auth-msg" style="margin-bottom:14px;" id="verifyMsg"></div>
       <button class="addbtn" id="verifyDone" type="button">I've verified my email</button>
@@ -711,6 +721,6 @@
   </aside>
 </div>
 
-<script src="app.js?v=c3b535fb"></script>
+<script src="app.js?v=45f11d43"></script>
 </body>
 </html>

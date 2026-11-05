@@ -3694,7 +3694,7 @@
         const m = teamMembers[btn.dataset.uid];
         if(!navigator.onLine){ btn.textContent = 'No internet — connect to send it.'; return; }
         try{
-          await fb.sendPasswordResetEmail(fb.auth, m.email);
+          await sendResetEmail(m.email);
           btn.textContent = 'Reset email sent ✓';
         }catch(err){ btn.textContent = 'Could not send — ' + ((err && err.code) || 'error'); }
       });
@@ -3813,7 +3813,7 @@
     const btn = $('#addStaffResetBtn');
     if(!navigator.onLine){ btn.textContent = 'No internet — connect to send the reset email.'; return; }
     try{
-      await fb.sendPasswordResetEmail(fb.auth, btn.dataset.email);
+      await sendResetEmail(btn.dataset.email);
       btn.textContent = `Reset email sent to ${btn.dataset.email} ✓`;
     }catch(err){ btn.textContent = 'Could not send — check the email address.'; }
   });
@@ -3965,12 +3965,90 @@
     $('#signupForm').style.display = mode === 'signup' ? '' : 'none';
     $('#setupForm').style.display = mode === 'setup' ? '' : 'none';
     $('#verifyForm').style.display = mode === 'verify' ? '' : 'none';
+    $('#resetForm').style.display = mode === 'reset' ? '' : 'none';
+    $('#actionForm').style.display = mode === 'action' ? '' : 'none';
     $('#authRole').closest('.auth-card').querySelector('#authSub').style.display = (mode === 'form') ? '' : 'none';
     $('#authBlocked').style.display = mode === 'blocked' ? '' : 'none';
     $('#authBlockedSignOut').style.display = mode === 'blocked' ? '' : 'none';
     $('#authApplyAgain').style.display = 'none';
     if(mode === 'loading') $('#authLoading').textContent = message || 'Connecting…';
     if(mode === 'blocked') $('#authBlocked').textContent = message || '';
+  }
+
+  // Reset and confirmation emails go through Ledger's own email service (email-service/).
+  // If it can't be reached or can't send, the sign-in provider's plain email goes instead,
+  // so nobody is ever left without a way back into their account.
+  const EMAIL_SERVICE = new URLSearchParams(location.search).get('emulator') === '1' ? 'http://127.0.0.1:8787' : 'https://ledger-email.fuse-proxy.workers.dev';
+  async function postEmailService(path, body){
+    if(!EMAIL_SERVICE) return false;
+    let res;
+    try{
+      res = await fetch(EMAIL_SERVICE + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+    }catch(e){ return false; }
+    if(res.status === 429) throw Object.assign(new Error('Too many tries'), { code:'auth/too-many-requests' });
+    return res.ok;
+  }
+  async function sendResetEmail(email){
+    if(!await postEmailService('/reset', { email })) await fb.sendPasswordResetEmail(fb.auth, email);
+  }
+  async function sendVerifyEmail(user){
+    if(!await postEmailService('/verify', { idToken: await user.getIdToken() })) await fb.sendEmailVerification(user);
+  }
+
+  // Links in the app's emails open here rather than on the sign-in provider's own page.
+  // The email templates' action URL has to point at this page for that to happen.
+  const EMAIL_ACTION_MODES = ['resetPassword', 'verifyEmail', 'recoverEmail'];
+  function showActionResult(message){
+    $('#authStatus').textContent = '';
+    $('#actionMsg').textContent = message;
+    showGate('action');
+  }
+  function emailActionFailed(err){
+    if((err && err.code) === 'auth/network-request-failed'){
+      showGate('loading', 'No internet connection — connect, then reload this page.');
+      return;
+    }
+    showActionResult('This link has expired or was already used. Go to sign in and tap "Forgot password?" to get a new one.');
+  }
+  async function handleEmailAction(authMod, mode, code){
+    showGate('loading', 'Checking your link…');
+    $('#actionContinue').addEventListener('click', ()=>{
+      // Drops the used code from the address; a test run keeps ?emulator=1.
+      const keep = new URLSearchParams(location.search).get('emulator') === '1' ? '?emulator=1' : '';
+      location.replace(location.pathname + keep);
+    });
+    try{
+      if(mode === 'verifyEmail'){
+        await authMod.applyActionCode(fb.auth, code);
+        showActionResult('Your email is verified. You can now sign in to Ledger.');
+      }else if(mode === 'recoverEmail'){
+        const info = await authMod.checkActionCode(fb.auth, code);
+        await authMod.applyActionCode(fb.auth, code);
+        showActionResult(`Your login email is back to ${info.data.email}. If you didn't ask for the change, reset your password at sign in.`);
+      }else{
+        const email = await authMod.verifyPasswordResetCode(fb.auth, code);
+        $('#resetMsg').textContent = `Choose a new password for ${email}.`;
+        showGate('reset');
+        $('#resetForm').addEventListener('submit', async (e)=>{
+          e.preventDefault();
+          const st = $('#authStatus'); const btn = $('#resetSubmit');
+          const pw = $('#resetPassword').value;
+          st.className = 'status error';
+          if(pw.length < 6){ st.textContent = 'Use at least 6 characters.'; return; }
+          if(pw !== $('#resetPassword2').value){ st.textContent = "Those two passwords don't match."; return; }
+          btn.disabled = true;
+          st.textContent = '';
+          try{
+            await authMod.confirmPasswordReset(fb.auth, code, pw);
+            showActionResult('Your password has been changed. Sign in with your new password.');
+          }catch(err){
+            if((err && err.code) === 'auth/network-request-failed') st.textContent = 'No internet connection — connect and try again.';
+            else if((err && err.code) === 'auth/weak-password') st.textContent = 'That password is too weak. Try a longer one.';
+            else emailActionFailed(err);
+          }finally{ btn.disabled = false; }
+        });
+      }
+    }catch(err){ emailActionFailed(err); }
   }
 
   function onAuthChange(user){
@@ -4413,7 +4491,7 @@
       const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, password);
       currentUser = cred.user;
       savePending({ name, ownerName, username, phone: normalizePhone(phone) });
-      await fb.sendEmailVerification(cred.user);
+      await sendVerifyEmail(cred.user);
       $('#signupPassword').value = '';
       st.textContent = '';
       showVerify();
@@ -4464,7 +4542,7 @@
   $('#verifyResend').addEventListener('click', async ()=>{
     if(!fb || !currentUser) return;
     const st = $('#authStatus');
-    try{ await fb.sendEmailVerification(currentUser); st.className = 'status deepgreen'; st.textContent = 'Sent again ✓ Check your inbox and spam folder.'; }
+    try{ await sendVerifyEmail(currentUser); st.className = 'status deepgreen'; st.textContent = 'Sent again ✓ Check your inbox and spam folder.'; }
     catch(err){ st.className = 'status error'; st.textContent = (err && err.code) === 'auth/too-many-requests' ? 'Please wait a few minutes before sending another.' : "Couldn't send the email — try again."; }
   });
   $('#verifySignOut').addEventListener('click', ()=>{ if(fb) fb.signOut(fb.auth); });
@@ -4791,18 +4869,20 @@
       // A username with an email behind it can still get a reset link (sent to that email).
       const resolved = await resolveLogin(email);
       if(isUsernameLogin(resolved)){ st.className = 'status error'; st.textContent = "This username has no email to send a reset link to. Ask your business owner to add an email for you, or to add you again with a new password."; return; }
-      try{ await fb.sendPasswordResetEmail(fb.auth, resolved); }catch(e){}
+      try{ await sendResetEmail(resolved); }catch(e){}
       st.className = 'status deepgreen';
       st.textContent = 'If that username has an email, a reset link is on its way to it. Check the inbox and spam folder.';
       return;
     }
     try{
-      await fb.sendPasswordResetEmail(fb.auth, email);
+      await sendResetEmail(email);
       st.className = 'status deepgreen';
       st.textContent = `If ${email} has a login, a reset link is on its way. Check your inbox and spam folder.`;
     }catch(err){
       st.className = 'status error';
-      st.textContent = (err && err.code) === 'auth/network-request-failed' ? 'No internet connection — connect and try again.' : "Couldn't send the reset email — check the address.";
+      st.textContent = (err && err.code) === 'auth/network-request-failed' ? 'No internet connection — connect and try again.'
+        : (err && err.code) === 'auth/too-many-requests' ? 'Too many tries — wait a minute, then try again.'
+        : "Couldn't send the reset email — check the address.";
     }
   });
 
@@ -4881,7 +4961,10 @@
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc, writeBatch: fsMod.writeBatch,
         serverTimestamp: fsMod.serverTimestamp, Timestamp: fsMod.Timestamp
       };
-      fb.onAuthStateChanged(auth, onAuthChange);
+      const linkParams = new URLSearchParams(location.search);
+      const linkMode = linkParams.get('mode'), linkCode = linkParams.get('oobCode');
+      if(linkCode && EMAIL_ACTION_MODES.includes(linkMode)) await handleEmailAction(authMod, linkMode, linkCode);
+      else fb.onAuthStateChanged(auth, onAuthChange);
     }catch(err){
       showGate('loading', "Couldn't connect. Check your internet connection, then reload the page.");
     }

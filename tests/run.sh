@@ -2,7 +2,7 @@
 # Runs every test against local Firebase emulators. Nothing touches the real database.
 #   ./run.sh            all tests
 #   ./run.sh rules      just the security rules
-#   ./run.sh e2e        just the browser tests (also: pwa)
+#   ./run.sh e2e        just the browser tests (also: pwa, email)
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -d node_modules ] || npm install
@@ -20,8 +20,9 @@ case "${1:-all}" in
   rules) CMD="node rules-test.mjs" ;;
   e2e)   CMD="node e2e.js" ;;
   pwa)   CMD="node pwa.js" ;;
-  all)   CMD="node rules-test.mjs && node e2e.js && node pwa.js" ;;
-  *) echo "usage: ./run.sh [all|rules|e2e|pwa]"; exit 1 ;;
+  email) CMD="node email-service-test.mjs" ;;
+  all)   CMD="node rules-test.mjs && node email-service-test.mjs && node e2e.js && node pwa.js" ;;
+  *) echo "usage: ./run.sh [all|rules|email|e2e|pwa]"; exit 1 ;;
 esac
 
 # Lets the page's test routes also answer the service worker's requests (pwa.js).
