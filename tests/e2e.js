@@ -501,8 +501,8 @@ function sideAware(p){
     await op.fill('#transferAmountsGrid .field:first-child .transfer-amount-input', '5000');
     await until(()=> op.isVisible('#remainingHandlingBillCheck'));
     await op.check('#remainingHandlingBillCheck');
-    await op.click('#comboBillerSeg button[data-val="Airtime"]');
-    await op.fill('#comboBillerAmounts input[data-biller="Airtime"]', '1000');
+    await op.click('#comboBillerSeg button[data-val="Airtime/Data"]');
+    await op.fill('#comboBillerAmounts input[data-biller="Airtime/Data"]', '1000');
     check('Withdraw+Transfer can pay Airtime, with auto-save on each part', /autosave ₦150/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
     await op.fill('#amount', '');
     await op.click('#typeSeg button[data-val="Bill"]');
@@ -524,10 +524,10 @@ function sideAware(p){
     const multi = op.locator('#logList .log-item:has-text("withdrew ₦20,000 + ₦11,000 DSTV")').first();
     check('both bills show in the log', await until(async()=> /₦11,000 DSTV payment \+ ₦4,000 GOTV payment \+ gave ₦4,700 cash to customer \+ ₦300 kept/.test((await multi.textContent()).replace(/\s+/g,' '))), (await multi.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,240));
     // Airtime is a bill like the others, on its own or with a withdrawal.
-    await op.click('#billerSeg button[data-val="Airtime"]');
+    await op.click('#billerSeg button[data-val="Airtime/Data"]');
     await op.fill('#amount', '2000'); await op.fill('#customerFee', '100');
     await op.click('#addBtn');
-    const airtime = op.locator('#logList .log-item:has-text("Bill · Airtime")').first();
+    const airtime = op.locator('#logList .log-item:has-text("Bill · Airtime/Data")').first();
     check('an Airtime bill saves on its own', await until(async()=> /paid ₦2,000/.test(await airtime.textContent())), (await airtime.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,200));
     await op.fill('#amount', '1000');
     await op.check('#billWithdrawCheck');
@@ -535,7 +535,7 @@ function sideAware(p){
     await op.check('#billKeptCheck');
     await op.click('#addBtn');
     const wdAirtime = op.locator('#logList .log-item:has-text("withdrew ₦1,200")').first();
-    check('a withdrawal to buy Airtime saves as Withdraw+Bill', await until(async()=> /₦1,000 Airtime payment \+ ₦200 kept/.test((await wdAirtime.textContent()).replace(/\s+/g,' '))), (await wdAirtime.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,200));
+    check('a withdrawal to buy Airtime saves as Withdraw+Bill', await until(async()=> /₦1,000 Airtime\/Data payment \+ ₦200 kept/.test((await wdAirtime.textContent()).replace(/\s+/g,' '))), (await wdAirtime.textContent().catch(()=>'')).replace(/\s+/g,' ').slice(0,200));
     await op.click('#billerSeg button[data-val="DSTV"]');
     // Unticking returns to one bill; leaving Bills puts the other forms back.
     await op.check('#billWithdrawCheck');
