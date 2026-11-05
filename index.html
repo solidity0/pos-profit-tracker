@@ -128,6 +128,7 @@
       <button data-val="DSTV">DSTV</button>
       <button data-val="GOTV">GOTV</button>
       <button data-val="StarTimes">StarTimes</button>
+      <button data-val="Airtime">Airtime</button>
       <button data-val="Betting">Betting</button>
     </div>
 
@@ -139,6 +140,51 @@
       <div class="field" id="customerFeeFieldWrap">
         <label>Service Fee (₦)</label>
         <input type="text" id="customerFee" inputmode="numeric" autocomplete="off" placeholder="e.g. 200" style="text-align:center;" />
+      </div>
+    </div>
+
+    <div id="billWithdrawGroup" style="display:none; margin-bottom:14px;">
+      <div class="leg-category-box">
+        <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:0; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+          <input type="checkbox" id="billWithdrawCheck" style="width:17px; height:17px; flex-shrink:0;" />
+          <span>Withdrawal</span>
+        </label>
+        <div class="field breathing-field" id="billWithdrawAmountWrap" style="display:none; margin: 10px 0 0;">
+          <label style="min-height:auto; display:block;">Enter the amount withdrawn (₦)</label>
+          <input type="text" id="billWithdrawAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 20,000" style="text-align:center;" />
+        </div>
+      </div>
+
+      <div id="billWithdrawDetails" style="display:none;">
+        <div class="leg-category-box">
+          <div class="hint" style="text-align:center;">Tap every bill paid above and enter the actual amount for each.</div>
+          <div id="billWdBillerAmounts"></div>
+        </div>
+
+        <div class="leg-category-box">
+          <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:0; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+            <input type="checkbox" id="billCashCheck" style="width:17px; height:17px; flex-shrink:0;" />
+            <span id="billCashLabel">Gave cash to customer</span>
+          </label>
+          <div class="field breathing-field" id="billCashAmountWrap" style="display:none; margin: 10px 0 0;">
+            <label style="min-height:auto; display:block;">Enter the actual amount given to customer (₦)</label>
+            <input type="text" id="billCashAmount" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000" style="text-align:center;" />
+          </div>
+        </div>
+
+        <div class="leg-category-box" id="billKeptBox">
+          <label class="samebank-toggle" style="justify-content:center; gap:8px; margin-bottom:0; font-size:13px; color:var(--text); text-transform:uppercase; letter-spacing:0.04em;">
+            <input type="checkbox" id="billKeptCheck" style="width:17px; height:17px; flex-shrink:0;" />
+            <span id="billKeptLabel">Kept as service fee/charge</span>
+          </label>
+        </div>
+
+        <div class="field" style="margin-top:14px; margin-bottom:0;">
+          <label>Remaining (₦)</label>
+          <div class="running-total" id="billRemainingBox">
+            <span class="val" id="billRemainingVal">₦0</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -176,6 +222,7 @@
               <button data-val="DSTV">DSTV</button>
               <button data-val="GOTV">GOTV</button>
               <button data-val="StarTimes">StarTimes</button>
+              <button data-val="Airtime">Airtime</button>
               <button data-val="Betting">Betting</button>
             </div>
             <div id="comboBillerAmounts"></div>
@@ -516,7 +563,7 @@
         <div class="switchrow"><label>Also apply to Withdrawals</label><input type="checkbox" id="stampOnWithdrawal" /></div>
         <div class="hint">Confirmed on your statement for Transfers ≥ ₦10,000 (₦50 flat). Whether withdrawals also attract it isn't confirmed yet — leave off unless you see it on a withdrawal line too. Set the flat charge to 0 to turn stamp duty off entirely.</div>
 
-        <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes)</h3>
+        <h3>Bill Payments (Electricity, DSTV, GOTV, StarTimes, Airtime)</h3>
         <div class="field"><label>Machine charge on bill payments (₦)</label><input type="text" inputmode="numeric" autocomplete="off" id="billFee" /></div>
         <div class="hint">Your record book shows a dash under MC for Electricity/GOTV rows — no machine charge on bill payments — so this defaults to ₦0 and your full fee is profit. Edit if that ever changes.</div>
 
@@ -664,6 +711,6 @@
   </aside>
 </div>
 
-<script src="app.js?v=2a928ab5"></script>
+<script src="app.js?v=c3b535fb"></script>
 </body>
 </html>
