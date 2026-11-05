@@ -1162,6 +1162,15 @@ function sideAware(p){
   await lk.waitForSelector('#actionForm', { state:'visible' });
   check('a verify link confirms on a Ledger page', /email is verified/.test(await lk.textContent('#actionMsg')), await lk.textContent('#actionMsg'));
   check('...and the login really is verified', (await authApi('accounts:signInWithPassword', { email:'forgot@test.com', password:'newpass1', returnSecureToken:true }).then(u => authApi('accounts:lookup', { idToken:u.idToken }))).users[0].emailVerified === true);
+  // ---------- the sign-in page ----------
+  await lk.goto(PAGE); await lk.waitForSelector('#authForm', { state:'visible' });
+  check('the sign-in page says what Ledger is', (await lk.textContent('.auth-tagline')) === 'Terminal profit tracker for agents', await lk.textContent('.auth-tagline'));
+  const loginCard = await ctx(b, 'logindesk'); const ld = loginCard.p;
+  await ld.setViewportSize({ width:1536, height:700 });
+  await ld.goto(PAGE); await ld.waitForSelector('#authForm', { state:'visible' });
+  const loginBox = await ld.evaluate(() => { const r = document.querySelector('.auth-card').getBoundingClientRect(); return { w: Math.round(r.width), bottom: Math.round(r.bottom) }; });
+  check('on a computer the sign-in card is smaller and fits the screen', loginBox.w < 330 && loginBox.bottom <= 700, JSON.stringify(loginBox));
+  await loginCard.c.close();
   const linkErrs = lk.errs.slice();
   await LINK.c.close();
   const errs = [...op.errs, ...sp.errs, ...xp.errs, ...linkErrs, ...verifyErrs];

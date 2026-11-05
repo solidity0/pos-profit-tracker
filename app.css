@@ -642,6 +642,8 @@
   /* Sign-in screen: a soft glow behind a frosted card, the app's mark, a segmented
      owner/salesperson choice, fields with icons, and the legal links under the card. */
   .auth-gate{ position:relative; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 36px 16px 22px; overflow:hidden; isolation:isolate; }
+  /* On a computer the sign-in page sits smaller; phones and tablets keep their full size. */
+  @media (min-width: 768px) and (hover: hover) and (pointer: fine){ .auth-gate > *{ zoom: 0.82; } }
   .auth-gate::before{ content:''; position:absolute; z-index:-1; inset: -25% -30% auto -30%; height: 75%; pointer-events:none;
     background: radial-gradient(45% 50% at 35% 45%, rgba(59,124,255,0.30), transparent 70%), radial-gradient(35% 40% at 75% 35%, rgba(23,196,160,0.14), transparent 70%); }
   [data-theme="day"] .auth-gate::before{ opacity: 0.55; }
