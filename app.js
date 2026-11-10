@@ -3438,6 +3438,7 @@
   function stopListeners(){
     [txUnsub, settingsUnsub, teamUnsub, presenceUnsub, activityUnsub].forEach(u => { if(u) u(); });
     txUnsub = settingsUnsub = teamUnsub = presenceUnsub = activityUnsub = null;
+    stopActivityRange();
     activityEvents = [];
     stopPresence();
   }
@@ -3488,6 +3489,10 @@
   // businesses/{id}/activity, stamped with the server's time. Everyone notes only their own
   // actions; only the owner reads them, and nobody can change or remove one (see the rules).
   let activityUnsub = null, activityEvents = [];
+  // The Recent activity date filter. Ranges inside the last 7 days use the events already
+  // loaded for the Team list; older ones get their own listener.
+  let activityRange = '7d', activityRangeUnsub = null, activityRangeEvents = null, activityRangeKey = '';
+  const ACTIVITY_MAX_SHOWN = 200;
   let signingIn = false; // set while the sign-in form is being used, so a sign-in is noted once
   const ACTIVITY_DAYS = 7;
   function logActivity(type, detail){
@@ -3501,13 +3506,57 @@
     if(!t) return 'an entry';
     return `${typeLabel(t)} ${fmt(t.amount || 0)} · ${providerDisplay(t.provider)} · logged by ${nameFor(t.loggedBy, t.loggedByName)}`;
   }
+  function stopActivityRange(){
+    if(activityRangeUnsub){ activityRangeUnsub(); activityRangeUnsub = null; }
+    activityRangeEvents = null; activityRangeKey = '';
+  }
+  const activityDoc = d => { const x = d.data({ serverTimestamps: 'estimate' }) || {}; return { id: d.id, type: x.type, uid: x.uid, detail: x.detail || '', atMs: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; };
+  const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dateInputMs = (v) => { const [y, m, d] = String(v || '').split('-').map(Number); return y ? new Date(y, m - 1, d).getTime() : NaN; };
+  // The chosen range as [start, end) in ms, with the words shown beside the heading.
+  function activityBounds(){
+    const now = new Date(), today = dayStart(now), day = 86400e3;
+    if(activityRange === 'today') return { start: today, end: Infinity, label: 'today' };
+    if(activityRange === 'yesterday'){ const y = new Date(today - 1); return { start: dayStart(y), end: today, label: 'yesterday' }; }
+    // From midnight, so the start stays put while the list is open (a moving start would
+    // restart the lookup on every refresh).
+    if(activityRange === '30d') return { start: dayStart(new Date(Date.now() - 30 * day)), end: Infinity, label: 'last 30 days' };
+    if(activityRange === 'custom'){
+      let from = dateInputMs($('#activityFrom').value), to = dateInputMs($('#activityTo').value);
+      if(isNaN(from) || isNaN(to)) return null;
+      if(from > to) [from, to] = [to, from];
+      const toDay = new Date(to);
+      const end = new Date(toDay.getFullYear(), toDay.getMonth(), toDay.getDate() + 1).getTime();
+      const label = from === to ? logDateFormat.format(new Date(from)) : `${logDateFormat.format(new Date(from))} – ${logDateFormat.format(toDay)}`;
+      return { start: from, end, label };
+    }
+    return { start: Date.now() - ACTIVITY_DAYS * day, end: Infinity, label: `last ${ACTIVITY_DAYS} days` };
+  }
+  function syncActivityRange(){
+    const b = activityBounds();
+    const loadedFrom = Date.now() - ACTIVITY_DAYS * 86400e3;
+    if(!b || b.start >= loadedFrom - 60000 || role !== 'owner' || !fb){ stopActivityRange(); return; }
+    const key = b.start + '-' + b.end;
+    if(key === activityRangeKey) return;
+    stopActivityRange();
+    activityRangeKey = key;
+    const parts = [bcol('activity'), fb.where('at', '>=', fb.Timestamp.fromMillis(b.start))];
+    if(b.end !== Infinity) parts.push(fb.where('at', '<', fb.Timestamp.fromMillis(b.end)));
+    parts.push(fb.orderBy('at', 'desc'), fb.limit(ACTIVITY_MAX_SHOWN + 1));
+    activityRangeUnsub = fb.onSnapshot(fb.query(...parts), (snap)=>{
+      if(activityRangeKey !== key) return;
+      activityRangeEvents = snap.docs.map(activityDoc);
+      renderActivity();
+    }, ()=>{ if(activityRangeKey === key){ activityRangeEvents = []; renderActivity(); } });
+  }
   function startActivityListener(){
     if(activityUnsub){ activityUnsub(); activityUnsub = null; }
+    stopActivityRange();
     activityEvents = [];
     if(role !== 'owner') return;
     const since = fb.Timestamp.fromMillis(Date.now() - ACTIVITY_DAYS * 86400e3);
     activityUnsub = fb.onSnapshot(fb.query(bcol('activity'), fb.where('at', '>=', since), fb.orderBy('at', 'desc')), (snap)=>{
-      activityEvents = snap.docs.map(d => { const x = d.data({ serverTimestamps: 'estimate' }) || {}; return { id: d.id, type: x.type, uid: x.uid, detail: x.detail || '', atMs: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
+      activityEvents = snap.docs.map(activityDoc);
       renderActivity();
     }, ()=>{});
   }
@@ -3541,13 +3590,44 @@
       return `<div class="activity-person"><div><span class="activity-name">${escapeHtml(nameFor(uid))}</span><span class="activity-role">${roleText}</span></div>
         <div class="activity-status${live ? ' live' : ''}">${status}</div><div class="activity-meta">${login}</div></div>`;
     }).join('');
-    listEl.innerHTML = activityEvents.length ? activityEvents.slice(0, 200).map(e => {
+    syncActivityRange();
+    const bounds = activityBounds();
+    $('#activitySub').textContent = bounds ? bounds.label : 'choose the dates';
+    let shown;
+    if(!bounds) shown = [];
+    else if(activityRangeUnsub) shown = activityRangeEvents || [];
+    else shown = activityEvents.filter(e => e.atMs >= bounds.start && e.atMs < bounds.end);
+    const loading = !!bounds && !!activityRangeUnsub && !activityRangeEvents;
+    const more = shown.length > ACTIVITY_MAX_SHOWN;
+    const emptyText = !bounds ? 'Choose a start and end date.'
+      : loading ? 'Loading…'
+      : activityRange === '7d' ? 'Nothing yet. Sign-ins, deletes and team changes will show here.'
+      : 'Nothing in this period.';
+    listEl.innerHTML = shown.length ? shown.slice(0, ACTIVITY_MAX_SHOWN).map(e => {
       const [icon, text, warn] = ACTIVITY_LABELS[e.type] || ['•', e.type];
       return `<div class="activity-item${warn ? ' warn' : ''}"><span class="activity-icon">${icon}</span>
         <div><strong>${escapeHtml(nameFor(e.uid))}</strong> ${text}${e.detail ? `<div class="activity-detail">${escapeHtml(e.detail)}</div>` : ''}</div>
         <div class="activity-time">${whenText(e.atMs)} · ${agoText(e.atMs)}</div></div>`;
-    }).join('') : `<div class="activity-empty">Nothing yet. Sign-ins, deletes and team changes will show here.</div>`;
+    }).join('') + (more ? `<div class="activity-empty">Showing the latest ${ACTIVITY_MAX_SHOWN}. Choose a shorter period to see the rest.</div>` : '')
+      : `<div class="activity-empty">${emptyText}</div>`;
   }
+  $('#activityRange').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $('#activityRange').querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      activityRange = btn.dataset.val;
+      const custom = activityRange === 'custom';
+      $('#activityCustom').style.display = custom ? '' : 'none';
+      if(custom && !$('#activityFrom').value){
+        $('#activityFrom').value = toDateInputValue(new Date(Date.now() - 6 * 86400e3));
+        $('#activityTo').value = toDateInputValue(new Date());
+      }
+      renderActivity();
+    });
+  });
+  ['#activityFrom', '#activityTo'].forEach(sel => {
+    $(sel).max = toDateInputValue(new Date());
+    ['input', 'change'].forEach(ev => $(sel).addEventListener(ev, renderActivity));
+  });
   document.addEventListener('visibilitychange', ()=>{ if(presenceTimer) writePresence(document.visibilityState !== 'hidden'); });
   window.addEventListener('pagehide', ()=>{ if(presenceTimer) writePresence(false); });
   // Before signing out, note "away" (best effort: the next write may be refused once signed out).

@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Ledger" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="app.css?v=489709f7" />
+<link rel="stylesheet" href="app.css?v=70d3702c" />
 </head>
 <body>
 <div class="auth-gate" id="authGate">
@@ -713,7 +713,18 @@
         <div id="activityContent" style="display:none; margin-top:14px;">
           <div class="activity-head">Team</div>
           <div id="activityTeam" class="activity-team"></div>
-          <div class="activity-head">Recent activity <span class="activity-sub">last 7 days</span></div>
+          <div class="activity-head">Recent activity <span class="activity-sub" id="activitySub">last 7 days</span></div>
+          <div class="provider-filter activity-range" id="activityRange">
+            <button data-val="today">Today</button>
+            <button data-val="yesterday">Yesterday</button>
+            <button data-val="7d" class="active">7 days</button>
+            <button data-val="30d">30 days</button>
+            <button data-val="custom">Custom</button>
+          </div>
+          <div class="row2" id="activityCustom" style="display:none; margin-bottom:12px;">
+            <div class="field" style="margin-bottom:0;"><label>Start Date</label><input type="date" id="activityFrom" /></div>
+            <div class="field" style="margin-bottom:0;"><label>End Date</label><input type="date" id="activityTo" /></div>
+          </div>
           <div id="activityList" class="activity-list"></div>
         </div>
       </div>
@@ -721,6 +732,6 @@
   </aside>
 </div>
 
-<script src="app.js?v=a35461d8"></script>
+<script src="app.js?v=48872eef"></script>
 </body>
 </html>

@@ -455,6 +455,8 @@
   .activity-time{ color: var(--muted-2); font-size: 11px; }
   .activity-item.warn{ border-color: rgba(248,113,113,0.35); }
   .activity-empty{ color: var(--muted); font-size: 12.5px; padding: 6px 2px; }
+  .provider-filter.activity-range{ grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+  .activity-range button{ padding: 9px 2px; font-size: 11.5px; }
   /* Full-screen settings. */
   #settingsCard.settings-full{ position:fixed; inset:0; z-index:1000; margin:0 !important; max-width:none !important; min-width:0 !important; width:auto; border:none; border-radius:0; box-shadow:none; background: var(--bg);
     display:flex; flex-direction:column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
