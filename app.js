@@ -460,7 +460,12 @@
     const input = field.querySelector('input.transfer-amount-input');
     attachCommaFormatting(input);
     input.addEventListener('input', refreshAuto);
-    field.querySelector('.samebank-check').addEventListener('change', refreshAuto);
+    const sameBank = field.querySelector('.samebank-check');
+    sameBank.checked = state.type === 'WithdrawTransfer' && $('#overrideFee').checked;
+    sameBank.addEventListener('change', ()=>{
+      $('#overrideFee').checked = Array.from($('#transferAmountsGrid').querySelectorAll('.samebank-check')).every(c => c.checked);
+      refreshAuto();
+    });
     if(removable){
       field.querySelector('[data-remove]').addEventListener('click', ()=>{
         field.remove();
@@ -645,7 +650,7 @@
     const cash = numVal('#cashAmount');
     const legs = getTransferLegs();
     const sum = legs.reduce((a,l)=>a+l.amount, 0);
-    return (amount + cash) - sum;
+    return +((amount + cash) - sum).toFixed(2);
   }
 
   // Reads the leftover-handling checkboxes + their amount fields. Any combination can be
@@ -788,7 +793,7 @@
       const cash = numVal('#cashAmount');
       const pool = amount + cash;
       const sum = legs.reduce((a,l)=>a+l.amount, 0);
-      const remaining = pool - sum;
+      const remaining = +(pool - sum).toFixed(2);
 
       const legAmounts = getRemainingLegAmounts(Math.max(remaining, 0));
       const billLegs = (remaining > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
@@ -1132,7 +1137,7 @@
     const legs = isCombo ? getTransferLegs().filter(l => l.amount > 0) : null;
     const cashAmount = isCombo ? numVal('#cashAmount') : 0;
     const legsSumForBill = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
-    const leftoverForBill = isCombo ? (amount + cashAmount) - legsSumForBill : 0;
+    const leftoverForBill = isCombo ? +((amount + cashAmount) - legsSumForBill).toFixed(2) : 0;
 
     const legAmounts = isCombo ? getRemainingLegAmounts(Math.max(leftoverForBill, 0)) : null;
     const billLegs = (isCombo && leftoverForBill > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
@@ -1159,15 +1164,16 @@
     // Pre-scan the leg/leftover checks first so we know whether a "fix the amount" error
     // will already fire below — if so, skip the "enter the fee" reminder entirely rather
     // than stacking an unrelated nudge on top of a blocking error. Also skip it whenever
-    // "Kept as service fee/charge" is checked — that box hides the main Service Fee field
-    // and stands in for it, so an empty Service Fee field isn't actually missing anything.
+    // "Kept as service fee/charge" is checked and there's money left for it — that box hides
+    // the main Service Fee field and stands in for it, so an empty Service Fee field isn't
+    // actually missing anything. With nothing left the box is hidden and its tick means nothing.
     let skipFeeReminder = false;
-    if(isCombo && legAmounts && legAmounts.keptChecked){
+    if(isCombo && leftoverForBill > 0 && legAmounts.keptChecked){
       skipFeeReminder = true;
     }
     if(!skipFeeReminder && !amountMissing && isCombo && legs && legs.length > 0){
       const legsSumPre = legs.reduce((a,l)=>a+l.amount, 0);
-      const leftoverPre = (amount + cashAmount) - legsSumPre;
+      const leftoverPre = +((amount + cashAmount) - legsSumPre).toFixed(2);
       const anyHandlingChecked = legAmounts.billChecked || legAmounts.custChecked || legAmounts.keptChecked;
       if(leftoverPre < 0){
         skipFeeReminder = true;
@@ -1204,7 +1210,7 @@
     }
     if(!amountMissing && isCombo && legs && legs.length > 0){
       const legsSumCheck = legs.reduce((a,l)=>a+l.amount, 0);
-      const leftoverCheck = (amount + cashAmount) - legsSumCheck;
+      const leftoverCheck = +((amount + cashAmount) - legsSumCheck).toFixed(2);
       if(leftoverCheck < 0){
         const overAmt = fmt(Math.abs(leftoverCheck));
         errors.push({ msg: `Transfers exceed available funds for this transaction by ${overAmt}. This transaction results to a LOSS of ${overAmt} after closure for the day. Kindly rectify with customer, ASAP!`, cls: 'error' });
@@ -1229,7 +1235,7 @@
     const netProfit = customerFee - total;
     const allLegsSameBank = isCombo && legs.length > 0 && legs.every(l => l.sameBank);
     const legsSum = isCombo ? legs.reduce((a,l)=>a+l.amount, 0) : 0;
-    const leftover = isCombo ? (amount + cashAmount) - legsSum : 0;
+    const leftover = isCombo ? +((amount + cashAmount) - legsSum).toFixed(2) : 0;
     const cashGivenAmount = billWd.on ? (billWd.given > 0 ? billWd.given : null) : (isCombo && leftover > 0 && legAmounts.custChecked) ? legAmounts.given : null;
     const billPayments = billWd.on ? billWd.bills : (isCombo && leftover > 0 && legAmounts.billChecked) ? legAmounts.billPayments.filter(b=>b.amount > 0) : [];
     const keptFeeAmount = billWd.keptChecked ? billWd.kept : (isCombo && leftover > 0 && legAmounts.keptChecked) ? legAmounts.kept : null;
@@ -2227,7 +2233,7 @@
       const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
       const cash = t.cashAmount || 0;
       const pool = t.amount + cash;
-      const leftover = pool - sentTotal;
+      const leftover = +(pool - sentTotal).toFixed(2);
       const cashPart = cash > 0 ? ` + ${f(cash)} cash brought in` : '';
       const leftoverPart = (() => {
         if(leftover <= 0) return '';
@@ -2263,7 +2269,7 @@
     if(t.type !== 'WithdrawTransfer' || !Array.isArray(t.transferAmounts) || t.transferAmounts.length === 0) return false;
     const sentTotal = t.transferAmounts.reduce((a,b)=>a+b, 0);
     const pool = t.amount + (t.cashAmount || 0);
-    return (pool - sentTotal) > 0;
+    return +(pool - sentTotal).toFixed(2) > 0;
   }
 
   function dateSeparatorLabel(dateObj){
