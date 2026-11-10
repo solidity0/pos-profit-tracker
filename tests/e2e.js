@@ -1173,6 +1173,153 @@ function sideAware(p){
   await loginCard.c.close();
   const linkErrs = lk.errs.slice();
   await LINK.c.close();
+  // ---------- Withdraw+Transfer, every part of the form ----------
+  const setSetting = (sel, val) => op.evaluate(([s, v]) => { const e = document.querySelector(s); if(e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event('change', { bubbles:true })); }, [sel, val]);
+  await setSetting('#mp_pct', '0.5'); await setSetting('#mp_flat', '100'); await setSetting('#mp_threshold', '20000'); await setSetting('#mp_transfer', '20'); await setSetting('#mp_vatRate', '7.5');
+  await setSetting('#stampFlat', '50'); await setSetting('#stampThreshold', '10000'); await setSetting('#billFee', '0'); await setSetting('#bettingFee', '0');
+  await setSetting('#autosaveEnabled', true); await setSetting('#autosaveFlat', '50'); await setSetting('#stampOnWithdrawal', false);
+  await op.click('#providerSeg button[data-val="Moniepoint"]');
+  const legInput = n => `#transferAmountsGrid .field:nth-child(${n}) .transfer-amount-input`;
+  const legSame = n => `#transferAmountsGrid .field:nth-child(${n}) .samebank-check`;
+  const deducted = () => op.textContent('#machineTotal');
+  const remainingText = () => op.textContent('#runningTotalVal');
+  const logCombo = text => op.locator(`#logList .log-item:has-text("${text}")`).first();
+  const flat = async loc => (await loc.textContent()).replace(/\s+/g,' ');
+  const statusText = () => op.textContent('#status');
+  const openCombo = async () => { await op.click('#typeSeg button[data-val="WithdrawTransfer"]'); await op.waitForSelector(legInput(1), { state:'visible' }); };
+  const clearCombo = async () => { await op.click('#typeSeg button[data-val="Withdrawal"]'); await op.fill('#amount', ''); await op.fill('#customerFee', ''); await op.click('#typeSeg button[data-val="WithdrawTransfer"]'); };
+
+  // The entry from the screenshots: 6,900 + 7,000 cash, two transfers, a 3,500 bill, 400 kept.
+  await openCombo();
+  await op.fill('#amount', '6900');
+  await op.fill(legInput(1), '5000'); await op.fill(legInput(2), '5000');
+  check('6,900 withdrawn with 10,000 to send is 3,100 over', /3,100 over/.test(await remainingText()), await remainingText());
+  await op.click('#addBtn');
+  check('...and it will not save', /exceed available funds/.test(await statusText()), await statusText());
+  await op.click('#addCashBtn'); await op.fill('#cashAmount', '7000');
+  check('7,000 cash brought in leaves 3,900', /3,900/.test(await remainingText()), await remainingText());
+  await op.click('#addBtn');
+  check('the 3,900 has to be explained before saving', /Select if ₦3,900/.test(await statusText()), await statusText());
+  await op.check('#remainingHandlingBillCheck');
+  await op.click('#comboBillerSeg button[data-val="Airtime/Data"]');
+  await op.fill('#comboBillerAmounts input[data-biller="Airtime/Data"]', '3500');
+  check('the bill leaves 400', /₦400/.test(await remainingText()), await remainingText());
+  await op.click('#addBtn');
+  check('the last 400 has to be explained too', /₦400 is still unallocated/.test(await statusText()), await statusText());
+  await op.check('#remainingHandlingBalanceCheck');
+  check('ticking kept takes the 400', /Kept ₦400/.test(await op.textContent('#remainingHandlingBalanceLabel')) && /fully allocated/.test(await remainingText()), await op.textContent('#remainingHandlingBalanceLabel'));
+  check('kept stands in for the service fee box', !(await op.isVisible('#customerFee')));
+  check('the charges match the terminal: 34.50 + 40 + 3 VAT + 200 auto-save', (await deducted()) === '₦277.5', await deducted());
+  check('the breakdown lists every part', /withdrawal fee ₦34\.5 \+ 2 transfer fees ₦40 · VAT ₦3 · stamp duty ₦0 · autosave ₦200/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+  await op.click('#addBtn');
+  const shot = logCombo('withdrew ₦6,900');
+  check('it saves with the full story', await until(async()=> /withdrew ₦6,900 \+ ₦7,000 cash brought in \+ sent ₦5,000 \+ ₦5,000 \(2 transfers\) \+ paid ₦3,500 Airtime\/Data payment \+ ₦400 kept as service fee\/charge/.test(await flat(shot))), await flat(shot).catch(()=>''));
+  check('the profit is the 400 kept less the charges', /122\.5/.test(await flat(shot)), await flat(shot).catch(()=>''));
+  // Nothing from that entry carries into the next one.
+  check('the form is clear afterwards', (await op.inputValue('#amount')) === '' && (await op.inputValue(legInput(1))) === '' && !(await op.isVisible('#cashField')) && !(await op.isVisible('#remainingHandlingGroup')) && (await op.isVisible('#customerFee')));
+  await op.fill('#amount', '1000'); await op.fill(legInput(1), '500');
+  check('and no tick or bill survives', !(await op.isChecked('#remainingHandlingBillCheck')) && !(await op.isChecked('#remainingHandlingBalanceCheck')) && (await op.$$eval('#comboBillerSeg button.active', e => e.length)) === 0 && (await op.inputValue('#customerFee')) === '');
+  await clearCombo(); await op.fill(legInput(1), '');
+
+  // Changing a figure after ticking updates everything.
+  await op.fill('#amount', '10000'); await op.fill(legInput(1), '8000');
+  await op.check('#remainingHandlingBalanceCheck');
+  check('kept follows the amount', /Kept ₦2,000/.test(await op.textContent('#remainingHandlingBalanceLabel')), await op.textContent('#remainingHandlingBalanceLabel'));
+  await op.fill(legInput(1), '9000');
+  check('...when a transfer changes', /Kept ₦1,000/.test(await op.textContent('#remainingHandlingBalanceLabel')), await op.textContent('#remainingHandlingBalanceLabel'));
+  await op.fill(legInput(1), '10000');
+  check('a transfer that uses it all brings the service fee box back', await op.isVisible('#customerFee') && !(await op.isVisible('#remainingHandlingGroup')));
+  await op.click('#addBtn');
+  check('...and asks for the fee', /Enter the fee/.test(await statusText()), await statusText());
+  await op.fill(legInput(1), '9500');
+  check('money left again shows kept still ticked', /Kept ₦500/.test(await op.textContent('#remainingHandlingBalanceLabel')), await op.textContent('#remainingHandlingBalanceLabel'));
+  await op.uncheck('#remainingHandlingBalanceCheck');
+
+  // Cash and bill boxes.
+  await op.check('#remainingHandlingCustomerCheck'); await op.fill('#cashGivenAmount', '200');
+  check('cash given counts down', /₦300/.test(await remainingText()), await remainingText());
+  await op.fill('#cashGivenAmount', '800');
+  check('too much cash given shows over', /300 over/.test(await remainingText()), await remainingText());
+  await op.click('#addBtn');
+  check('...and will not save', /exceed the ₦500 remaining/.test(await statusText()), await statusText());
+  await op.fill('#cashGivenAmount', '500');
+  await op.fill('#customerFee', '100');
+  await op.click('#addBtn');
+  const given = logCombo('gave ₦500 cash to customer');
+  check('cash given saves, with the service fee as the charge', await until(async()=> /charged ₦100/.test(await flat(given))), await flat(given).catch(()=>''));
+
+  // Several bills, each with its own fee and auto-save.
+  await setSetting('#billFee', '10'); await setSetting('#bettingFee', '25');
+  await op.fill('#amount', '5000'); await op.fill(legInput(1), '1000');
+  await op.check('#remainingHandlingBillCheck');
+  await op.click('#comboBillerSeg button[data-val="DSTV"]'); await op.click('#comboBillerSeg button[data-val="Betting"]');
+  await op.fill('#comboBillerAmounts input[data-biller="DSTV"]', '3000'); await op.fill('#comboBillerAmounts input[data-biller="Betting"]', '1000');
+  check('each bill adds its own fee and auto-save', /\+ bill fee ₦35/.test(await op.textContent('#machineBreakdown')) && /autosave ₦200/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+  await op.click('#comboBillerSeg button[data-val="Betting"]');
+  check('deselecting a bill takes it off', /\+ bill fee ₦10/.test(await op.textContent('#machineBreakdown')) && /₦1,000/.test(await remainingText()), await op.textContent('#machineBreakdown'));
+  await op.uncheck('#remainingHandlingBillCheck');
+  check('unticking bills takes them all off', !/bill fee/.test(await op.textContent('#machineBreakdown')) && /₦4,000/.test(await remainingText()), await remainingText());
+  await setSetting('#billFee', '0'); await setSetting('#bettingFee', '0');
+
+  // Same bank.
+  await op.fill('#amount', '10000'); await op.fill(legInput(1), '4000'); await op.fill(legInput(2), '6000');
+  const paidBoth = await deducted();
+  await op.check(legSame(1));
+  check('one same-bank transfer drops only its own fee', (await deducted()) !== paidBoth && /1?2? ?transfer fees ₦20/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+  await op.uncheck(legSame(1));
+  await op.check('#overrideFee');
+  check('all same bank ticks every transfer', await op.isChecked(legSame(1)) && await op.isChecked(legSame(2)) && /transfer fees ₦0/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+  await op.click('#addTransferBtn');
+  check('a transfer added afterwards is same bank too', await op.isChecked(legSame(3)), String(await op.isChecked(legSame(3))));
+  await op.uncheck(legSame(1));
+  check('unticking one transfer unticks all same bank', !(await op.isChecked('#overrideFee')));
+  await op.check(legSame(1));
+  check('ticking them all ticks it again', await op.isChecked('#overrideFee') === (await op.isChecked(legSame(3)) && await op.isChecked(legSame(4))));
+  await clearCombo();
+
+  // More transfers, and stamp duty.
+  await op.fill('#amount', '30000'); await op.fill(legInput(1), '10000');
+  check('stamp duty applies from the threshold', /stamp duty ₦50/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+  await op.fill(legInput(1), '9999');
+  check('...and not below it', /stamp duty ₦0/.test(await op.textContent('#machineBreakdown')), await op.textContent('#machineBreakdown'));
+  await op.click('#addTransferBtn'); await op.fill(legInput(3), '12000'); await op.fill(legInput(4), '8001');
+  check('four transfers count', /4 transfer|3 transfer fees/.test(await op.textContent('#machineBreakdown')) && /fully allocated/.test(await remainingText()), await op.textContent('#machineBreakdown'));
+  await op.click('#transferAmountsGrid .field:nth-child(4) [data-remove]');
+  check('removing a transfer gives its money back', /8,001/.test(await remainingText()), await remainingText());
+  await clearCombo();
+
+  // Provider and the other forms.
+  await op.fill('#amount', '6900'); await op.fill(legInput(1), '5000');
+  const mpCost = await deducted();
+  await op.click('#providerSeg button[data-val="Opay"]');
+  check('OPay has no auto-save and its own rates', !/autosave/.test(await op.textContent('#machineBreakdown')) && (await deducted()) !== mpCost, await op.textContent('#machineBreakdown'));
+  await op.click('#providerSeg button[data-val="Moniepoint"]');
+  check('back on Moniepoint the charge returns', (await deducted()) === mpCost, await deducted());
+  await op.fill(legInput(1), '');
+  await op.click('#typeSeg button[data-val="Transfer"]');
+  check('other forms hide the transfer section', !(await op.isVisible(legInput(1))) && !(await op.isVisible('#remainingHandlingGroup')));
+  await op.fill('#amount', ''); await op.click('#typeSeg button[data-val="WithdrawTransfer"]');
+
+  // Kobo mustn't leave a stray remainder.
+  await op.fill('#amount', '1000.10'); await op.fill(legInput(1), '800.20'); await op.fill(legInput(2), '199.90');
+  check('kobo adds up to fully allocated', /fully allocated/.test(await remainingText()), await remainingText());
+  await op.fill('#customerFee', '100');
+  await op.click('#addBtn');
+  const kobo = logCombo('withdrew ₦1,000.1');
+  check('...and saves', await until(async()=> await kobo.count() > 0), await statusText());
+  await op.fill(legInput(1), ''); await op.fill(legInput(2), ''); await clearCombo();
+
+  // Missing pieces.
+  await op.click('#addCashBtn'); await op.fill('#cashAmount', '5000'); await op.fill(legInput(1), '5000');
+  await op.click('#addBtn');
+  check('no withdrawal amount is asked for', /Enter amount withdrawn/.test(await statusText()), await statusText());
+  await op.fill(legInput(1), ''); await op.click('#cashRemoveBtn');
+  await op.fill('#amount', '5000');
+  await op.click('#addBtn');
+  check('no transfer points to Bills', /No transfer\?/.test(await statusText()), await statusText());
+  await op.fill('#amount', '');
+
+  await op.click('#typeSeg button[data-val="Withdrawal"]');
   const errs = [...op.errs, ...sp.errs, ...xp.errs, ...linkErrs, ...verifyErrs];
   check('no page errors', errs.length === 0, errs.join(' | ').slice(0,400));
   console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
