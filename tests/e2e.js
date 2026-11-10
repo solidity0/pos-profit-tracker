@@ -188,6 +188,28 @@ function sideAware(p){
   check('...it opens full screen with a Back button', await until(()=> op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full'))) && await op.isVisible('#activityBackBtn'));
   check('...listing the team: Test Staff online now, with a last sign-in time', await until(async()=> /Test Staff[\s\S]*Online now[\s\S]*Last sign-in: /.test(await op.textContent('#activityTeam')), 10000), (await op.textContent('#activityTeam')).replace(/\s+/g, ' '));
   check('...and recent activity: their sign-in, the delete (with what it was) and the restore', await until(async()=> { const t = await op.textContent('#activityList'); return /Test Staff signed in/.test(t) && /Test Staff deleted a transaction/.test(t) && /logged by Test Staff/.test(t) && /restored a transaction/.test(t); }, 10000), (await op.textContent('#activityList')).replace(/\s+/g, ' ').slice(0, 300));
+  // The Recent activity date filter, including a period older than the 7 days loaded for Team.
+  const oldAt = new Date(Date.now() - 20 * 86400e3);
+  await emu.adminWrite('businesses/0xxeZTLlaAeTzTgpezc58hwDxXp2/activity/old-delete', { type:{ stringValue:'delete' }, uid:{ stringValue:'0xxeZTLlaAeTzTgpezc58hwDxXp2' }, at:{ timestampValue: oldAt.toISOString() }, detail:{ stringValue:'Withdrawal from three weeks ago' } });
+  const actList = () => op.textContent('#activityList');
+  check('Recent activity starts on the last 7 days', (await op.textContent('#activitySub')) === 'last 7 days' && await op.isVisible('#activityRange') && !/three weeks ago/.test(await actList()));
+  await op.click('#activityRange button[data-val="today"]');
+  check('Today shows what happened today', (await op.textContent('#activitySub')) === 'today' && /signed in/.test(await actList()), await actList());
+  await op.click('#activityRange button[data-val="yesterday"]');
+  check('Yesterday has nothing in these tests', await until(async()=> /Nothing in this period/.test(await actList())), await actList());
+  await op.click('#activityRange button[data-val="30d"]');
+  check('30 days reaches the older delete', await until(async()=> /Withdrawal from three weeks ago/.test(await actList())) && /signed in/.test(await actList()), await actList());
+  await op.click('#activityRange button[data-val="custom"]');
+  check('Custom opens two dates, set to the last 7 days', await op.isVisible('#activityFrom') && (await op.inputValue('#activityFrom')) !== '' && (await op.inputValue('#activityTo')) !== '');
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  await op.fill('#activityFrom', ymd(oldAt)); await op.fill('#activityTo', ymd(oldAt));
+  check('a custom day shows only that day', await until(async()=> /Withdrawal from three weeks ago/.test(await actList()) && !/signed in/.test(await actList())), await actList());
+  check('...and says which day', (await op.textContent('#activitySub')) === new Intl.DateTimeFormat('en-NG', {day:'numeric', month:'short', year:'numeric'}).format(oldAt), await op.textContent('#activitySub'));
+  await op.fill('#activityFrom', ymd(new Date())); await op.fill('#activityTo', ymd(oldAt));
+  check('dates entered the wrong way round still work', await until(async()=> /three weeks ago/.test(await actList()) && /signed in/.test(await actList())), await actList());
+  check('...and the Team list still shows the last sign-in', /Last sign-in: /.test(await op.textContent('#activityTeam')));
+  await op.click('#activityRange button[data-val="7d"]');
+  check('back to 7 days, the dates hide and the old delete goes', !(await op.isVisible('#activityFrom')) && !/three weeks ago/.test(await actList()) && /signed in/.test(await actList()));
   await op.click('#activityBackBtn');
   check('...and Back returns to the menu', await until(async()=> !(await op.evaluate(()=> document.getElementById('activityCard').classList.contains('tips-full')))) && await op.isVisible('#sideDrawer'));
   await op.click('#sideCloseBtn'); await until(async()=> !(await op.isVisible('#sideDrawer')));
